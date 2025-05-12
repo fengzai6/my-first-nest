@@ -14,5 +14,15 @@ export class AuthGuard implements CanActivate {
 function validateRequest(
   request: any,
 ): boolean | Promise<boolean> | Observable<boolean> {
+  console.log('request:', request);
+
+  request.user = {
+    id: 1,
+    name: 'admin',
+    roles: ['admin'],
+  };
+
+  return true;
+
   throw new Error('Function not implemented.');
 }

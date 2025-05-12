@@ -7,20 +7,20 @@ import {
   Param,
   ParseIntPipe,
   Post,
-  SetMetadata,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
+import { AuthGuard } from 'src/common/guards/auth.guard';
+import { Roles } from 'src/common/guards/roles.decorator';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { LoggingInterceptor } from 'src/common/interceptors/logging.interceptor';
 import { CatsService } from './cats.service';
 import { CreateCatDto } from './dto/create-cat.dto';
 import { Cat } from './interfaces/cat.interface';
-import { Roles } from 'src/common/guards/roles.decorator';
 
 @Controller('cats')
-@UseGuards(RolesGuard)
+@UseGuards(AuthGuard, RolesGuard)
 @UseInterceptors(LoggingInterceptor)
 export class CatsController {
   constructor(private catsService: CatsService) {}
