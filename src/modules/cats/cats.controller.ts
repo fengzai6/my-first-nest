@@ -6,22 +6,22 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 import { AuthGuard } from 'src/common/guards/auth.guard';
-import { Roles } from 'src/common/guards/roles.decorator';
+import { Roles, RolesEnum } from 'src/common/guards/roles.decorator';
 import { RolesGuard } from 'src/common/guards/roles.guard';
-import { LoggingInterceptor } from 'src/common/interceptors/logging.interceptor';
 import { CatsService } from './cats.service';
 import { CreateCatDto } from './dto/create-cat.dto';
+import { UpdateCatDto } from './dto/update-cat.dto';
 import { Cat } from './interfaces/cat.interface';
 
 @Controller('cats')
 @UseGuards(AuthGuard, RolesGuard)
-@UseInterceptors(LoggingInterceptor)
+// @UseInterceptors(LoggingInterceptor)
 export class CatsController {
   constructor(private catsService: CatsService) {}
 
@@ -32,11 +32,16 @@ export class CatsController {
   @ApiOperation({
     summary: 'Create a new cat',
   })
-  @Roles(['admin'])
+  @Roles([RolesEnum.Admin])
   create(@Body() createCatDto: CreateCatDto) {
     console.log(createCatDto);
 
     this.catsService.create(createCatDto);
+  }
+
+  @Patch('owner/:id')
+  updateOwner(@Param('id') id: number, @Body() updateCatDto: UpdateCatDto) {
+    return this.catsService.updateOwner(id, updateCatDto);
   }
 
   @Get()

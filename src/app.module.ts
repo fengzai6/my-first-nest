@@ -19,6 +19,7 @@ import { UsersModule } from './modules/users/users.module';
       url: process.env.DATABASE_URL,
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true,
+      autoLoadEntities: true,
       ssl: false,
     }),
   ],
