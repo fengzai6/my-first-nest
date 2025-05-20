@@ -9,7 +9,7 @@ import { UpdateCatDto } from './dto/update-cat.dto';
 @Injectable()
 export class CatsService {
   constructor(
-    private usersService: UsersService,
+    private readonly usersService: UsersService,
     @InjectRepository(Cat) private catRepository: Repository<Cat>,
   ) {}
 

@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './user.entity';
 
@@ -11,12 +10,12 @@ export class UsersService {
     @InjectRepository(User) private userRepository: Repository<User>,
   ) {}
 
-  create(createUserDto: CreateUserDto) {
-    const user = this.userRepository.create(createUserDto);
+  create(user: Partial<User>) {
+    const newUser = this.userRepository.create(user);
 
     console.log('user', user);
 
-    return this.userRepository.save(user);
+    return this.userRepository.save(newUser);
   }
 
   findAll(): Promise<User[]> {

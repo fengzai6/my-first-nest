@@ -1,17 +1,9 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { BaseEntity } from 'src/shared/entity/base.entity';
+import { Column, Entity, ManyToOne } from 'typeorm';
 import { User } from '../users/user.entity';
 
 @Entity()
-export class Cat {
-  @PrimaryGeneratedColumn()
-  id: number;
-
+export class Cat extends BaseEntity {
   @Column()
   name: string;
 

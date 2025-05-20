@@ -1,27 +1,20 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { logger } from './common/middleware/logger.middleware';
+import { AppConfigModule } from './config/config.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { CatsModule } from './modules/cats/cats.module';
 import { UsersModule } from './modules/users/users.module';
+import { DatabaseModule } from './shared/database/database.module';
 
 @Module({
   imports: [
+    AppConfigModule,
+    DatabaseModule,
     UsersModule,
     CatsModule,
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      url: process.env.DATABASE_URL,
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: true,
-      autoLoadEntities: true,
-      ssl: false,
-    }),
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
