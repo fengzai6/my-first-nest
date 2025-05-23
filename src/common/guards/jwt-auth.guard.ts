@@ -1,0 +1,36 @@
+import { User } from '@/modules/users/user.entity';
+import { ExecutionContext, Injectable } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { AuthGuard } from '@nestjs/passport';
+import { Observable } from 'rxjs';
+import { JWT_META_KEY, JwtMetaEnum } from '../decorators/jwt-auth.decorator';
+
+@Injectable()
+export class JwtAuthGuard extends AuthGuard('jwt') {
+  constructor(private reflector: Reflector) {
+    super();
+  }
+
+  canActivate(
+    context: ExecutionContext,
+  ): boolean | Promise<boolean> | Observable<boolean> {
+    const jwtMeta = this.reflector.get(JWT_META_KEY, context.getHandler());
+
+    if (jwtMeta === JwtMetaEnum.PUBLIC) {
+      return true;
+    }
+
+    return super.canActivate(context);
+  }
+
+  handleRequest<TUser = User>(
+    err: any,
+    user: any,
+    info: any,
+    context: ExecutionContext,
+    status?: any,
+  ): TUser {
+    console.log('user:', user);
+    return user;
+  }
+}

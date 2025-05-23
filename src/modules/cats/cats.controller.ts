@@ -1,3 +1,4 @@
+import { Roles, RolesEnum } from '@/common/decorators/roles.decorator';
 import {
   Body,
   Controller,
@@ -10,9 +11,8 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthGuard } from 'src/common/guards/auth.guard';
-import { Roles, RolesEnum } from 'src/common/guards/roles.decorator';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { CatsService } from './cats.service';
 import { CreateCatDto } from './dto/create-cat.dto';
@@ -25,25 +25,28 @@ import { Cat } from './interfaces/cat.interface';
 export class CatsController {
   constructor(private catsService: CatsService) {}
 
-  @Post()
   // @HttpCode(200)
   // @Header('Cache-Control', 'none')
   // @Roles(['admin'])
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Create a new cat',
   })
   @Roles([RolesEnum.Admin])
+  @Post()
   create(@Body() createCatDto: CreateCatDto) {
     console.log(createCatDto);
 
     this.catsService.create(createCatDto);
   }
 
+  @ApiBearerAuth()
   @Patch('owner/:id')
   updateOwner(@Param('id') id: number, @Body() updateCatDto: UpdateCatDto) {
     return this.catsService.updateOwner(id, updateCatDto);
   }
 
+  @ApiBearerAuth()
   @Get()
   async findAll(): Promise<Cat[]> {
     try {
@@ -80,6 +83,7 @@ export class CatsController {
   //   return this.catsService.findOne(id);
   // }
 
+  @ApiBearerAuth()
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     console.log(id);

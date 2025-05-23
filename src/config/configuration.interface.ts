@@ -1,15 +1,9 @@
 import { JwtModuleOptions } from '@nestjs/jwt';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
-// export enum Config {
-//   SERVER = 'server',
-//   SWAGGER = 'swagger',
-//   DATABASE = 'database',
-//   JWT = 'jwt',
-// }
-
 export interface ServerConfig {
   port?: number;
+  apiPrefix?: string;
 }
 
 export interface SwaggerConfig {

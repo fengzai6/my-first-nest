@@ -35,6 +35,18 @@ export class UsersService {
     });
   }
 
+  /**
+   * @description 查找用户(包括密码)
+   * @param username - 用户名
+   * @returns 用户
+   */
+  find(username: string) {
+    return this.userRepository.findOne({
+      where: { username },
+      select: ['id', 'username', 'email', 'password', 'roles'],
+    });
+  }
+
   async update(id: number, updateUserDto: UpdateUserDto) {
     const user = await this.userRepository.findOne({
       where: { id },

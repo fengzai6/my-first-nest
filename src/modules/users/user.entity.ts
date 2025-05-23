@@ -1,4 +1,4 @@
-import { RolesEnum } from 'src/common/guards/roles.decorator';
+import { RolesEnum } from '@/common/decorators/roles.decorator';
 import { BaseEntity } from 'src/shared/entity/base.entity';
 import { Column, Entity, OneToMany } from 'typeorm';
 import { Cat } from '../cats/cat.entity';
@@ -6,7 +6,7 @@ import { Cat } from '../cats/cat.entity';
 @Entity()
 export class User extends BaseEntity {
   @Column()
-  name: string;
+  username: string;
 
   @Column()
   email: string;
@@ -20,7 +20,7 @@ export class User extends BaseEntity {
     nullable: true,
     type: 'simple-array',
   })
-  role: RolesEnum[];
+  roles: RolesEnum[];
 
   @OneToMany(() => Cat, (cat) => cat.owner)
   cats: Cat[];

@@ -8,12 +8,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
   imports: [
     TypeOrmModule.forRootAsync({
       imports: [AppConfigModule],
-      inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const { database } = getConfig(configService);
 
         return database;
       },
+      inject: [ConfigService],
     }),
   ],
 })

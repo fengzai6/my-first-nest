@@ -1,3 +1,4 @@
+import { RolesEnum } from '@/common/decorators/roles.decorator';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
@@ -7,7 +8,6 @@ import {
   IsString,
   Length,
 } from 'class-validator';
-import { RolesEnum } from 'src/common/guards/roles.decorator';
 
 export class SignupDto {
   @ApiProperty({
@@ -15,7 +15,7 @@ export class SignupDto {
     example: 'John Doe',
   })
   @IsString()
-  name: string;
+  username: string;
 
   @ApiProperty({
     description: 'The email of the user',

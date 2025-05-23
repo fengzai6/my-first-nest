@@ -1,31 +1,26 @@
-import { ConfigService, registerAs } from '@nestjs/config';
-import { AppConfig } from './configuration.interface';
+import { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { merge } from 'es-toolkit';
-import { defaultConfig } from './config.default';
-import { developmentConfig } from './env/config.development';
-import { productionConfig } from './env/config.production';
+import { AppConfig } from './configuration.interface';
 
-const envConfig =
-  process.env.NODE_ENV === 'production' ? productionConfig : developmentConfig;
+export const getConfig = (configService: ConfigService): AppConfig => {
+  // 获取默认配置
+  const defaultConf = configService.get('default');
 
-const mergeConfig = merge(defaultConfig, envConfig);
+  // 获取环境特定配置
+  const envConfig =
+    process.env.NODE_ENV === 'production'
+      ? configService.get('production')
+      : configService.get('development');
 
-console.log(mergeConfig);
+  // 合并配置
+  const mergedConfig = merge(defaultConf, envConfig);
 
-export const serverConfig = registerAs('server', () => mergeConfig.server);
+  return mergedConfig;
+};
 
-export const swaggerConfig = registerAs('swagger', () => mergeConfig.swagger);
+export const getAppConfig = (app: INestApplication) => {
+  const configService = app.get(ConfigService);
 
-export const jwtConfig = registerAs('jwt', () => mergeConfig.jwt);
-
-export const databaseConfig = registerAs(
-  'database',
-  () => mergeConfig.database,
-);
-
-export const getConfig = (configService: ConfigService): AppConfig => ({
-  server: configService.get('server'),
-  swagger: configService.get('swagger'),
-  jwt: configService.get('jwt'),
-  database: configService.get('database'),
-});
+  return getConfig(configService);
+};
