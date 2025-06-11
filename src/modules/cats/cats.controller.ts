@@ -1,3 +1,4 @@
+import { UserInfo } from '@/common/decorators/jwt-auth.decorator';
 import { Roles, RolesEnum } from '@/common/decorators/roles.decorator';
 import {
   Body,
@@ -12,15 +13,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { AuthGuard } from 'src/common/guards/auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
+import { User } from '../users/entities';
 import { CatsService } from './cats.service';
 import { CreateCatDto } from './dto/create-cat.dto';
 import { UpdateCatDto } from './dto/update-cat.dto';
 import { Cat } from './interfaces/cat.interface';
 
 @Controller('cats')
-@UseGuards(AuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 // @UseInterceptors(LoggingInterceptor)
 export class CatsController {
   constructor(private catsService: CatsService) {}
@@ -48,8 +49,9 @@ export class CatsController {
 
   @ApiBearerAuth()
   @Get()
-  async findAll(): Promise<Cat[]> {
+  async findAll(@UserInfo() user: User): Promise<Cat[]> {
     try {
+      console.log('user:', user);
       return this.catsService.findAll();
     } catch (error) {
       throw new HttpException(

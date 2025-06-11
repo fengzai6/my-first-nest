@@ -12,7 +12,7 @@ import {
 export class SignupDto {
   @ApiProperty({
     description: 'The name of the user',
-    example: 'John Doe',
+    example: 'xiaojian',
   })
   @IsString()
   username: string;
@@ -41,5 +41,5 @@ export class SignupDto {
   @IsArray()
   @IsEnum(RolesEnum, { each: true })
   @IsOptional()
-  role: RolesEnum[];
+  roles: RolesEnum[];
 }

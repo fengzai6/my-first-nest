@@ -7,10 +7,11 @@ export const developmentConfig = registerAs(
     database: {
       url: process.env.DATABASE_URL,
       synchronize: true,
+      // logging: true,
     },
     jwt: {
       signOptions: {
-        expiresIn: 10,
+        expiresIn: 60 * 60 * 24 * 30,
       },
     },
   }),

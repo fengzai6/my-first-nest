@@ -1,8 +1,8 @@
-import { BaseEntity } from 'src/shared/entity/base.entity';
+import { User } from '@/modules/users/entities';
+import { BaseEntity } from '@/shared/entity/base.entity';
 import { Column, Entity, ManyToOne } from 'typeorm';
-import { User } from '../users/user.entity';
 
-@Entity()
+@Entity('cats')
 export class Cat extends BaseEntity {
   @Column()
   name: string;
@@ -15,7 +15,7 @@ export class Cat extends BaseEntity {
 
   @ManyToOne(() => User, (user) => user.cats, {
     onDelete: 'SET NULL',
-    eager: true,
+    // eager: true,
   })
   // @JoinColumn({ name: 'ownerId' })
   owner: User;

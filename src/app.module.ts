@@ -7,6 +7,7 @@ import { logger } from './common/middleware/logger.middleware';
 import { AppConfigModule } from './config/config.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CatsModule } from './modules/cats/cats.module';
+import { GroupsModule } from './modules/groups/groups.module';
 import { UsersModule } from './modules/users/users.module';
 import { DatabaseModule } from './shared/database/database.module';
 
@@ -14,9 +15,10 @@ import { DatabaseModule } from './shared/database/database.module';
   imports: [
     AppConfigModule,
     DatabaseModule,
-    UsersModule,
-    CatsModule,
     AuthModule,
+    CatsModule,
+    GroupsModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [

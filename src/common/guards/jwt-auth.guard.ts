@@ -1,5 +1,10 @@
-import { User } from '@/modules/users/user.entity';
-import { ExecutionContext, Injectable } from '@nestjs/common';
+import { User } from '@/modules/users/entities';
+import {
+  ExecutionContext,
+  HttpException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { Observable } from 'rxjs';
@@ -30,7 +35,20 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     context: ExecutionContext,
     status?: any,
   ): TUser {
+    console.log('----------------JwtAuthGuard----------------');
+    console.log('err:', err);
     console.log('user:', user);
-    return user;
+    console.log('info:', info);
+    console.log('--------------------------------');
+
+    if (err instanceof HttpException) {
+      throw err;
+    }
+
+    if (info instanceof Error) {
+      throw new UnauthorizedException(info.message);
+    }
+
+    return user as TUser;
   }
 }

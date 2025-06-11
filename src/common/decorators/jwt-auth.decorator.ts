@@ -1,4 +1,9 @@
-import { SetMetadata } from '@nestjs/common';
+import {
+  createParamDecorator,
+  ExecutionContext,
+  SetMetadata,
+} from '@nestjs/common';
+import { Request } from 'express';
 
 /**
  * 访问权限的元数据的key
@@ -20,9 +25,9 @@ export const Public = () => SetMetadata(JWT_META_KEY, JwtMetaEnum.PUBLIC);
 /**
  * 获取JWT解密后注入的用户信息
  */
-// export const UserInfo = createParamDecorator(
-//   (_: unknown, ctx: ExecutionContext) => {
-//     const request = ctx.switchToHttp().getRequest<Request>();
-//     return request.user as JWTUserInfo;
-//   },
-// );
+export const UserInfo = createParamDecorator(
+  (_: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest<Request>();
+    return request.user;
+  },
+);

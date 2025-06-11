@@ -1,3 +1,4 @@
+import { matchRoles } from '@/shared/utils';
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Roles } from '../decorators/roles.decorator';
@@ -7,11 +8,11 @@ export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const roles = this.reflector.get(Roles, context.getHandler());
+    const requiredRoles = this.reflector.get(Roles, context.getHandler());
 
-    console.log('roles:', roles);
+    console.log('requiredRoles:', requiredRoles);
 
-    if (!roles) {
+    if (!requiredRoles) {
       return true;
     }
 
@@ -19,16 +20,12 @@ export class RolesGuard implements CanActivate {
 
     const user = request.user;
 
-    console.log('user:', user);
-
-    if (!user) {
+    if (!user || !user.roles) {
       return false;
     }
 
-    return matchRoles(roles, user.roles);
+    return matchRoles(requiredRoles, user.roles);
   }
-}
 
-function matchRoles(roles: string[], userRoles: string[]): boolean {
-  return roles.some((role) => userRoles.includes(role));
+  // 处理相关的 Exception
 }

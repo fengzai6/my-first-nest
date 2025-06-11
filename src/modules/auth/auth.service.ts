@@ -1,8 +1,8 @@
 import {
-  BadRequestException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+  AuthException,
+  AuthExceptionCode,
+} from '@/common/exceptions/auth.exception';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from 'argon2';
 import { UsersService } from '../users/users.service';
@@ -20,7 +20,7 @@ export class AuthService {
     const user = await this.usersService.find(signupDto.username);
 
     if (user) {
-      throw new BadRequestException('User already exists');
+      throw new AuthException(AuthExceptionCode.USER_ALREADY_EXISTS);
     }
 
     const hashedPassword = await hash(signupDto.password, {
@@ -41,13 +41,13 @@ export class AuthService {
     const user = await this.usersService.find(loginDto.username);
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new AuthException(AuthExceptionCode.USER_NOT_FOUND);
     }
 
     const isPasswordValid = await verify(user.password, loginDto.password);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid password');
+      throw new AuthException(AuthExceptionCode.INVALID_CREDENTIALS);
     }
 
     delete user.password;

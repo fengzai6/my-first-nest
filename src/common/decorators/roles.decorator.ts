@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 export enum RolesEnum {
   Admin = 'admin',
   User = 'user',
+  Developer = 'developer',
 }
 
 export const Roles = Reflector.createDecorator<RolesEnum[]>();
