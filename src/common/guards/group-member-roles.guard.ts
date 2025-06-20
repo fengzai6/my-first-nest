@@ -1,27 +1,94 @@
-import { matchRoles } from '@/shared/utils';
-import { CanActivate, ExecutionContext } from '@nestjs/common';
+import { Group, GroupMember } from '@/modules/groups/entities';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { GroupMemberRoles } from '../decorators/group-member-roles';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Request } from 'express';
+import { Repository } from 'typeorm';
+import {
+  GROUP_LEADER_OR_CREATOR_KEY,
+  GroupMemberRolesEnum,
+} from '../decorators/group-member-roles.decorator';
+import { SpecialRolesEnum } from '../decorators/special-roles.decorator';
 
-// 不太对劲。。。
-// export class GroupMemberRolesGuard implements CanActivate {
-//   constructor(private reflector: Reflector) {}
+// ai 生成还没改动
+@Injectable()
+export class GroupMemberRolesGuard implements CanActivate {
+  constructor(
+    private readonly reflector: Reflector,
+    @InjectRepository(Group)
+    private readonly groupRepository: Repository<Group>,
+    @InjectRepository(GroupMember)
+    private readonly groupMemberRepository: Repository<GroupMember>,
+  ) {}
 
-//   canActivate(context: ExecutionContext): boolean {
-//     const roles = this.reflector.get(GroupMemberRoles, context.getHandler());
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request: Request = context.switchToHttp().getRequest();
+    const user = request.user;
 
-//     if (!roles) {
-//       return true;
-//     }
+    if (!user) {
+      return false;
+    }
 
-//     const request = context.switchToHttp().getRequest();
+    // SuperAdmin has all permissions
+    if (user.specialRoles?.includes(SpecialRolesEnum.SuperAdmin)) {
+      return true;
+    }
 
-//     const user = request.user;
+    const isLeaderOrCreatorCheck = this.reflector.get<boolean>(
+      GROUP_LEADER_OR_CREATOR_KEY,
+      context.getHandler(),
+    );
 
-//     if (!user || !user.roles) {
-//       return false;
-//     }
+    // If the decorator is not applied, don't block
+    if (!isLeaderOrCreatorCheck) {
+      return true;
+    }
 
-//     return matchRoles(roles, user.roles);
-//   }
-// }
+    const groupId = Number(request.params.groupId);
+    if (!groupId) {
+      // This guard should only be used on routes with a groupId param
+      throw new Error(
+        'GroupMemberRolesGuard requires a "groupId" path parameter.',
+      );
+    }
+
+    const group = await this.groupRepository.findOne({
+      where: { id: groupId },
+      relations: ['leader', 'createdBy'],
+    });
+
+    if (!group) {
+      throw new NotFoundException('Group not found.');
+    }
+
+    // Check if the user is the leader or the creator of the group
+    const isLeader = group.leader?.id === user.id;
+    const isCreator = group.createdBy?.id === user.id;
+
+    if (isLeader || isCreator) {
+      return true;
+    }
+
+    // Check if the user is an admin member of the group
+    const membership = await this.groupMemberRepository.findOne({
+      where: {
+        group: { id: groupId },
+        user: { id: user.id },
+      },
+    });
+
+    if (membership?.role === GroupMemberRolesEnum.Admin) {
+      return true;
+    }
+
+    throw new ForbiddenException(
+      'You do not have permission to perform this action.',
+    );
+  }
+}

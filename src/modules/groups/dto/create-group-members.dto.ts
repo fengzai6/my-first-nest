@@ -1,4 +1,4 @@
-import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles';
+import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles.decorator';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsNumber, IsString } from 'class-validator';
 

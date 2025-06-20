@@ -1,4 +1,4 @@
-import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles';
+import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles.decorator';
 import {
   BadRequestException,
   Injectable,
@@ -13,6 +13,7 @@ import { AddGroupMembersDto } from './dto/create-group-members.dto';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { RemoveGroupMemberDto } from './dto/remove-group-member.dto';
 import { Group, GroupMember } from './entities';
+import { UpdateGroupDto } from './dto/update-group.dto';
 
 @Injectable()
 export class GroupsService {
@@ -23,6 +24,19 @@ export class GroupsService {
     private readonly groupMemberRepository: Repository<GroupMember>,
     private readonly usersService: UsersService,
   ) {}
+
+  async isGroupLeaderOrCreator(groupId: number, userId: number) {
+    const group = await this.groupRepository.findOne({
+      where: { id: groupId },
+      relations: ['leader', 'createdBy'],
+    });
+
+    if (!group) {
+      return false;
+    }
+
+    return group.leader.id === userId || group.createdBy.id === userId;
+  }
 
   async createGroup(createGroupDto: CreateGroupDto, currentUser: User) {
     const values = pick(createGroupDto, [
@@ -79,6 +93,11 @@ export class GroupsService {
     }
 
     return savedGroup;
+  }
+
+  async updateGroup(updateGroupDto: UpdateGroupDto) {
+    const { groupId, ...rest } = updateGroupDto;
+    // 更新 group，当更换 父级时，需要更新 organizationGroup
   }
 
   async addGroupMembers(

@@ -1,4 +1,4 @@
-import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles';
+import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles.decorator';
 import { User } from '@/modules/users/entities';
 import { BaseEntity } from '@/shared/entity/base.entity';
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
@@ -14,6 +14,10 @@ export class GroupMember extends BaseEntity {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ default: GroupMemberRolesEnum.Member })
+  @Column({
+    type: 'enum',
+    enum: GroupMemberRolesEnum,
+    default: GroupMemberRolesEnum.Member,
+  })
   role: GroupMemberRolesEnum;
 }
