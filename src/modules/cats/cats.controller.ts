@@ -1,5 +1,6 @@
+import { PermissionCode } from '@/common/constants';
 import { UserInfo } from '@/common/decorators/jwt-auth.decorator';
-import { Roles, RolesEnum } from '@/common/decorators/roles.decorator';
+import { Permission } from '@/common/decorators/permission.decorator';
 import {
   Body,
   Controller,
@@ -10,18 +11,15 @@ import {
   ParseIntPipe,
   Patch,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { RolesGuard } from 'src/common/guards/roles.guard';
-import { User } from '../users/entities';
+import { User } from '../users/entities/user.entity';
 import { CatsService } from './cats.service';
 import { CreateCatDto } from './dto/create-cat.dto';
 import { UpdateCatDto } from './dto/update-cat.dto';
 import { Cat } from './interfaces/cat.interface';
 
 @Controller('cats')
-@UseGuards(RolesGuard)
 // @UseInterceptors(LoggingInterceptor)
 export class CatsController {
   constructor(private catsService: CatsService) {}
@@ -29,11 +27,11 @@ export class CatsController {
   // @HttpCode(200)
   // @Header('Cache-Control', 'none')
   // @Roles(['admin'])
+  @Permission(PermissionCode.CAT_CREATE)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Create a new cat',
   })
-  @Roles([RolesEnum.Admin])
   @Post()
   create(@Body() createCatDto: CreateCatDto) {
     console.log(createCatDto);
@@ -41,12 +39,14 @@ export class CatsController {
     this.catsService.create(createCatDto);
   }
 
+  @Permission(PermissionCode.CAT_UPDATE)
   @ApiBearerAuth()
   @Patch('owner/:id')
   updateOwner(@Param('id') id: number, @Body() updateCatDto: UpdateCatDto) {
     return this.catsService.updateOwner(id, updateCatDto);
   }
 
+  @Permission(PermissionCode.CAT_READ)
   @ApiBearerAuth()
   @Get()
   async findAll(@UserInfo() user: User): Promise<Cat[]> {
@@ -85,6 +85,7 @@ export class CatsController {
   //   return this.catsService.findOne(id);
   // }
 
+  @Permission(PermissionCode.CAT_READ)
   @ApiBearerAuth()
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {

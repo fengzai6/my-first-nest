@@ -3,6 +3,7 @@ import { getConfig } from '@/config/configuration';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { RolesModule } from '../roles/roles.module';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -11,6 +12,7 @@ import { JwtAuthStrategy } from './strategies/jwt-auth.strategy';
 @Module({
   imports: [
     UsersModule,
+    RolesModule,
     JwtModule.registerAsync({
       imports: [AppConfigModule],
       useFactory: (configService: ConfigService) => {

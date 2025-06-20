@@ -8,12 +8,14 @@ import { hash, verify } from 'argon2';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
+import { RolesService } from '../roles/roles.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly rolesService: RolesService,
   ) {}
 
   async signup(signupDto: SignupDto) {
@@ -27,9 +29,12 @@ export class AuthService {
       timeCost: 5,
     });
 
+    const roles = await this.rolesService.findByCodes(signupDto.roles);
+
     const newUser = await this.usersService.create({
       ...signupDto,
       password: hashedPassword,
+      roles,
     });
 
     delete newUser.password;

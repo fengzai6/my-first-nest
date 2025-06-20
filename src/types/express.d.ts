@@ -1,6 +1,7 @@
 import { User } from '@/modules/users/entities';
+import 'express';
 
-declare namespace Express {
+declare module 'express' {
   interface Request {
     user?: User;
   }

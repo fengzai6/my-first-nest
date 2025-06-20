@@ -1,19 +1,30 @@
 import {
   CreateDateColumn,
-  JoinColumn,
+  DeleteDateColumn,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
-export class BaseEntity {
+/**
+ * 基础实体类
+ * 抽象类，不能实例化，只能被继承
+ */
+export abstract class BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
   @CreateDateColumn()
-  @JoinColumn({ name: 'created_at' })
   createdAt: Date;
 
   @UpdateDateColumn()
-  @JoinColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  // 软删除
+  @DeleteDateColumn()
+  deletedAt: Date;
+  // Or
+  // @Column({
+  //   default: false,
+  // })
+  // isDeleted: boolean;
 }

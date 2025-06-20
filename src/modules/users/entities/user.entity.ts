@@ -1,8 +1,9 @@
-import { RolesEnum } from '@/common/decorators/roles.decorator';
+import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
 import { Cat } from '@/modules/cats/entities';
 import { GroupMember } from '@/modules/groups/entities';
-import { BaseEntity } from 'src/shared/entity/base.entity';
-import { Column, Entity, OneToMany } from 'typeorm';
+import { Role } from '@/modules/roles/entities';
+import { BaseEntity } from '@/shared/entity/base.entity';
+import { Column, Entity, JoinTable, ManyToMany, OneToMany } from 'typeorm';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -13,6 +14,7 @@ export class User extends BaseEntity {
 
   @Column({
     unique: true,
+    nullable: true,
   })
   email: string;
 
@@ -25,11 +27,29 @@ export class User extends BaseEntity {
     nullable: true,
     type: 'simple-array',
   })
-  roles: RolesEnum[];
+  specialRoles: SpecialRolesEnum[];
+
+  @Column({
+    default: true,
+  })
+  isActive: boolean;
 
   /**
-   * 关联表
+   * 关联
    */
+  @ManyToMany(() => Role, (role) => role.users)
+  @JoinTable({
+    name: 'user_roles',
+    joinColumn: {
+      name: 'user_id',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'role_id',
+      referencedColumnName: 'id',
+    },
+  })
+  roles: Role[];
 
   @OneToMany(() => Cat, (cat) => cat.owner)
   cats: Cat[];

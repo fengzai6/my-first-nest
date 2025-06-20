@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { RolesService } from '../roles/roles.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities';
 
@@ -8,6 +9,7 @@ import { User } from './entities';
 export class UsersService {
   constructor(
     @InjectRepository(User) private userRepository: Repository<User>,
+    private readonly rolesService: RolesService,
   ) {}
 
   create(user: Partial<User>) {
@@ -31,6 +33,7 @@ export class UsersService {
       where: { id },
       relations: {
         cats: true,
+        roles: true,
       },
     });
   }
@@ -56,12 +59,17 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    const updatedUser = this.userRepository.merge(user, updateUserDto);
+    const roles = await this.rolesService.findByCodes(updateUserDto.roles);
+
+    const updatedUser = this.userRepository.merge(user, {
+      ...updateUserDto,
+      roles,
+    });
 
     return this.userRepository.save(updatedUser);
   }
 
   remove(id: number) {
-    return this.userRepository.delete(id);
+    return this.userRepository.softDelete(id);
   }
 }

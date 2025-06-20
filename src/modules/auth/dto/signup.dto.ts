@@ -1,13 +1,6 @@
-import { RolesEnum } from '@/common/decorators/roles.decorator';
+import { RoleCode } from '@/common/constants';
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsArray,
-  IsEmail,
-  IsEnum,
-  IsOptional,
-  IsString,
-  Length,
-} from 'class-validator';
+import { IsArray, IsEmail, IsString, Length } from 'class-validator';
 
 export class SignupDto {
   @ApiProperty({
@@ -35,11 +28,10 @@ export class SignupDto {
   password: string;
 
   @ApiProperty({
-    description: 'The role of the user',
-    example: [RolesEnum.User],
+    description: '用户角色code列表',
+    example: [RoleCode.ADMIN],
   })
   @IsArray()
-  @IsEnum(RolesEnum, { each: true })
-  @IsOptional()
-  roles: RolesEnum[];
+  @IsString({ each: true })
+  roles: string[];
 }
