@@ -42,7 +42,7 @@ export class Group extends BaseEntity {
   @JoinColumn({ name: 'organization_group_id' })
   organizationGroup: Group;
 
-  @ManyToOne(() => User, { nullable: false })
+  @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'leader_id' })
   leader: User;
 

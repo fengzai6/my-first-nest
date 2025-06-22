@@ -18,6 +18,13 @@ import { AddGroupMembersDto } from './dto/create-group-members.dto';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { GroupsService } from './groups.service';
 
+/**
+ * 群组控制器
+ *
+ * 群组可以有多个子群组，可以有多个成员
+ * 群组中只有群主和创建者可以修改群组信息
+ * TODO: 群组可以有多个角色，角色会继承给组内成员
+ */
 @Controller('groups')
 export class GroupsController {
   constructor(private readonly groupsService: GroupsService) {}
