@@ -1,20 +1,30 @@
-import { Body, Controller, Delete, Get, Param, Patch } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { PermissionsService } from './permissions.service';
 import { Permission } from '@/common/decorators/permission.decorator';
 import { PermissionCode } from '@/common/constants';
 import { DisabledEndpoint } from '@/common/decorators';
+import { CreatePermissionDto } from './dto/create-permission.dto';
 
 @Controller('permissions')
 export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
 
-  // 应该不暴露创建权限的接口，权限似乎应该与程序一起发布和同步
-  // @Post()
-  // create(@Body() createPermissionDto: CreatePermissionDto) {
-  //   return this.permissionsService.create(createPermissionDto);
-  // }
+  // 暂时应该不暴露创建权限的接口，权限似乎应该与程序一起发布和同步
+  @DisabledEndpoint()
+  @Post()
+  create(@Body() createPermissionDto: CreatePermissionDto) {
+    return this.permissionsService.create(createPermissionDto);
+  }
 
   @Permission(PermissionCode.PERMISSION_READ)
   @ApiBearerAuth()
