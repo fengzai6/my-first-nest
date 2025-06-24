@@ -12,8 +12,8 @@ import { UsersService } from '../users/users.service';
 import { AddGroupMembersDto } from './dto/create-group-members.dto';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { RemoveGroupMemberDto } from './dto/remove-group-member.dto';
-import { Group, GroupMember } from './entities';
 import { UpdateGroupDto } from './dto/update-group.dto';
+import { Group, GroupMember } from './entities';
 
 @Injectable()
 export class GroupsService {
@@ -85,12 +85,14 @@ export class GroupsService {
 
     const savedGroup = await this.groupRepository.save(newGroup);
 
-    // 添加自己为成员
+    // 根据需要添加自己为成员
     if (createGroupDto.addSelfAsMember) {
       await this.addGroupMembers(savedGroup.id, [
         { userId: currentUser.id, role: GroupMemberRolesEnum.Admin },
       ]);
     }
+
+    delete savedGroup.createdBy;
 
     return savedGroup;
   }
@@ -199,6 +201,7 @@ export class GroupsService {
         continue;
       }
 
+      // TODO：查不出子级
       const tree = await this.groupRepository.findDescendantsTree(
         organizationGroup,
         {
