@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsRelations, Repository } from 'typeorm';
 import { RolesService } from '../roles/roles.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities';
@@ -23,18 +23,16 @@ export class UsersService {
   findAll(): Promise<User[]> {
     return this.userRepository.find({
       relations: {
-        cats: true,
+        // cats: true,
+        roles: true,
       },
     });
   }
 
-  findOne(id: number) {
+  findOne(id: number, relations?: string[] | FindOptionsRelations<User>) {
     return this.userRepository.findOne({
       where: { id },
-      relations: {
-        cats: true,
-        roles: true,
-      },
+      relations,
     });
   }
 

@@ -34,12 +34,19 @@ export class RolesService {
   }
 
   findAll() {
-    return this.roleRepository.find();
+    return this.roleRepository.find({
+      relations: {
+        permissions: true,
+      },
+    });
   }
 
   findOne(id: number) {
     return this.roleRepository.findOne({
       where: { id },
+      relations: {
+        permissions: true,
+      },
     });
   }
 
@@ -74,5 +81,13 @@ export class RolesService {
     }
 
     return this.roleRepository.softDelete(id);
+  }
+
+  async getRolesByUserId(userId: number) {
+    const roles = await this.roleRepository.find({
+      where: { users: { id: userId } },
+    });
+
+    return roles;
   }
 }

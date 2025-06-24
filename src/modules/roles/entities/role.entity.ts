@@ -18,7 +18,7 @@ export class Role extends BaseEntity {
   users: User[];
 
   @ManyToMany(() => Permission, (permission) => permission.roles, {
-    eager: true, // 设置为 true 后，在查询时会自动加载关联的 Permission 数据
+    // eager: true, // 设置为 true 后，在查询时会自动加载关联的 Permission 数据
   })
   @JoinTable({
     name: 'role_permissions',
