@@ -26,5 +26,7 @@ export class PostResponseInterceptor implements NestInterceptor {
         }),
       );
     }
+
+    return next.handle();
   }
 }
