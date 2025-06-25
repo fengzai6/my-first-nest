@@ -19,14 +19,14 @@ import { Group, GroupMember } from './entities';
 export class GroupsService {
   constructor(
     @InjectRepository(Group)
-    private readonly groupRepository: TreeRepository<Group>,
+    private readonly groupTreeRepository: TreeRepository<Group>,
     @InjectRepository(GroupMember)
     private readonly groupMemberRepository: Repository<GroupMember>,
     private readonly usersService: UsersService,
   ) {}
 
   async isGroupLeaderOrCreator(groupId: number, userId: number) {
-    const group = await this.groupRepository.findOne({
+    const group = await this.groupTreeRepository.findOne({
       where: { id: groupId },
       relations: ['leader', 'createdBy'],
     });
@@ -45,11 +45,11 @@ export class GroupsService {
       'isOrganization',
     ]);
 
-    const newGroup = this.groupRepository.create(values);
+    const newGroup = this.groupTreeRepository.create(values);
 
     // 设置父级和组织
     if (createGroupDto.parentId) {
-      const parentGroup = await this.groupRepository.findOne({
+      const parentGroup = await this.groupTreeRepository.findOne({
         where: { id: createGroupDto.parentId },
         relations: ['organizationGroup'],
       });
@@ -83,7 +83,7 @@ export class GroupsService {
 
     console.log('createGroup: newGroup', newGroup);
 
-    const savedGroup = await this.groupRepository.save(newGroup);
+    const savedGroup = await this.groupTreeRepository.save(newGroup);
 
     // 根据需要添加自己为成员
     if (createGroupDto.addSelfAsMember) {
@@ -106,7 +106,7 @@ export class GroupsService {
     groupId: number,
     addGroupMembersDto: AddGroupMembersDto,
   ) {
-    const group = await this.groupRepository.findOne({
+    const group = await this.groupTreeRepository.findOne({
       where: { id: groupId },
       relations: ['members', 'members.user'],
     });
@@ -140,7 +140,7 @@ export class GroupsService {
   async removeGroupMember(removeGroupMemberDto: RemoveGroupMemberDto) {
     const { groupId, userId } = removeGroupMemberDto;
 
-    const isLeader = await this.groupRepository.findOne({
+    const isLeader = await this.groupTreeRepository.findOne({
       where: { id: groupId, leader: { id: userId } },
     });
 
@@ -164,7 +164,7 @@ export class GroupsService {
   }
 
   async getGroupTreeByUser(user: User) {
-    const userGroups = await this.groupRepository.find({
+    const userGroups = await this.groupTreeRepository.find({
       where: {
         members: {
           user: { id: user.id },
@@ -192,7 +192,7 @@ export class GroupsService {
     const organizationTrees = [];
 
     for (const organizationGroupId of organizationGroupIds) {
-      const organizationGroup = await this.groupRepository.findOne({
+      const organizationGroup = await this.groupTreeRepository.findOne({
         where: { id: organizationGroupId },
         relations: ['leader', 'members', 'members.user'],
       });
@@ -201,8 +201,7 @@ export class GroupsService {
         continue;
       }
 
-      // TODO：查不出子级
-      const tree = await this.groupRepository.findDescendantsTree(
+      const tree = await this.groupTreeRepository.findDescendantsTree(
         organizationGroup,
         {
           relations: ['leader', 'members', 'members.user'],

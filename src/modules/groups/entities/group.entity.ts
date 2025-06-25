@@ -30,8 +30,11 @@ export class Group extends BaseEntity {
   isOrganization: boolean;
 
   // @ManyToOne(() => Group, (group) => group.subGroups, { nullable: true })
-  // @JoinColumn({ name: 'parent_group_id' })
   @TreeParent()
+  // QUESTION: 不知道为什么，当我没有设置 JoinColum 的时候，默认查找的是 parentId，导致查询树结构报错
+  // 但是我设置为 parent_id 的时候，migration 依旧是生成的 parent 字段
+  // @JoinColumn({ name: 'parent_id' })
+  @JoinColumn({ name: 'parent' })
   parent: Group;
 
   // @OneToMany(() => Group, (group) => group.parentGroup)
