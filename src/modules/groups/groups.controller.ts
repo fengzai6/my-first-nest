@@ -25,6 +25,7 @@ import { GroupsService } from './groups.service';
  * 群组中只有群主和创建者可以修改群组信息
  * TODO: 群组可以有多个角色，角色会继承给组内成员
  */
+@ApiBearerAuth()
 @Controller('groups')
 export class GroupsController {
   constructor(private readonly groupsService: GroupsService) {}
@@ -33,7 +34,6 @@ export class GroupsController {
   @ApiOperation({
     summary: '创建群组',
   })
-  @ApiBearerAuth()
   @Post()
   createGroup(@Body() createGroupDto: CreateGroupDto, @UserInfo() user: User) {
     return this.groupsService.createGroup(createGroupDto, user);
@@ -43,7 +43,6 @@ export class GroupsController {
   @ApiOperation({
     summary: '添加群组成员',
   })
-  @ApiBearerAuth()
   @UseGuards(GroupMemberRolesGuard)
   @GroupLeaderOrCreator()
   @Post(':groupId/members')
@@ -58,7 +57,6 @@ export class GroupsController {
   @ApiOperation({
     summary: '移除群组成员',
   })
-  @ApiBearerAuth()
   @UseGuards(GroupMemberRolesGuard)
   @GroupLeaderOrCreator()
   @Delete(':groupId/members/:userId')
@@ -73,7 +71,6 @@ export class GroupsController {
   @ApiOperation({
     summary: '获取用户群组树',
   })
-  @ApiBearerAuth()
   @Get('treeByUser')
   getGroupTreeByUser(@UserInfo() user: User) {
     return this.groupsService.getGroupTreeByUser(user);

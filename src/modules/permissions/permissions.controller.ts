@@ -1,3 +1,6 @@
+import { PermissionCode } from '@/common/constants';
+import { DisabledEndpoint } from '@/common/decorators';
+import { Permission } from '@/common/decorators/permission.decorator';
 import {
   Body,
   Controller,
@@ -8,13 +11,11 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { CreatePermissionDto } from './dto/create-permission.dto';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { PermissionsService } from './permissions.service';
-import { Permission } from '@/common/decorators/permission.decorator';
-import { PermissionCode } from '@/common/constants';
-import { DisabledEndpoint } from '@/common/decorators';
-import { CreatePermissionDto } from './dto/create-permission.dto';
 
+@ApiBearerAuth()
 @Controller('permissions')
 export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
@@ -27,21 +28,18 @@ export class PermissionsController {
   }
 
   @Permission(PermissionCode.PERMISSION_READ)
-  @ApiBearerAuth()
   @Get()
   findAll() {
     return this.permissionsService.findAll();
   }
 
   @Permission(PermissionCode.PERMISSION_READ)
-  @ApiBearerAuth()
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.permissionsService.findOne(+id);
   }
 
   @Permission(PermissionCode.PERMISSION_UPDATE)
-  @ApiBearerAuth()
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -51,7 +49,6 @@ export class PermissionsController {
   }
 
   @DisabledEndpoint()
-  @ApiBearerAuth()
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.permissionsService.remove(+id);

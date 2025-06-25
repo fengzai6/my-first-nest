@@ -19,6 +19,7 @@ import { CreateCatDto } from './dto/create-cat.dto';
 import { UpdateCatDto } from './dto/update-cat.dto';
 import { Cat } from './interfaces/cat.interface';
 
+@ApiBearerAuth()
 @Controller('cats')
 // @UseInterceptors(LoggingInterceptor)
 export class CatsController {
@@ -28,7 +29,6 @@ export class CatsController {
   // @Header('Cache-Control', 'none')
   // @Roles(['admin'])
   @Permission(PermissionCode.CAT_CREATE)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Create a new cat',
   })
@@ -40,14 +40,12 @@ export class CatsController {
   }
 
   @Permission(PermissionCode.CAT_UPDATE)
-  @ApiBearerAuth()
   @Patch('owner/:id')
   updateOwner(@Param('id') id: number, @Body() updateCatDto: UpdateCatDto) {
     return this.catsService.updateOwner(id, updateCatDto);
   }
 
   @Permission(PermissionCode.CAT_READ)
-  @ApiBearerAuth()
   @Get()
   async findAll(@UserInfo() user: User): Promise<Cat[]> {
     try {
@@ -86,7 +84,6 @@ export class CatsController {
   // }
 
   @Permission(PermissionCode.CAT_READ)
-  @ApiBearerAuth()
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     console.log(id);
