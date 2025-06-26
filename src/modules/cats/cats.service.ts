@@ -23,7 +23,7 @@ export class CatsService {
     return this.catRepository.find();
   }
 
-  findOne(id: number): Promise<Cat> {
+  findOne(id: string): Promise<Cat> {
     return this.catRepository.findOneBy({ id });
   }
 
@@ -31,7 +31,7 @@ export class CatsService {
   //   return `This action returns a #${uuid} cat`;
   // }
 
-  async updateOwner(id: number, updateCatDto: UpdateCatDto) {
+  async updateOwner(id: string, updateCatDto: UpdateCatDto) {
     const cat = await this.findOne(id);
 
     cat.owner = await this.usersService.findOne(updateCatDto.ownerId);

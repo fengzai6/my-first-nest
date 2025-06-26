@@ -25,7 +25,7 @@ export class GroupsService {
     private readonly usersService: UsersService,
   ) {}
 
-  async isGroupLeaderOrCreator(groupId: number, userId: number) {
+  async isGroupLeaderOrCreator(groupId: string, userId: string) {
     const group = await this.groupTreeRepository.findOne({
       where: { id: groupId },
       relations: ['leader', 'createdBy'],
@@ -104,7 +104,7 @@ export class GroupsService {
   }
 
   async addGroupMembers(
-    groupId: number,
+    groupId: string,
     addGroupMembersDto: AddGroupMembersDto,
   ) {
     const group = await this.groupTreeRepository.findOne({
@@ -181,7 +181,7 @@ export class GroupsService {
       return [];
     }
 
-    const organizationGroupIds = new Set<number>();
+    const organizationGroupIds = new Set<string>();
 
     for (const group of userGroups) {
       if (group.isOrganization) {

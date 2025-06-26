@@ -1,11 +1,11 @@
-import { IsNotEmpty, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 
 export class RemoveGroupMemberDto {
   @IsNotEmpty()
-  @IsNumber()
-  groupId: number;
+  @IsString()
+  groupId: string;
 
   @IsNotEmpty()
-  @IsNumber()
-  userId: number;
+  @IsString()
+  userId: string;
 }

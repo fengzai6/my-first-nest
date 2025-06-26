@@ -50,7 +50,7 @@ export class GroupMemberRolesGuard implements CanActivate {
       return true;
     }
 
-    const groupId = Number(request.params.groupId);
+    const groupId = request.params.groupId;
     if (!groupId) {
       // This guard should only be used on routes with a groupId param
       throw new Error(

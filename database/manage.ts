@@ -1,3 +1,4 @@
+import { initSnowflake, resetSnowflake } from '@/shared/utils/snowflake';
 import { DataSource } from 'typeorm';
 import AppDataSource from './data-source';
 import seed from './seeds';
@@ -24,6 +25,11 @@ const manage = async () => {
 
   let dataSource: DataSource | null = null;
   try {
+    initSnowflake(
+      BigInt(process.env.WORKER_ID || 0),
+      BigInt(process.env.DATACENTER_ID || 0),
+    );
+
     dataSource = await AppDataSource.initialize();
 
     console.log('数据库连接已建立.');
@@ -47,6 +53,8 @@ const manage = async () => {
     console.error(`执行命令 "${command}" 时出错:`, error);
     process.exit(1);
   } finally {
+    resetSnowflake();
+
     if (dataSource?.isInitialized) {
       await dataSource.destroy();
       console.log('数据库连接已关闭.');

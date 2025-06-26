@@ -29,7 +29,7 @@ export class UsersService {
     });
   }
 
-  findOne(id: number, relations?: string[] | FindOptionsRelations<User>) {
+  findOne(id: string, relations?: string[] | FindOptionsRelations<User>) {
     return this.userRepository.findOne({
       where: { id },
       relations,
@@ -48,7 +48,7 @@ export class UsersService {
     });
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto) {
+  async update(id: string, updateUserDto: UpdateUserDto) {
     const user = await this.userRepository.findOne({
       where: { id },
     });
@@ -67,7 +67,7 @@ export class UsersService {
     return this.userRepository.save(updatedUser);
   }
 
-  remove(id: number) {
+  remove(id: string) {
     return this.userRepository.softDelete(id);
   }
 }

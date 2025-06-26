@@ -14,7 +14,9 @@ export const seedPermissions = async (dataSource: DataSource) => {
     if (existingPermission) {
       await permissionRepository.update(existingPermission.id, permission);
     } else {
-      await permissionRepository.save(permission);
+      const newPermission = permissionRepository.create(permission);
+
+      await permissionRepository.save(newPermission);
     }
   }
 };

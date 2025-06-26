@@ -30,11 +30,11 @@ export class PermissionsService {
     return this.permissionRepository.find();
   }
 
-  findOne(id: number) {
+  findOne(id: string) {
     return this.permissionRepository.findOneBy({ id });
   }
 
-  async update(id: number, updatePermissionDto: UpdatePermissionDto) {
+  async update(id: string, updatePermissionDto: UpdatePermissionDto) {
     const permission = await this.permissionRepository.findOneBy({ id });
 
     if (!permission) {
@@ -49,7 +49,7 @@ export class PermissionsService {
     return this.permissionRepository.save(updatedPermission);
   }
 
-  async remove(id: number) {
+  async remove(id: string) {
     const permission = await this.permissionRepository.findOneBy({ id });
 
     if (!permission) {

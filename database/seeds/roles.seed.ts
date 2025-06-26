@@ -40,7 +40,9 @@ export const seedRoles = async (dataSource: DataSource) => {
         ...role,
       });
     } else {
-      await roleRepository.save(role);
+      const newRole = roleRepository.create(role);
+
+      await roleRepository.save(newRole);
     }
   }
 };

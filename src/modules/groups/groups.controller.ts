@@ -45,7 +45,7 @@ export class GroupsController {
   @GroupLeaderOrCreator()
   @Post(':groupId/members')
   addGroupMembers(
-    @Param('groupId') groupId: number,
+    @Param('groupId') groupId: string,
     @Body() addGroupMembersDto: AddGroupMembersDto,
   ) {
     return this.groupsService.addGroupMembers(groupId, addGroupMembersDto);
@@ -59,8 +59,8 @@ export class GroupsController {
   @GroupLeaderOrCreator()
   @Delete(':groupId/members/:userId')
   removeGroupMember(
-    @Param('groupId') groupId: number,
-    @Param('userId') userId: number,
+    @Param('groupId') groupId: string,
+    @Param('userId') userId: string,
   ) {
     return this.groupsService.removeGroupMember({ groupId, userId });
   }

@@ -41,7 +41,7 @@ export class CatsController {
 
   @Permission(PermissionCode.CAT_UPDATE)
   @Patch('owner/:id')
-  updateOwner(@Param('id') id: number, @Body() updateCatDto: UpdateCatDto) {
+  updateOwner(@Param('id') id: string, @Body() updateCatDto: UpdateCatDto) {
     return this.catsService.updateOwner(id, updateCatDto);
   }
 
@@ -85,7 +85,7 @@ export class CatsController {
 
   @Permission(PermissionCode.CAT_READ)
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id', ParseIntPipe) id: string) {
     console.log(id);
     return this.catsService.findOne(id);
   }

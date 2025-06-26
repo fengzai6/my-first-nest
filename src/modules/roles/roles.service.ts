@@ -41,7 +41,7 @@ export class RolesService {
     });
   }
 
-  findOne(id: number) {
+  findOne(id: string) {
     return this.roleRepository.findOne({
       where: { id },
       relations: {
@@ -50,7 +50,7 @@ export class RolesService {
     });
   }
 
-  async update(id: number, updateRoleDto: UpdateRoleDto) {
+  async update(id: string, updateRoleDto: UpdateRoleDto) {
     const role = await this.roleRepository.findOne({
       where: { id },
     });
@@ -71,7 +71,7 @@ export class RolesService {
     return this.roleRepository.save(updatedRole);
   }
 
-  async remove(id: number) {
+  async remove(id: string) {
     const role = await this.roleRepository.findOne({
       where: { id },
     });
@@ -83,7 +83,7 @@ export class RolesService {
     return this.roleRepository.softDelete(id);
   }
 
-  async getRolesByUserId(userId: number) {
+  async getRolesByUserId(userId: string) {
     const roles = await this.roleRepository.find({
       where: { users: { id: userId } },
     });

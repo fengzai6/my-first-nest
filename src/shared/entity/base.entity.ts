@@ -1,17 +1,19 @@
 import {
+  BeforeInsert,
   CreateDateColumn,
   DeleteDateColumn,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { generateSnowflakeId } from '../utils';
 
 /**
  * 基础实体类
  * 抽象类，不能实例化，只能被继承
  */
 export abstract class BaseEntity {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryColumn({ type: 'bigint' })
+  id: string;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -27,4 +29,11 @@ export abstract class BaseEntity {
   //   default: false,
   // })
   // isDeleted: boolean;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = generateSnowflakeId();
+    }
+  }
 }

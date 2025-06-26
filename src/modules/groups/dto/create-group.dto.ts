@@ -16,11 +16,11 @@ export class CreateGroupDto {
   description?: string;
 
   @ApiProperty({
-    example: 1,
+    example: '1',
   })
-  @IsNumber()
+  @IsString()
   @IsOptional()
-  parentId?: number;
+  parentId?: string;
 
   @ApiProperty({
     example: true,
@@ -30,11 +30,11 @@ export class CreateGroupDto {
   isOrganization?: boolean;
 
   @ApiProperty({
-    example: 1,
+    example: '1',
   })
-  @IsNumber()
+  @IsString()
   @IsOptional()
-  leaderId?: number;
+  leaderId?: string;
 
   @ApiProperty({
     example: true,
