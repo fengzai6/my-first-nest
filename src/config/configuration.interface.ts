@@ -14,9 +14,15 @@ export interface SwaggerConfig {
   version?: string;
 }
 
+export interface SnowflakeConfig {
+  workerId: number;
+  datacenterId: number;
+}
+
 export interface AppConfig {
   server?: ServerConfig;
   swagger?: SwaggerConfig;
   database?: TypeOrmModuleOptions;
   jwt?: JwtModuleOptions;
+  snowflake?: SnowflakeConfig;
 }

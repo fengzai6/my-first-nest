@@ -4,6 +4,7 @@ import { AppConfig } from '../configuration.interface';
 export const developmentConfig = registerAs(
   'development',
   (): AppConfig => ({
+    server: {},
     database: {
       url: process.env.DATABASE_URL,
       synchronize: true,

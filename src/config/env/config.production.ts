@@ -11,5 +11,10 @@ export const productionConfig = registerAs(
       enabled: false,
     },
     database: {},
+    jwt: {
+      signOptions: {
+        expiresIn: 60 * 60 * 24,
+      },
+    },
   }),
 );
