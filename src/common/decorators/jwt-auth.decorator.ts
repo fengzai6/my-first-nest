@@ -23,7 +23,7 @@ export enum JwtMetaEnum {
 export const Public = () => SetMetadata(JWT_META_KEY, JwtMetaEnum.PUBLIC);
 
 /**
- * 获取JWT解密后注入的用户信息
+ * 通过装饰器获取JWT解密后注入的用户信息
  */
 export const UserInfo = createParamDecorator(
   (_: unknown, ctx: ExecutionContext) => {

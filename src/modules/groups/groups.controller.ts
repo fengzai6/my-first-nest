@@ -1,6 +1,5 @@
 import { PermissionCode } from '@/common/constants';
 import { GroupLeaderOrCreator } from '@/common/decorators/group-member-roles.decorator';
-import { UserInfo } from '@/common/decorators/jwt-auth.decorator';
 import { Permission } from '@/common/decorators/permission.decorator';
 import { GroupMemberRolesGuard } from '@/common/guards/group-member-roles.guard';
 import {
@@ -13,7 +12,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { User } from '../users/entities';
 import { AddGroupMembersDto } from './dto/create-group-members.dto';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { GroupsService } from './groups.service';
@@ -35,8 +33,8 @@ export class GroupsController {
     summary: '创建群组',
   })
   @Post()
-  createGroup(@Body() createGroupDto: CreateGroupDto, @UserInfo() user: User) {
-    return this.groupsService.createGroup(createGroupDto, user);
+  createGroup(@Body() createGroupDto: CreateGroupDto) {
+    return this.groupsService.createGroup(createGroupDto);
   }
 
   @Permission(PermissionCode.GROUP_READ)
@@ -72,7 +70,7 @@ export class GroupsController {
     summary: '获取用户群组树',
   })
   @Get('treeByUser')
-  getGroupTreeByUser(@UserInfo() user: User) {
-    return this.groupsService.getGroupTreeByUser(user);
+  getGroupTreeByUser() {
+    return this.groupsService.getGroupTreeByUser();
   }
 }

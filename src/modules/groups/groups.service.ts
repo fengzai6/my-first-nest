@@ -1,3 +1,4 @@
+import { useRequestUser } from '@/common/context';
 import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles.decorator';
 import {
   BadRequestException,
@@ -7,7 +8,6 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { pick } from 'es-toolkit';
 import { Repository, TreeRepository } from 'typeorm';
-import { User } from '../users/entities';
 import { UsersService } from '../users/users.service';
 import { AddGroupMembersDto } from './dto/create-group-members.dto';
 import { CreateGroupDto } from './dto/create-group.dto';
@@ -38,7 +38,8 @@ export class GroupsService {
     return group.leader.id === userId || group.createdBy.id === userId;
   }
 
-  async createGroup(createGroupDto: CreateGroupDto, currentUser: User) {
+  async createGroup(createGroupDto: CreateGroupDto) {
+    const currentUser = useRequestUser();
     const values = pick(createGroupDto, [
       'name',
       'description',
@@ -163,7 +164,8 @@ export class GroupsService {
     };
   }
 
-  async getGroupTreeByUser(user: User) {
+  async getGroupTreeByUser() {
+    const user = useRequestUser();
     const userGroups = await this.groupTreeRepository.find({
       where: {
         members: {
