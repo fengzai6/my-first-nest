@@ -3,7 +3,7 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { SignupDto } from './dto/signup.dto';
+import { RegisterDto } from './dto/register.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -11,11 +11,11 @@ export class AuthController {
 
   @Public()
   @ApiOperation({
-    summary: 'Signup',
+    summary: 'Register',
   })
-  @Post('signup')
-  signup(@Body() signupDto: SignupDto) {
-    return this.authService.signup(signupDto);
+  @Post('register')
+  register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
   }
 
   @Public()

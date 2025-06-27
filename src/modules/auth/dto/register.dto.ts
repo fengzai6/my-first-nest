@@ -1,8 +1,8 @@
 import { RoleCode } from '@/common/constants';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsEmail, IsString, Length } from 'class-validator';
+import { IsArray, IsEmail, IsString, MinLength } from 'class-validator';
 
-export class SignupDto {
+export class RegisterDto {
   @ApiProperty({
     description: 'The name of the user',
     example: 'xiaojian',
@@ -22,8 +22,8 @@ export class SignupDto {
     example: 'password',
   })
   @IsString()
-  @Length(8, 20, {
-    message: 'Password must be between 8 and 20 characters',
+  @MinLength(8, {
+    message: 'Password must be at least 8 characters',
   })
   password: string;
 

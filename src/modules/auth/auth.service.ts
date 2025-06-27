@@ -5,10 +5,10 @@ import {
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from 'argon2';
+import { RolesService } from '../roles/roles.service';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
-import { SignupDto } from './dto/signup.dto';
-import { RolesService } from '../roles/roles.service';
+import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
@@ -18,21 +18,21 @@ export class AuthService {
     private readonly rolesService: RolesService,
   ) {}
 
-  async signup(signupDto: SignupDto) {
-    const user = await this.usersService.find(signupDto.username);
+  async register(registerDto: RegisterDto) {
+    const user = await this.usersService.find(registerDto.username);
 
     if (user) {
       throw new AuthException(AuthExceptionCode.USER_ALREADY_EXISTS);
     }
 
-    const hashedPassword = await hash(signupDto.password, {
+    const hashedPassword = await hash(registerDto.password, {
       timeCost: 5,
     });
 
-    const roles = await this.rolesService.findByCodes(signupDto.roles);
+    const roles = await this.rolesService.findByCodes(registerDto.roles);
 
     const newUser = await this.usersService.create({
-      ...signupDto,
+      ...registerDto,
       password: hashedPassword,
       roles,
     });
