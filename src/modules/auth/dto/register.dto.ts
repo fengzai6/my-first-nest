@@ -1,6 +1,12 @@
 import { RoleCode } from '@/common/constants';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsEmail, IsString, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsEmail,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class RegisterDto {
   @ApiProperty({
@@ -33,5 +39,6 @@ export class RegisterDto {
   })
   @IsArray()
   @IsString({ each: true })
+  @IsOptional()
   roles: string[];
 }

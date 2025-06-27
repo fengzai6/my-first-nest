@@ -3,6 +3,7 @@ import { Cat } from '@/modules/cats/entities';
 import { GroupMember } from '@/modules/groups/entities';
 import { Role } from '@/modules/roles/entities';
 import { BaseEntity } from '@/shared/entity/base.entity';
+import { Exclude } from 'class-transformer';
 import { Column, Entity, JoinTable, ManyToMany, OneToMany } from 'typeorm';
 
 @Entity('users')
@@ -18,9 +19,8 @@ export class User extends BaseEntity {
   })
   email: string;
 
-  @Column({
-    select: false,
-  })
+  @Exclude()
+  @Column()
   password: string;
 
   @Column({

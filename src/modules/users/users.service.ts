@@ -44,8 +44,15 @@ export class UsersService {
   find(username: string) {
     return this.userRepository.findOne({
       where: { username },
-      select: ['id', 'username', 'email', 'password', 'roles'],
     });
+  }
+
+  async exist(username: string, email: string) {
+    const user = await this.userRepository.findOne({
+      where: [{ username }, { email }],
+    });
+
+    return !!user;
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {

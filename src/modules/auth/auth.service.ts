@@ -5,6 +5,7 @@ import {
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { hash, verify } from 'argon2';
+import { Role } from '../roles/entities';
 import { RolesService } from '../roles/roles.service';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
@@ -19,9 +20,12 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const user = await this.usersService.find(registerDto.username);
+    const isExist = await this.usersService.exist(
+      registerDto.username,
+      registerDto.email,
+    );
 
-    if (user) {
+    if (isExist) {
       throw new AuthException(AuthExceptionCode.USER_ALREADY_EXISTS);
     }
 
@@ -29,15 +33,17 @@ export class AuthService {
       timeCost: 5,
     });
 
-    const roles = await this.rolesService.findByCodes(registerDto.roles);
+    let roles: Role[];
+
+    if (registerDto.roles && registerDto.roles.length > 0) {
+      roles = await this.rolesService.findByCodes(registerDto.roles);
+    }
 
     const newUser = await this.usersService.create({
       ...registerDto,
       password: hashedPassword,
       roles,
     });
-
-    delete newUser.password;
 
     return newUser;
   }
@@ -54,8 +60,6 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new AuthException(AuthExceptionCode.INVALID_CREDENTIALS);
     }
-
-    delete user.password;
 
     return {
       user,

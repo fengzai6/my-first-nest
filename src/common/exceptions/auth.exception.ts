@@ -13,7 +13,7 @@ export const AuthExceptionMap = {
     status: HttpStatus.NOT_FOUND,
   },
   [AuthExceptionCode.USER_ALREADY_EXISTS]: {
-    message: '用户名已存在',
+    message: '用户名或邮箱已存在',
     status: HttpStatus.BAD_REQUEST,
   },
   [AuthExceptionCode.INVALID_CREDENTIALS]: {
