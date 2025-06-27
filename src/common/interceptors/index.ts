@@ -12,3 +12,5 @@ export const useInterceptors = (app: INestApplication) => {
     new ClassSerializerInterceptor(app.get(Reflector)),
   );
 };
+
+// TODO: 添加一个超时拦截器，如果请求超时，则返回 504 状态码
