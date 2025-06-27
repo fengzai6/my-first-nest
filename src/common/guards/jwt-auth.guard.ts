@@ -30,16 +30,16 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   handleRequest<TUser = User>(
     err: any,
-    user: any,
+    user: User | undefined,
     info: any,
     context: ExecutionContext,
     status?: any,
   ): TUser {
-    console.log('----------------JwtAuthGuard----------------');
+    console.log('-------------JwtAuthGuard-------------');
     console.log('err:', err);
-    console.log('user:', user);
+    console.log('user:', user?.username);
     console.log('info:', info);
-    console.log('--------------------------------');
+    console.log('--------------------------------------');
 
     if (err instanceof HttpException) {
       throw err;
