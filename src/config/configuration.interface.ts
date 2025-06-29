@@ -4,6 +4,7 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 export interface ServerConfig {
   port?: number;
   apiPrefix?: string;
+  timeout?: number;
 }
 
 export interface SwaggerConfig {
