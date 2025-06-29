@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { AuthException, AuthExceptionCode } from '@/common/exceptions';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsRelations, Repository } from 'typeorm';
 import { RolesService } from '../roles/roles.service';
@@ -61,7 +62,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new AuthException(AuthExceptionCode.USER_NOT_FOUND);
     }
 
     const roles = await this.rolesService.findByCodes(updateUserDto.roles);

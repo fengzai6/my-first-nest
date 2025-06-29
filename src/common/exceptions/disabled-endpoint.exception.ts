@@ -1,7 +1,16 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
+import { BaseException } from './base.exception';
 
-export class DisabledEndpointException extends HttpException {
+export enum DisabledEndpointExceptionCode {
+  ENDPOINT_DISABLED = 'ENDPOINT_DISABLED',
+}
+
+export class DisabledEndpointException extends BaseException {
   constructor() {
-    super('此接口已被禁用或正在开发中，暂时无法使用', HttpStatus.FORBIDDEN);
+    super({
+      message: '此接口已被禁用或正在开发中，暂时无法使用',
+      status: HttpStatus.FORBIDDEN,
+      code: DisabledEndpointExceptionCode.ENDPOINT_DISABLED,
+    });
   }
 }
