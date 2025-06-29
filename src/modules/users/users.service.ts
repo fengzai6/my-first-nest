@@ -1,8 +1,11 @@
 import { AuthException, AuthExceptionCode } from '@/common/exceptions';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { hash } from 'argon2';
 import { FindOptionsRelations, Repository } from 'typeorm';
+import { Role } from '../roles/entities';
 import { RolesService } from '../roles/roles.service';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities';
 
@@ -13,10 +16,31 @@ export class UsersService {
     private readonly rolesService: RolesService,
   ) {}
 
-  create(user: Partial<User>) {
-    const newUser = this.userRepository.create(user);
+  async create(createUserDto: CreateUserDto) {
+    const isExist = await this.exist(
+      createUserDto.username,
+      createUserDto.email,
+    );
 
-    console.log('user', user);
+    if (isExist) {
+      throw new AuthException(AuthExceptionCode.USER_ALREADY_EXISTS);
+    }
+
+    const hashedPassword = await hash(createUserDto.password, {
+      timeCost: 5,
+    });
+
+    let roles: Role[];
+
+    if (createUserDto.roles && createUserDto.roles.length > 0) {
+      roles = await this.rolesService.findByCodes(createUserDto.roles);
+    }
+
+    const newUser = this.userRepository.create({
+      ...createUserDto,
+      password: hashedPassword,
+      roles,
+    });
 
     return this.userRepository.save(newUser);
   }
