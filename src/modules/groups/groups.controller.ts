@@ -8,6 +8,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AddGroupMembersDto } from './dto/create-group-members.dto';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { GroupsService } from './groups.service';
+import { UpdateGroupDto } from './dto/update-group.dto';
 
 /**
  * 群组控制器
@@ -35,6 +37,18 @@ export class GroupsController {
   @Post()
   createGroup(@Body() createGroupDto: CreateGroupDto) {
     return this.groupsService.createGroup(createGroupDto);
+  }
+
+  @Permission(PermissionCode.GROUP_UPDATE)
+  @ApiOperation({
+    summary: '更新群组',
+  })
+  @Patch(':groupId')
+  updateGroup(
+    @Param('groupId') groupId: string,
+    @Body() updateGroupDto: UpdateGroupDto,
+  ) {
+    return this.groupsService.updateGroup(groupId, updateGroupDto);
   }
 
   @Permission(PermissionCode.GROUP_READ)

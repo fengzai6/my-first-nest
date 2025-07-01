@@ -25,6 +25,23 @@ export class GroupsService {
     private readonly usersService: UsersService,
   ) {}
 
+  private async setParentAndOrganization(group: Group, parentId: string) {
+    const parentGroup = await this.groupTreeRepository.findOne({
+      where: { id: parentId },
+      relations: ['organizationGroup'],
+    });
+
+    if (!parentGroup) {
+      throw new NotFoundException('Parent group not found');
+    }
+
+    group.parent = parentGroup;
+
+    group.organizationGroup = parentGroup.isOrganization
+      ? parentGroup
+      : parentGroup.organizationGroup;
+  }
+
   async isGroupLeaderOrCreator(groupId: string, userId: string) {
     const group = await this.groupTreeRepository.findOne({
       where: { id: groupId },
@@ -50,25 +67,12 @@ export class GroupsService {
 
     // 设置父级和组织
     if (createGroupDto.parentId) {
-      const parentGroup = await this.groupTreeRepository.findOne({
-        where: { id: createGroupDto.parentId },
-        relations: ['organizationGroup'],
-      });
-
-      if (!parentGroup) {
-        throw new NotFoundException('Parent group not found');
-      }
-
-      newGroup.parent = parentGroup;
-
-      newGroup.organizationGroup = parentGroup.isOrganization
-        ? parentGroup
-        : parentGroup.organizationGroup;
+      await this.setParentAndOrganization(newGroup, createGroupDto.parentId);
     } else if (!createGroupDto.isOrganization) {
       throw new BadRequestException('Parent group is required');
     }
 
-    // 设置负责人
+    // 设置负责人: 疑问：添加负责人时，是否需要将负责人添加到成员中？又或者舍弃这个字段转而使用关系表添加一个 roles 枚举
     if (createGroupDto.leaderId) {
       const leader = await this.usersService.findOne(createGroupDto.leaderId);
 
@@ -91,9 +95,23 @@ export class GroupsService {
     return savedGroup;
   }
 
-  async updateGroup(updateGroupDto: UpdateGroupDto) {
-    const { groupId, ...rest } = updateGroupDto;
-    // 更新 group，当更换 父级时，需要更新 organizationGroup
+  async updateGroup(groupId: string, { parentId, ...data }: UpdateGroupDto) {
+    const group = await this.groupTreeRepository.findOne({
+      where: { id: groupId },
+      relations: ['organizationGroup', 'parent'],
+    });
+
+    if (!group) {
+      throw new NotFoundException('Group not found');
+    }
+
+    if (parentId && parentId !== group.parent.id) {
+      await this.setParentAndOrganization(group, parentId);
+    }
+
+    const updatedGroup = this.groupTreeRepository.merge(group, data);
+
+    return this.groupTreeRepository.save(updatedGroup);
   }
 
   async addGroupMembers(
