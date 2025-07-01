@@ -1,3 +1,4 @@
+import { Exclude } from 'class-transformer';
 import {
   BeforeInsert,
   CreateDateColumn,
@@ -22,6 +23,7 @@ export abstract class BaseEntity {
   updatedAt: Date;
 
   // 软删除
+  @Exclude()
   @DeleteDateColumn()
   deletedAt: Date;
   // Or

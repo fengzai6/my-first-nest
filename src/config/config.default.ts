@@ -1,5 +1,4 @@
 import { registerAs } from '@nestjs/config';
-import { SnakeNamingStrategy } from '../shared/database/snake-naming.strategy';
 import { AppConfig } from './configuration.interface';
 
 export const defaultConfig = registerAs(
@@ -27,9 +26,6 @@ export const defaultConfig = registerAs(
       database: process.env.DATABASE_NAME || 'first-nest',
       url: process.env.DATABASE_URL,
       synchronize: false,
-      // entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      autoLoadEntities: true,
-      namingStrategy: new SnakeNamingStrategy(),
     },
     jwt: {
       secret: process.env.JWT_SECRET || '123456',
