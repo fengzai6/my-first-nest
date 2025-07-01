@@ -10,7 +10,7 @@ export class GroupMember extends BaseEntity {
   @JoinColumn({ name: 'group_id' })
   group: Group;
 
-  @ManyToOne(() => User, (user) => user.groupMemberships)
+  @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })
   user: User;
 

@@ -54,6 +54,6 @@ export class User extends BaseEntity {
   @OneToMany(() => Cat, (cat) => cat.owner)
   cats: Cat[];
 
-  @OneToMany(() => GroupMember, (groupMember) => groupMember.user)
-  groupMemberships: GroupMember[];
+  // @OneToMany(() => GroupMember, (groupMember) => groupMember.user)
+  // groupMemberships: GroupMember[];
 }

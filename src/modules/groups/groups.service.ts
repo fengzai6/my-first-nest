@@ -79,11 +79,6 @@ export class GroupsService {
       newGroup.leader = leader;
     }
 
-    // 设置创建者
-    newGroup.createdBy = currentUser;
-
-    console.log('createGroup: newGroup', newGroup);
-
     const savedGroup = await this.groupTreeRepository.save(newGroup);
 
     // 根据需要添加自己为成员
@@ -92,8 +87,6 @@ export class GroupsService {
         { userId: currentUser.id, role: GroupMemberRolesEnum.Admin },
       ]);
     }
-
-    delete savedGroup.createdBy;
 
     return savedGroup;
   }
@@ -125,11 +118,13 @@ export class GroupsService {
         return existingMember;
       }
 
-      return {
+      const groupMember = this.groupMemberRepository.create({
         group: group,
         user: { id: user.userId },
         role: user.role,
-      };
+      });
+
+      return groupMember;
     });
 
     const savedGroupMembers =

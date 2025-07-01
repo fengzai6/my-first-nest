@@ -1,5 +1,5 @@
 import { User } from '@/modules/users/entities';
-import { BaseEntity } from '@/shared/entity/base.entity';
+import { AuditedEntity } from '@/shared/entity/audited.entity';
 import {
   Column,
   Entity,
@@ -14,7 +14,7 @@ import { GroupMember } from './group-member.entity';
 
 @Entity('groups')
 @Tree('closure-table')
-export class Group extends BaseEntity {
+export class Group extends AuditedEntity {
   @Column()
   name: string;
 
@@ -48,10 +48,6 @@ export class Group extends BaseEntity {
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'leader_id' })
   leader: User;
-
-  @ManyToOne(() => User, { nullable: false })
-  @JoinColumn({ name: 'created_by_id' })
-  createdBy: User;
 
   @OneToMany(() => GroupMember, (groupMember) => groupMember.group)
   members: GroupMember[];
