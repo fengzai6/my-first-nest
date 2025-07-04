@@ -29,6 +29,4 @@ export class SpecialRolesGuard implements CanActivate {
 
     return matchRoles(requiredRoles, user.specialRoles);
   }
-
-  // 处理相关的 Exception
 }

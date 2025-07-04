@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, OmitType } from '@nestjs/swagger';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 
 export class CreateGroupDto {
   @ApiProperty({
@@ -9,18 +9,17 @@ export class CreateGroupDto {
   name: string;
 
   @ApiProperty({
+    example: '1',
+  })
+  @IsString()
+  parentId: string;
+
+  @ApiProperty({
     example: '群组描述',
   })
   @IsString()
   @IsOptional()
   description?: string;
-
-  @ApiProperty({
-    example: '1',
-  })
-  @IsString()
-  @IsOptional()
-  parentId?: string;
 
   @ApiProperty({
     example: true,
@@ -30,16 +29,21 @@ export class CreateGroupDto {
   isOrganization?: boolean;
 
   @ApiProperty({
-    example: '1',
-  })
-  @IsString()
-  @IsOptional()
-  leaderId?: string;
-
-  @ApiProperty({
     example: true,
   })
   @IsBoolean()
   @IsOptional()
-  addSelfAsMember?: boolean;
+  addSelfToGroup?: boolean;
 }
+
+// service 中的 parentId 可选
+export class CreateGroupServiceDto extends OmitType(CreateGroupDto, [
+  'parentId',
+]) {
+  parentId?: string;
+}
+
+export class CreateRootOrgGroupDto extends OmitType(CreateGroupDto, [
+  'parentId',
+  'isOrganization',
+]) {}

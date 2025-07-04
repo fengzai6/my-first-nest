@@ -1,4 +1,3 @@
-import { User } from '@/modules/users/entities';
 import { AuditedEntity } from '@/shared/entity/audited.entity';
 import {
   Column,
@@ -44,10 +43,6 @@ export class Group extends AuditedEntity {
   @ManyToOne(() => Group, { nullable: true })
   @JoinColumn({ name: 'organization_group_id' })
   organizationGroup: Group;
-
-  @ManyToOne(() => User, { nullable: true })
-  @JoinColumn({ name: 'leader_id' })
-  leader: User;
 
   @OneToMany(() => GroupMember, (groupMember) => groupMember.group)
   members: GroupMember[];

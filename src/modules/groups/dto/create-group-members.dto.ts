@@ -1,22 +1,14 @@
-import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles.decorator';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { IsArray, IsNotEmpty, IsString } from 'class-validator';
 
-class AddGroupMemberDto {
+export class AddGroupMembersDto {
   @ApiProperty({
-    example: '1',
+    isArray: true,
+    example: ['1', '2', '3'],
+    description: '用户ID列表',
   })
   @IsNotEmpty()
-  @IsString()
-  userId: string;
-
-  @ApiProperty({
-    example: GroupMemberRolesEnum.Member,
-  })
-  @IsNotEmpty()
-  @IsString()
-  @IsEnum(GroupMemberRolesEnum)
-  role: GroupMemberRolesEnum;
+  @IsArray()
+  @IsString({ each: true })
+  members: string[];
 }
-
-export class AddGroupMembersDto extends Array<AddGroupMemberDto> {}
