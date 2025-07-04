@@ -4,7 +4,7 @@ import { ApiOperation } from '@nestjs/swagger';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { SignupDto } from './dto/signup.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -14,12 +14,12 @@ export class AuthController {
   ) {}
 
   @ApiOperation({
-    summary: 'Register',
+    summary: 'Sign up',
   })
   @Public()
-  @Post('register')
-  register(@Body() registerDto: RegisterDto) {
-    return this.usersService.create(registerDto);
+  @Post('signup')
+  signup(@Body() signupDto: SignupDto) {
+    return this.usersService.create(signupDto);
   }
 
   @ApiOperation({
