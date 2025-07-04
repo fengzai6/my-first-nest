@@ -1,5 +1,6 @@
 import { isRequestUser } from '@/common/context';
 import { AuthException, AuthExceptionCode } from '@/common/exceptions';
+import { BaseResponse } from '@/common/response/base.response';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { hash } from 'argon2';
@@ -55,11 +56,11 @@ export class UsersService {
   }
 
   findOne(
-    where: FindOptionsWhere<User>,
+    criteria: FindOptionsWhere<User>,
     relations?: string[] | FindOptionsRelations<User>,
   ) {
     return this.userRepository.findOne({
-      where,
+      where: criteria,
       relations,
     });
   }
@@ -106,8 +107,6 @@ export class UsersService {
       throw new AuthException(AuthExceptionCode.USER_NOT_FOUND);
     }
 
-    return {
-      message: 'User deleted successfully',
-    };
+    return new BaseResponse('User deleted successfully');
   }
 }

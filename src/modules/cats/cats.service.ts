@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsersService } from '../users/users.service';
 import { CreateCatDto } from './dto/create-cat.dto';
 import { UpdateCatDto } from './dto/update-cat.dto';
 import { Cat } from './entities';
+import { BaseException } from '@/common/exceptions';
+import { BaseResponse } from '@/common/response/base.response';
 
 @Injectable()
 export class CatsService {
@@ -39,5 +41,18 @@ export class CatsService {
     });
 
     return this.catRepository.save(cat);
+  }
+
+  async remove(id: string) {
+    const result = await this.catRepository.softDelete(id);
+
+    if (result.affected === 0) {
+      throw new BaseException({
+        message: 'Cat not found',
+        status: HttpStatus.NOT_FOUND,
+      });
+    }
+
+    return new BaseResponse('Cat deleted successfully');
   }
 }

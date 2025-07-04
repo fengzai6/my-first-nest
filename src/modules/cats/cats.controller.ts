@@ -1,9 +1,11 @@
 import { PermissionCode } from '@/common/constants';
 import { UserInfo } from '@/common/decorators/jwt-auth.decorator';
 import { Permission } from '@/common/decorators/permission.decorator';
+import { BaseResponse } from '@/common/response/base.response';
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpException,
   HttpStatus,
@@ -12,7 +14,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { User } from '../users/entities/user.entity';
 import { CatsService } from './cats.service';
 import { CreateCatDto } from './dto/create-cat.dto';
@@ -88,6 +90,15 @@ export class CatsController {
   findOne(@Param('id', ParseIntPipe) id: string) {
     console.log(id);
     return this.catsService.findOne(id);
+  }
+
+  @Permission(PermissionCode.CAT_DELETE)
+  @ApiOperation({
+    summary: 'Delete a cat',
+  })
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    await this.catsService.remove(id);
   }
 
   // @Get('')

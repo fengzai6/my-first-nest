@@ -13,6 +13,7 @@ import { CreateGroupServiceDto } from './dto/create-group.dto';
 import { UpdateGroupMemberDto } from './dto/update-group-member.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { Group, GroupMember } from './entities';
+import { BaseResponse } from '@/common/response/base.response';
 
 @Injectable()
 export class GroupsService {
@@ -318,8 +319,6 @@ export class GroupsService {
 
     await this.groupMemberRepository.remove(groupMember);
 
-    return {
-      message: 'Group member removed successfully',
-    };
+    return new BaseResponse('Group member removed successfully');
   }
 }
