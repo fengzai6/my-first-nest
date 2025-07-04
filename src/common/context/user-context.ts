@@ -21,3 +21,7 @@ export const useRequestUser = (): User => {
 
   return user;
 };
+
+export const isRequestUser = (userId: string) => {
+  return userId === useRequestUser().id;
+};

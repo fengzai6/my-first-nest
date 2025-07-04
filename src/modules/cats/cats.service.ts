@@ -34,7 +34,9 @@ export class CatsService {
   async updateOwner(id: string, updateCatDto: UpdateCatDto) {
     const cat = await this.findOne(id);
 
-    cat.owner = await this.usersService.findOne(updateCatDto.ownerId);
+    cat.owner = await this.usersService.findOne({
+      id: updateCatDto.ownerId,
+    });
 
     return this.catRepository.save(cat);
   }

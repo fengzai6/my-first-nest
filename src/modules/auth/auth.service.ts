@@ -16,7 +16,9 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginDto) {
-    const user = await this.usersService.find(loginDto.username);
+    const user = await this.usersService.findOne({
+      username: loginDto.username,
+    });
 
     if (!user) {
       throw new AuthException(AuthExceptionCode.USER_NOT_FOUND);

@@ -1,8 +1,9 @@
+import { isRequestUser } from '@/common/context';
 import { AuthException, AuthExceptionCode } from '@/common/exceptions';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { hash } from 'argon2';
-import { FindOptionsRelations, Repository } from 'typeorm';
+import { FindOptionsRelations, FindOptionsWhere, Repository } from 'typeorm';
 import { Role } from '../roles/entities';
 import { RolesService } from '../roles/roles.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -48,27 +49,18 @@ export class UsersService {
   findAll(): Promise<User[]> {
     return this.userRepository.find({
       relations: {
-        // cats: true,
         roles: true,
       },
     });
   }
 
-  findOne(id: string, relations?: string[] | FindOptionsRelations<User>) {
+  findOne(
+    where: FindOptionsWhere<User>,
+    relations?: string[] | FindOptionsRelations<User>,
+  ) {
     return this.userRepository.findOne({
-      where: { id },
+      where,
       relations,
-    });
-  }
-
-  /**
-   * @description 查找用户(包括密码)
-   * @param username - 用户名
-   * @returns 用户
-   */
-  find(username: string) {
-    return this.userRepository.findOne({
-      where: { username },
     });
   }
 
@@ -81,6 +73,10 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
+    if (isRequestUser(id)) {
+      delete updateUserDto.roles;
+    }
+
     const user = await this.userRepository.findOne({
       where: { id },
     });
@@ -89,7 +85,11 @@ export class UsersService {
       throw new AuthException(AuthExceptionCode.USER_NOT_FOUND);
     }
 
-    const roles = await this.rolesService.findByCodes(updateUserDto.roles);
+    let roles: Role[];
+
+    if (updateUserDto.roles) {
+      roles = await this.rolesService.findByCodes(updateUserDto.roles);
+    }
 
     const updatedUser = this.userRepository.merge(user, {
       ...updateUserDto,
@@ -99,7 +99,15 @@ export class UsersService {
     return this.userRepository.save(updatedUser);
   }
 
-  remove(id: string) {
-    return this.userRepository.softDelete(id);
+  async remove(id: string) {
+    const result = await this.userRepository.softDelete(id);
+
+    if (result.affected === 0) {
+      throw new AuthException(AuthExceptionCode.USER_NOT_FOUND);
+    }
+
+    return {
+      message: 'User deleted successfully',
+    };
   }
 }

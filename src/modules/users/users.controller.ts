@@ -34,7 +34,7 @@ export class UsersController {
   @Permission(PermissionCode.USER_READ)
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
+    return this.usersService.findOne({ id });
   }
 
   @Permission(PermissionCode.USER_UPDATE)

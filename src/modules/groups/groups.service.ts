@@ -1,4 +1,4 @@
-import { useRequestUser } from '@/common/context';
+import { isRequestUser, useRequestUser } from '@/common/context';
 import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles.decorator';
 import {
   BadRequestException,
@@ -40,12 +40,6 @@ export class GroupsService {
         ? parentGroup
         : parentGroup.organizationGroup;
     }
-  }
-
-  private isSelf(userId: string) {
-    const currentUser = useRequestUser();
-
-    return currentUser.id === userId;
   }
 
   async getGroupMemberRole(
@@ -96,6 +90,7 @@ export class GroupsService {
 
   async createGroup(createGroupDto: CreateGroupServiceDto) {
     const currentUser = useRequestUser();
+
     const values = pick(createGroupDto, [
       'name',
       'description',
@@ -289,7 +284,7 @@ export class GroupsService {
     }
 
     if (
-      this.isSelf(userId) &&
+      isRequestUser(userId) &&
       role === GroupMemberRolesEnum.Member &&
       groupMember.role === GroupMemberRolesEnum.Leader
     ) {
@@ -302,7 +297,7 @@ export class GroupsService {
   }
 
   async removeGroupMember(groupId: string, userId: string) {
-    if (this.isSelf(userId)) {
+    if (isRequestUser(userId)) {
       throw new BadRequestException('Cannot remove self');
     }
 
