@@ -71,10 +71,10 @@ export class GroupsController {
     return this.groupsService.updateGroup(groupId, updateGroupDto);
   }
 
-  @DisabledEndpoint()
   @ApiOperation({
     summary: '更新群组的权限角色，组内用户会继承角色 - NeedPermission',
   })
+  @DisabledEndpoint()
   @Permission(PermissionCode.GROUP_UPDATE)
   @GroupMemberRoles([GroupMemberRolesEnum.SuperiorLeader])
   @Post(':groupId/roles')

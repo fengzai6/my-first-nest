@@ -15,7 +15,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { RolesService } from './roles.service';
@@ -26,6 +26,9 @@ import { RolesService } from './roles.service';
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
+  @ApiOperation({
+    summary: '创建角色',
+  })
   @Permission(PermissionCode.ROLE_CREATE)
   @SpecialRoles([SpecialRolesEnum.SuperAdmin])
   @Post()
@@ -33,18 +36,27 @@ export class RolesController {
     return this.rolesService.create(createRoleDto);
   }
 
+  @ApiOperation({
+    summary: '获取所有角色',
+  })
   @Permission(PermissionCode.ROLE_READ)
   @Get()
   findAll() {
     return this.rolesService.findAll();
   }
 
+  @ApiOperation({
+    summary: '获取角色',
+  })
   @Permission(PermissionCode.ROLE_READ)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.rolesService.findOne(id);
   }
 
+  @ApiOperation({
+    summary: '更新角色',
+  })
   @Permission(PermissionCode.ROLE_UPDATE)
   @SpecialRoles([SpecialRolesEnum.SuperAdmin])
   @Patch(':id')
@@ -52,6 +64,9 @@ export class RolesController {
     return this.rolesService.update(id, updateRoleDto);
   }
 
+  @ApiOperation({
+    summary: '删除角色',
+  })
   @Permission(PermissionCode.ROLE_DELETE)
   @SpecialRoles([SpecialRolesEnum.SuperAdmin])
   @Delete(':id')

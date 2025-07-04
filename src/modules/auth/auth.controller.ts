@@ -13,19 +13,19 @@ export class AuthController {
     private readonly usersService: UsersService,
   ) {}
 
-  @Public()
   @ApiOperation({
     summary: 'Register',
   })
+  @Public()
   @Post('register')
   register(@Body() registerDto: RegisterDto) {
     return this.usersService.create(registerDto);
   }
 
-  @Public()
   @ApiOperation({
     summary: 'Login',
   })
+  @Public()
   @Post('login')
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
