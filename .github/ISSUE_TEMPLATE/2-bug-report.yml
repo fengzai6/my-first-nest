@@ -1,0 +1,23 @@
+name: '🐛 错误报告'
+description: '报告一个错误'
+title: '[Bug] '
+labels: 'bug'
+body:
+  - type: textarea
+    attributes:
+      label: '📄 错误描述'
+      description: '请描述错误的具体表现。'
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: '🔄 重现步骤'
+      description: '请描述导致错误的具体步骤。'
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: '🖥️ 环境信息'
+      description: '请提供有关错误发生时环境的详细信息。'
+    validations:
+      required: false

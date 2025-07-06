@@ -1,0 +1,23 @@
+name: '✨ 功能请求'
+description: '提出一个新功能的请求'
+title: '[Feat] '
+labels: 'enhancement'
+body:
+  - type: textarea
+    attributes:
+      label: '🤩 功能请求'
+      description: '请描述您想要的功能。'
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: '🧐 用例'
+      description: '请描述您想要的功能的用例。'
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: '📝 其他信息'
+      description: '请提供任何其他有关此功能请求的上下文信息。'
+    validations:
+      required: false
