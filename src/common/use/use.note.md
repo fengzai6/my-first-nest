@@ -14,6 +14,54 @@
 6.  **拦截器 (Interceptors) - 后置处理 (响应转换)**
 7.  **异常过滤器 (Exception Filters)**
 
+## 请求流程详解
+
+请求在 NestJS 应用中的完整流程如下：
+
+1. **发起请求**：客户端发送请求，例如 `/auth/getToken`
+
+2. **中间件处理 (Middleware)**：
+
+   - 最先执行
+   - 可以拦截异常并中断请求流程
+   - 通过 `next()` 将请求传递给下一个处理器
+
+3. **守卫验证 (Guards)**：
+
+   - 负责授权验证
+   - 可以拦截异常并中断请求流程
+   - 返回 `false` 时会阻止请求继续进行
+
+4. **进入拦截器 (Interceptor - before)**：
+
+   - 在控制器方法执行前处理请求
+   - 通过 `next.handle()` 之前的代码执行前置逻辑
+   - 可以拦截异常并中断请求流程
+
+5. **管道处理 (Pipes)**：
+
+   - 处理参数验证和转换
+   - 可以拦截异常并中断请求流程
+
+6. **执行路由方法 (Route Handler)**：
+
+   - 执行控制器中的方法，如 `getToken()`
+   - 生成响应数据
+
+7. **退出拦截器 (Interceptor - after)**：
+
+   - 在 `next.handle()` 之后的代码执行后置逻辑
+   - 可以转换响应数据
+   - 可以处理异常
+
+8. **响应处理**：
+
+   - 将最终处理后的数据返回给客户端
+
+9. **异常过滤器 (Filters)**：
+   - 在整个过程中，如果发生异常，会由异常过滤器处理
+   - 将格式化后的错误响应返回给客户端
+
 ## 组件范围和行为
 
 ### 中间件 (Middleware)
@@ -41,6 +89,32 @@
   - 完全覆盖一个函数（例如，为了缓存）。
 - **范围**: 与守卫类似，它们可以访问 `ExecutionContext`。它们不会处理非 NestJS 路由处理的请求（例如，Swagger 的静态文件服务）。
 
+### 管道 (Pipes)
+
+- **执行时机**: 在拦截器的前置处理之后，路由处理函数执行之前。
+- **功能**: 主要负责数据转换和验证。可以将输入数据转换为所需的形式，或者验证输入数据是否符合预期。
+- **范围**: 可以应用于参数、控制器、路由或全局。
+
+### 异常过滤器 (Exception Filters)
+
+- **执行时机**: 在整个请求-响应周期中捕获并处理异常。
+- **功能**: 处理整个应用程序中未捕获的异常，并将格式化的响应返回给客户端。
+- **范围**: 可以绑定到控制器、路由或全局。
+
 ## 如何更好地控制中间件
 
 全局中间件 (`app.use()`) 的作用范围太广，通常不是最佳选择。为了更精确地控制中间件的应用范围，应该在模块中使用中间件消费者 (`MiddlewareConsumer`)。
+
+```typescript
+@Module({
+  // ...
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(LoggerMiddleware)
+      .exclude({ path: 'health', method: RequestMethod.GET })
+      .forRoutes({ path: '*', method: RequestMethod.ALL });
+  }
+}
+```
