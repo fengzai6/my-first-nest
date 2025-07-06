@@ -1,4 +1,4 @@
-# 我的第一个 NestJS 项目
+# 第一个 NestJS 项目
 
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
@@ -8,7 +8,7 @@
   <a href="https://github.com/fengzai6/my-first-nest/releases/latest">
     <img src="https://img.shields.io/github/v/release/fengzai6/my-first-nest" alt="Release">
   </a>
-  <a href="https://github.com/fengzai6/my-first-nest/blob/master/LICENSE">
+  <a href="https://github.com/fengzai6/my-first-nest/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/fengzai6/my-first-nest" alt="License">
   </a>
   <a href="https://github.com/fengzai6/my-first-nest/stargazers">
