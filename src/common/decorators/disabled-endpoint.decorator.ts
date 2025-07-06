@@ -1,4 +1,5 @@
 import { UseGuards, applyDecorators } from '@nestjs/common';
+import { ApiOperation } from '@nestjs/swagger';
 import { DisabledEndpointGuard } from '../guards/disabled-endpoint.guard';
 
 /**
@@ -8,5 +9,10 @@ import { DisabledEndpointGuard } from '../guards/disabled-endpoint.guard';
  * 当用户访问被此装饰器标记的接口时，将返回403错误
  */
 export const DisabledEndpoint = () => {
-  return applyDecorators(UseGuards(DisabledEndpointGuard));
+  return applyDecorators(
+    UseGuards(DisabledEndpointGuard),
+    ApiOperation({
+      deprecated: true,
+    }),
+  );
 };
