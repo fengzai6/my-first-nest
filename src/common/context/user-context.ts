@@ -1,6 +1,7 @@
 import { User } from '@/modules/users/entities';
 import { AsyncLocalStorage } from 'async_hooks';
 
+// 单例模式，保证 AsyncLocalStorage 的实例是唯一的，并在拦截器中使用
 export const userContextStorage = new AsyncLocalStorage<User>();
 
 /**
