@@ -25,6 +25,7 @@ const manage = async () => {
 
   let dataSource: DataSource | null = null;
   try {
+    // 由于初始用户需要使用雪花算法生成 ID，所以需要初始化雪花算法
     initSnowflake(
       BigInt(process.env.WORKER_ID || 0),
       BigInt(process.env.DATACENTER_ID || 0),

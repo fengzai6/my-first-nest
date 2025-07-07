@@ -11,6 +11,10 @@ const run = (command: string) => {
   }
 };
 
+/**
+ * 生成迁移文件
+ * 该迁移文件是基于数据库的当前状态生成的更新
+ */
 const runGenerate = () => {
   const migrationName = process.argv[3];
 
@@ -35,6 +39,10 @@ const runGenerate = () => {
   run(generateCommand);
 };
 
+/**
+ * 回滚迁移
+ * 该命令会回滚最后一个迁移
+ */
 const runRevert = () => {
   const revertCommand = `${command} migration:revert`;
 
