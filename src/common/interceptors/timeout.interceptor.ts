@@ -2,6 +2,7 @@ import { getAppConfig } from '@/config/configuration';
 import {
   CallHandler,
   ExecutionContext,
+  HttpStatus,
   INestApplication,
   Injectable,
   NestInterceptor,
@@ -23,10 +24,10 @@ export class TimeoutInterceptor implements NestInterceptor {
         if (err instanceof TimeoutError) {
           return throwError(
             () =>
-              new RequestTimeoutException(
-                '请求超时，服务器处理时间过长',
-                '504',
-              ),
+              new RequestTimeoutException({
+                message: '请求超时，服务器处理时间过长',
+                statusCode: HttpStatus.LOOP_DETECTED,
+              }),
           );
         }
         return throwError(() => err);
