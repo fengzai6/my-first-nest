@@ -2,7 +2,7 @@ import * as Joi from 'joi';
 
 export const validationSchema = Joi.object({
   // Database
-  DATABASE_URL: Joi.string().uri({ scheme: ['postgres'] }),
+  DATABASE_URL: Joi.string(),
   DATABASE_HOST: Joi.string(),
   DATABASE_PORT: Joi.number().port().default(5432),
   DATABASE_USERNAME: Joi.string(),
