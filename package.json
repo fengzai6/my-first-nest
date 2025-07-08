@@ -3,7 +3,6 @@
   "version": "0.0.1",
   "description": "My First NestJS Project For Learning",
   "author": "fengzai6",
-  "private": true,
   "license": "MIT",
   "scripts": {
     "build": "nest build",
@@ -48,6 +47,7 @@
     "@nestjs/mapped-types": "2.1.0",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "11.1.0",
+    "@nestjs/serve-static": "^5.0.3",
     "@nestjs/swagger": "11.2.0",
     "@nestjs/typeorm": "^11.0.0",
     "@types/passport-jwt": "^4.0.1",
@@ -108,5 +108,8 @@
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1"
     }
+  },
+  "engines": {
+    "node": ">=20.19.3"
   }
 }

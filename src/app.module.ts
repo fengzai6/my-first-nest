@@ -5,9 +5,10 @@ import { appGuards } from './common/guards/app-guards';
 import { AppConfigModule } from './config/config.module';
 import { modules } from './modules';
 import { DatabaseModule } from './shared/database/database.module';
+import { StaticModule } from './shared/static/static.module';
 
 @Module({
-  imports: [AppConfigModule, DatabaseModule, ...modules],
+  imports: [AppConfigModule, DatabaseModule, StaticModule, ...modules],
   controllers: [AppController],
   providers: [AppService, ...appGuards],
 })
