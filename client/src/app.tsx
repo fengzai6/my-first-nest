@@ -1,3 +1,10 @@
+import { App as AntdApp } from "antd";
+import { Router } from "./router";
+
 export const App = () => {
-  return <div>App</div>;
+  return (
+    <AntdApp>
+      <Router />
+    </AntdApp>
+  );
 };

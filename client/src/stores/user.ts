@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 export const useUserStore = create()(
   persist(
@@ -7,6 +7,6 @@ export const useUserStore = create()(
       user: null,
       setUser: (user: any) => set({ user }),
     }),
-    { name: "USER_STORE" },
+    { name: "USER_STORE", storage: createJSONStorage(() => localStorage) },
   ),
 );
