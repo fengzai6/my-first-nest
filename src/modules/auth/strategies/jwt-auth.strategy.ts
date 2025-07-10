@@ -12,6 +12,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 export interface JwtPayload {
   id: string;
   username: string;
+  type: 'access' | 'refresh';
 }
 
 @Injectable()
@@ -28,6 +29,11 @@ export class JwtAuthStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: JwtPayload) {
+    // 只允许 accessToken 访问，防止 refreshToken 被用于身份验证
+    if (payload.type !== 'access') {
+      throw new AuthException(AuthExceptionCode.UNAUTHORIZED);
+    }
+
     const { id } = payload;
 
     const user = await this.usersService.findOne(

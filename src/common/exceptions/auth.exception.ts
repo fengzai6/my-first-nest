@@ -6,6 +6,7 @@ export enum AuthExceptionCode {
   USER_ALREADY_EXISTS = 'USER_ALREADY_EXISTS',
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
   UNAUTHORIZED = 'UNAUTHORIZED',
+  INVALID_REFRESH_TOKEN = 'INVALID_REFRESH_TOKEN',
 }
 
 export const AuthExceptionMap: Record<AuthExceptionCode, ExceptionInfo> = {
@@ -28,6 +29,11 @@ export const AuthExceptionMap: Record<AuthExceptionCode, ExceptionInfo> = {
     message: '未授权访问',
     status: HttpStatus.UNAUTHORIZED,
     code: AuthExceptionCode.UNAUTHORIZED,
+  },
+  [AuthExceptionCode.INVALID_REFRESH_TOKEN]: {
+    message: '无效的刷新令牌',
+    status: HttpStatus.UNAUTHORIZED,
+    code: AuthExceptionCode.INVALID_REFRESH_TOKEN,
   },
 };
 

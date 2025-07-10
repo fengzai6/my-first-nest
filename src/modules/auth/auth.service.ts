@@ -2,18 +2,24 @@ import {
   AuthException,
   AuthExceptionCode,
 } from '@/common/exceptions/auth.exception';
+import { BaseResponse } from '@/common/response/base.response';
 import { Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { verify } from 'argon2';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
+import { SignupDto } from './dto/signup.dto';
+import { RefreshTokenService } from './refresh-token.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
-    private readonly jwtService: JwtService,
+    private readonly refreshTokenService: RefreshTokenService,
   ) {}
+
+  async signup(signupDto: SignupDto) {
+    return await this.usersService.create(signupDto);
+  }
 
   async login(loginDto: LoginDto) {
     const user = await this.usersService.findOne({
@@ -30,12 +36,12 @@ export class AuthService {
       throw new AuthException(AuthExceptionCode.INVALID_CREDENTIALS);
     }
 
-    return {
-      user,
-      accessToken: this.jwtService.sign({
-        id: user.id,
-        username: user.username,
-      }),
-    };
+    return await this.refreshTokenService.create(user);
+  }
+
+  async logout(refreshToken: string) {
+    await this.refreshTokenService.remove(refreshToken);
+
+    return new BaseResponse('Logout successfully');
   }
 }

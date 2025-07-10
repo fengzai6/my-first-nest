@@ -11,9 +11,8 @@ export const developmentConfig = registerAs(
       // logging: true,
     },
     jwt: {
-      signOptions: {
-        expiresIn: 60 * 60 * 24 * 30,
-      },
+      accessExpiresIn: 60,
+      refreshExpiresIn: 60 * 60,
     },
   }),
 );

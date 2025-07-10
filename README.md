@@ -60,6 +60,7 @@
 - [x] 用户账号系统
 - [x] 用户群组结构管理
 - [x] JWT 认证与授权
+- [x] 双 token 认证：AccessToken 和 RefreshToken
 - [x] 数据库初始化和相关迁移工具
   - [x] migration 生成工具
   - [x] 数据库初始化脚本
