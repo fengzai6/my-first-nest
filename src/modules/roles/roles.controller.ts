@@ -20,6 +20,8 @@ import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { RolesService } from './roles.service';
 
+// TODO: 需要思考 Permission 和 SpecialRoles 的冲突关系
+
 @ApiBearerAuth()
 @Controller('roles')
 @UseGuards(SpecialRolesGuard)
