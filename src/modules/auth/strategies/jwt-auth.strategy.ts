@@ -1,3 +1,4 @@
+import { TokenType } from '@/common/constants/auth';
 import {
   AuthException,
   AuthExceptionCode,
@@ -12,7 +13,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 export interface JwtPayload {
   id: string;
   username: string;
-  type: 'access' | 'refresh';
+  type: TokenType;
 }
 
 @Injectable()
@@ -30,7 +31,7 @@ export class JwtAuthStrategy extends PassportStrategy(Strategy, 'jwt') {
 
   async validate(payload: JwtPayload) {
     // 只允许 accessToken 访问，防止 refreshToken 被用于身份验证
-    if (payload.type !== 'access') {
+    if (payload.type !== TokenType.ACCESS) {
       throw new AuthException(AuthExceptionCode.UNAUTHORIZED);
     }
 

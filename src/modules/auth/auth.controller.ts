@@ -1,10 +1,11 @@
 import { IsProduction } from '@/common/constants';
+import { REFRESH_TOKEN_KEY } from '@/common/constants/auth';
 import { Cookies } from '@/common/decorators/cookies.decorator';
 import { Public } from '@/common/decorators/jwt-auth.decorator';
 import { getConfig } from '@/config/configuration';
 import { Body, Controller, Get, Post, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -53,7 +54,7 @@ export class AuthController {
   @Public()
   @Get('refresh-token')
   async refreshToken(
-    @Cookies('refreshToken') refreshToken: string,
+    @Cookies(REFRESH_TOKEN_KEY) refreshToken: string,
     @Res({ passthrough: true }) res: Response,
   ) {
     const tokens = await this.refreshTokenService.refreshToken(refreshToken);
@@ -69,18 +70,19 @@ export class AuthController {
   @ApiOperation({
     summary: 'Logout',
   })
+  @ApiBearerAuth()
   @Post('logout')
   logout(
-    @Cookies('refreshToken') refreshToken: string,
+    @Cookies(REFRESH_TOKEN_KEY) refreshToken: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    res.clearCookie('refreshToken');
+    res.clearCookie(REFRESH_TOKEN_KEY);
 
     return this.authService.logout(refreshToken);
   }
 
   private setRefreshTokenCookie(res: Response, refreshToken: string) {
-    res.cookie('refreshToken', refreshToken, {
+    res.cookie(REFRESH_TOKEN_KEY, refreshToken, {
       httpOnly: true,
       secure: IsProduction,
       maxAge: getConfig(this.configService).jwt.refreshExpiresIn * 1000,

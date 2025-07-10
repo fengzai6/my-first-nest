@@ -1,3 +1,4 @@
+import { TokenType } from '@/common/constants/auth';
 import { AuthException, AuthExceptionCode } from '@/common/exceptions';
 import { getConfig } from '@/config/configuration';
 import { User } from '@/modules/users/entities';
@@ -67,10 +68,10 @@ export class RefreshTokenService {
 
     const accessToken = this.jwtService.sign({
       ...payload,
-      type: 'access',
+      type: TokenType.ACCESS,
     });
     const refreshToken = this.jwtService.sign(
-      { ...payload, type: 'refresh' },
+      { ...payload, type: TokenType.REFRESH },
       {
         expiresIn: getConfig(this.configService).jwt.refreshExpiresIn,
       },
@@ -92,8 +93,12 @@ export class RefreshTokenService {
   }
 
   async remove(token: RefreshToken | string) {
-    // TODO: Redis: 登出时，删除 Redis 中的 refreshToken 和将 accessToken 设置为黑名单
+    // TODO: Redis: 登出时，删除 Redis 中的 refreshToken 和将 accessToken 设置为黑名单（如何拿到 accessToken ）
     // 同时需要在 JwtAuthGuard 中处理黑名单的 accessToken
+
+    if (!token) {
+      return;
+    }
 
     if (typeof token === 'string') {
       await this.refreshTokenRepository.delete({ token });
