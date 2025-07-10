@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { JwtPayload } from './strategies/jwt-auth.strategy';
 
 @Injectable()
 export class RefreshTokenService {
@@ -61,15 +62,12 @@ export class RefreshTokenService {
   }
 
   async generateTokens(user: User) {
-    const payload = {
-      id: user.id,
-      username: user.username,
+    const payload: JwtPayload = {
+      sub: user.id,
+      type: TokenType.ACCESS,
     };
 
-    const accessToken = this.jwtService.sign({
-      ...payload,
-      type: TokenType.ACCESS,
-    });
+    const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(
       { ...payload, type: TokenType.REFRESH },
       {

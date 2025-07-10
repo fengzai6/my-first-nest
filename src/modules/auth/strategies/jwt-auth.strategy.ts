@@ -11,8 +11,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 export interface JwtPayload {
-  id: string;
-  username: string;
+  sub: string;
   type: TokenType;
 }
 
@@ -35,10 +34,8 @@ export class JwtAuthStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new AuthException(AuthExceptionCode.UNAUTHORIZED);
     }
 
-    const { id } = payload;
-
     const user = await this.usersService.findOne(
-      { id },
+      { id: payload.sub },
       {
         roles: {
           permissions: true,
