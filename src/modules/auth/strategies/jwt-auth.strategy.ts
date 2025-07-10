@@ -1,3 +1,4 @@
+import { TokenType } from '@/common/constants/auth';
 import {
   AuthException,
   AuthExceptionCode,
@@ -10,8 +11,8 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 export interface JwtPayload {
-  id: string;
-  username: string;
+  sub: string;
+  type: TokenType;
 }
 
 @Injectable()
@@ -28,10 +29,13 @@ export class JwtAuthStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: JwtPayload) {
-    const { id } = payload;
+    // 只允许 accessToken 访问，防止 refreshToken 被用于身份验证
+    if (payload.type !== TokenType.ACCESS) {
+      throw new AuthException(AuthExceptionCode.UNAUTHORIZED);
+    }
 
     const user = await this.usersService.findOne(
-      { id },
+      { id: payload.sub },
       {
         roles: {
           permissions: true,

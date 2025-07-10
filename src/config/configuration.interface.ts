@@ -1,4 +1,3 @@
-import { JwtModuleOptions } from '@nestjs/jwt';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 export interface ServerConfig {
@@ -15,6 +14,12 @@ export interface SwaggerConfig {
   version?: string;
 }
 
+export interface JwtConfig {
+  secret?: string;
+  accessExpiresIn?: number;
+  refreshExpiresIn?: number;
+}
+
 export interface SnowflakeConfig {
   workerId: number;
   datacenterId: number;
@@ -24,6 +29,6 @@ export interface AppConfig {
   server?: ServerConfig;
   swagger?: SwaggerConfig;
   database?: TypeOrmModuleOptions;
-  jwt?: JwtModuleOptions;
+  jwt?: JwtConfig;
   snowflake?: SnowflakeConfig;
 }
