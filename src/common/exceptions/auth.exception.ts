@@ -5,8 +5,10 @@ export enum AuthExceptionCode {
   USER_NOT_FOUND = 'USER_NOT_FOUND',
   USER_ALREADY_EXISTS = 'USER_ALREADY_EXISTS',
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
+  NEW_PASSWORD_SAME_AS_OLD = 'NEW_PASSWORD_SAME_AS_OLD',
   UNAUTHORIZED = 'UNAUTHORIZED',
   INVALID_REFRESH_TOKEN = 'INVALID_REFRESH_TOKEN',
+  SUPER_ADMIN_IS_SPECIAL = 'SUPER_ADMIN_IS_SPECIAL',
 }
 
 export const AuthExceptionMap: Record<AuthExceptionCode, ExceptionInfo> = {
@@ -25,6 +27,11 @@ export const AuthExceptionMap: Record<AuthExceptionCode, ExceptionInfo> = {
     status: HttpStatus.UNAUTHORIZED,
     code: AuthExceptionCode.INVALID_CREDENTIALS,
   },
+  [AuthExceptionCode.NEW_PASSWORD_SAME_AS_OLD]: {
+    message: '新密码与旧密码相同',
+    status: HttpStatus.BAD_REQUEST,
+    code: AuthExceptionCode.NEW_PASSWORD_SAME_AS_OLD,
+  },
   [AuthExceptionCode.UNAUTHORIZED]: {
     message: '未授权访问',
     status: HttpStatus.UNAUTHORIZED,
@@ -34,6 +41,11 @@ export const AuthExceptionMap: Record<AuthExceptionCode, ExceptionInfo> = {
     message: '无效的刷新令牌',
     status: HttpStatus.UNAUTHORIZED,
     code: AuthExceptionCode.INVALID_REFRESH_TOKEN,
+  },
+  [AuthExceptionCode.SUPER_ADMIN_IS_SPECIAL]: {
+    message: '超级管理员十分特殊喔',
+    status: HttpStatus.BAD_REQUEST,
+    code: AuthExceptionCode.SUPER_ADMIN_IS_SPECIAL,
   },
 };
 

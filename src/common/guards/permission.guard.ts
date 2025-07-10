@@ -1,5 +1,6 @@
 import { GroupsService } from '@/modules/groups/groups.service';
 import { User } from '@/modules/users/entities';
+import { UsersService } from '@/modules/users/users.service';
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
@@ -15,6 +16,7 @@ export class PermissionGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private readonly groupsService: GroupsService,
+    private readonly usersService: UsersService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -36,11 +38,11 @@ export class PermissionGuard implements CanActivate {
       return true;
     }
 
-    if (!user || !user.roles) {
+    if (!user) {
       return false;
     }
 
-    const permissions = user.roles.flatMap((role) => role.permissions);
+    const permissions = await this.usersService.getPermissions();
 
     const hasPermission = permissions.some(
       (permission) => permission.code === requiredPermission,
