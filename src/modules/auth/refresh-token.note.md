@@ -1,15 +1,26 @@
-### Refresh Token 和 Cookie
+## 单 token 和 双 token 认证
+
+### 单 token 认证
+
+单个 JWT Token 认证，这是目前十分常见的认证方式，这类 accessToken 一般过期时间设置的比较长，一个月、半年、一年等, 这样就不会让用户经常登录，方便快捷。
+
+### 双 token 认证
+
+双 token 理论上只要用户一直使用，就永远不会掉登录状态，所以一般来说，accessToken 就设置为短期，而 refreshToken 设置为长期。
+或者说 refreshToken 的过期时间其实就是允许用户最长多久不使用应用的时间。
+
+## Refresh Token 和 Cookie
 
 `RefreshToken` (刷新令牌) 是一种用于获取新 `AccessToken` (访问令牌) 的凭证。与 `AccessToken` 相比，`RefreshToken` 通常具有更长的有效期。
 这样`AccessToken` 的过期时间一般设置为短期内过期，从而保护用户 Token 泄露后减免滥用的风险。
 
-#### 为什么使用 Cookie 存储 RefreshToken？
+### 为什么使用 Cookie 存储 RefreshToken？
 
 为了提高安全性，`RefreshToken` 通常不应由客户端（例如浏览器中的 JavaScript）直接管理。将其存储在 `localStorage` 或 `sessionStorage` 中会使其容易受到跨站脚本（XSS）攻击。如果攻击者能够注入并执行恶意脚本，他们就可以读取并窃取存储中的 `RefreshToken`。
 
 将 `RefreshToken` 存储在 `HttpOnly` cookie 中是更安全的选择。这样可以防止客户端脚本访问该令牌，从而大大降低 XSS 攻击的风险。
 
-#### Cookie 的安全属性
+### Cookie 的安全属性
 
 在设置包含 `RefreshToken` 的 cookie 时，应配置以下属性以增强安全性：
 
@@ -34,7 +45,7 @@
       - `Max-Age`：指定从现在开始的秒数，经过该时间后 cookie 将过期。`Max-Age` 的优先级高于 `Expires`。
     - 为 `RefreshToken` 设置合理的有效期非常重要，以平衡用户体验和安全风险。
 
-#### 示例
+### 示例
 
 一个安全的 `RefreshToken` cookie 设置可能如下所示：
 
