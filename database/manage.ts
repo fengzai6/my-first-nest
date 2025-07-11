@@ -3,6 +3,10 @@ import { DataSource } from 'typeorm';
 import AppDataSource from './data-source';
 import seed from './seeds';
 
+/**
+ * 运行迁移: 由于非实际业务仓库，所以 migrations 中的文件是非兼容过去迁移的最新版本
+ * 如果需要，可以手动生成自己的迁移文件：yarn migration:generate <migration_name>
+ */
 const runMigrations = async (dataSource: DataSource) => {
   console.log('正在运行迁移...');
   await dataSource.runMigrations();
