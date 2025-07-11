@@ -46,6 +46,7 @@ export class UsersController {
   @ApiOperation({
     summary: '获取用户',
   })
+  @Permission(PermissionCode.USER_READ)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(

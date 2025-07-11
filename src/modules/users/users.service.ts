@@ -10,6 +10,7 @@ import {
   FindOptionsRelations,
   FindOptionsWhere,
   In,
+  Not,
   Repository,
 } from 'typeorm';
 import { PermissionsService } from '../permissions/permissions.service';
@@ -37,10 +38,12 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-    const isExist = await this.exist(
-      createUserDto.username,
-      createUserDto.email,
-    );
+    const isExist = await this.userRepository.exists({
+      where: [
+        { username: createUserDto.username },
+        { email: createUserDto.email },
+      ],
+    });
 
     if (isExist) {
       throw new AuthException(AuthExceptionCode.USER_ALREADY_EXISTS);
@@ -111,21 +114,6 @@ export class UsersService {
     return user;
   }
 
-  /**
-   * 检查用户名或邮箱是否存在
-   */
-  async exist(username?: string, email?: string): Promise<boolean> {
-    if (!username && !email) {
-      return false;
-    }
-
-    const user = await this.userRepository.findOne({
-      where: [{ username }, { email }],
-    });
-
-    return !!user;
-  }
-
   updateProfile(updateProfileDto: UpdateUserDto) {
     const { id: userId } = useRequestUser();
 
@@ -144,13 +132,24 @@ export class UsersService {
       delete updateUserDto.username;
     }
 
-    const isExist = await this.exist(
-      updateUserDto.username,
-      updateUserDto.email,
-    );
+    // 检查用户名或邮箱是否存在
+    if (updateUserDto.username || updateUserDto.email) {
+      const where: FindOptionsWhere<User>[] = [];
 
-    if (isExist) {
-      throw new AuthException(AuthExceptionCode.USER_ALREADY_EXISTS);
+      if (updateUserDto.username) {
+        where.push({ username: updateUserDto.username, id: Not(id) });
+      }
+      if (updateUserDto.email) {
+        where.push({ email: updateUserDto.email, id: Not(id) });
+      }
+
+      if (where.length > 0) {
+        const isExist = await this.userRepository.exists({ where });
+
+        if (isExist) {
+          throw new AuthException(AuthExceptionCode.USER_ALREADY_EXISTS);
+        }
+      }
     }
 
     const updatedUser = this.userRepository.merge(user, {
@@ -195,11 +194,9 @@ export class UsersService {
   }
 
   async updatePassword({ oldPassword, newPassword }: UpdatePasswordDto) {
-    const requestUser = useRequestUser();
+    const { id } = useRequestUser();
 
-    const user = await this.userRepository.findOne({
-      where: { id: requestUser.id },
-    });
+    const user = await this.findOne({ id });
 
     const isPasswordValid = await verify(user.password, oldPassword);
 
@@ -218,7 +215,7 @@ export class UsersService {
       throw new AuthException(AuthExceptionCode.NEW_PASSWORD_SAME_AS_OLD);
     }
 
-    await this.userRepository.update(requestUser.id, {
+    await this.userRepository.update(id, {
       password: hashedPassword,
     });
 
@@ -229,9 +226,7 @@ export class UsersService {
     id: string,
     { newPassword }: UpdatePasswordByAdminDto,
   ) {
-    const user = await this.userRepository.findOne({
-      where: { id },
-    });
+    const user = await this.findOne({ id });
 
     if (!user) {
       throw new AuthException(AuthExceptionCode.USER_NOT_FOUND);
