@@ -3,7 +3,7 @@ import { REFRESH_TOKEN_KEY } from '@/common/constants/auth';
 import { Cookies } from '@/common/decorators/cookies.decorator';
 import { Public } from '@/common/decorators/jwt-auth.decorator';
 import { getConfig } from '@/config/configuration';
-import { Body, Controller, Get, Post, Res } from '@nestjs/common';
+import { Body, Controller, Post, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Response } from 'express';
@@ -52,7 +52,7 @@ export class AuthController {
     summary: 'Refresh token',
   })
   @Public()
-  @Get('refresh-token')
+  @Post('refresh-token')
   async refreshToken(
     @Cookies(REFRESH_TOKEN_KEY) refreshToken: string,
     @Res({ passthrough: true }) res: Response,
