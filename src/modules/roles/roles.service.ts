@@ -33,6 +33,12 @@ export class RolesService {
     });
   }
 
+  findByUser(userId: string) {
+    return this.roleRepository.find({
+      where: { users: { id: userId } },
+    });
+  }
+
   findAll() {
     return this.roleRepository.find({
       relations: {

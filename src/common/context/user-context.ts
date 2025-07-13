@@ -18,8 +18,6 @@ export const useRequestUser = (): User => {
     );
   }
 
-  delete user.roles;
-
   return user;
 };
 

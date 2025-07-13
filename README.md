@@ -18,21 +18,7 @@
 
 ## 项目简介
 
-这是一个基于 [NestJS](https://nestjs.com/) 框架的入门级项目，由于在自学nestjs之路上，通过官方文档和搜索引擎所得到的教程都点到为止，并非是实现实际场景的业务，所以我便想完善实践，帮助开发者学习和实践 NestJS 的基础知识。本项目将实现一个简单的系统，展示 NestJS 的核心特性和最佳实践（个人学习中，可能存在错误），并将尽力的完善相关的注释。
-
-## 希望
-
-为了实现最佳实践，可以通过 issue 提出包括但不限于：
-
-- 代码规范（如：命名规范、注释规范、代码风格等）
-- 项目结构（如：模块划分、目录结构、文件命名等）
-- 功能实现（如：功能实现、性能优化、安全问题等）
-
-的建议，通过评估和讨论，我会尽力根据建议完善项目。
-
-也可以通过 PR 直接提交您的最佳实践代码，提交 PR 之前，请先创建一个 issue，并描述您的最佳实践。并评论自己 will do （每个人都可以在别人的 issue 中评论自己 will do），在经过评估和讨论和完成之后，我会合并您的 PR。
-
-感谢您的贡献！
+这是一个基于 [NestJS](https://nestjs.com/) 框架的入门级项目，由于在自学nestjs之路上，通过官方文档和搜索引擎所得到的教程都点到为止，并非是实现实际场景的业务，所以我便想完善实践，帮助开发者学习和实践 NestJS 的基础知识。本项目将实现一个简单又不简单的系统，展示 NestJS 的核心特性和最佳实践（个人学习中，可能存在错误），并将尽力的完善相关的注释。在项目的各个角落我也可能留下笔记帮助理解～
 
 ## 技术栈
 
@@ -40,6 +26,8 @@
 - TypeScript - 类型安全的 JavaScript 超集
 - TypeORM - 强大的 ORM 框架
 - PostgreSQL - 关系型数据库
+- Swagger - API 文档生成工具
+- 即将参与：Redis、React、Vite、TailwindCSS、ShadcnUI、Antd
 
 ## 项目特点
 
@@ -60,6 +48,7 @@
 - [x] 用户账号系统
 - [x] 用户群组结构管理
 - [x] JWT 认证与授权
+- [x] 双 token 认证：AccessToken 和 RefreshToken
 - [x] 数据库初始化和相关迁移工具
   - [x] migration 生成工具
   - [x] 数据库初始化脚本
@@ -75,7 +64,7 @@
 ### 计划功能 📋
 
 - [ ] 添加客户端来展示项目功能
-  - [ ] 使用 React & Vite & TailwindCSS & ShadcnUI 制作客户端
+  - [ ] 使用 React & Vite & TailwindCSS & ShadcnUI & Antd 制作客户端
 - [ ] Redis 缓存集成
 - [ ] session 管理
 - [ ] 日志系统实现
@@ -84,7 +73,7 @@
 - [ ] 单元测试与 E2E 测试
 - [ ] Docker 容器化部署
 - [ ] 国际化支持，统一管理响应信息，并根据用户语言返回不同的多语言
-- [ ] 接口限流
+- [ ] 接口限流（全局或者指定配置）
 - [ ] 第三方登录集成：GitHub等
 - [ ] WebSocket 实时通信
 - [ ] sse 实时通信
@@ -97,7 +86,7 @@
 
 ### 环境要求
 
-- Node.js (>= 18.x)
+- Node.js (>= 20.19.3)
 - npm 或 yarn
 - PostgreSQL
 
@@ -125,34 +114,70 @@ $ yarn start:dev
 $ yarn start:prod
 ```
 
+#### 初始化数据库
+
+```bash
+$ yarn db:init
+```
+
+#### 数据库生成迁移
+
+```bash
+$ yarn migration:generate <migration_name>
+```
+
 ## 项目结构
 
 ```
-src/
-├── app.module.ts      # 应用程序根模块
-├── app.controller.ts  # 应用程序控制器
-├── app.service.ts     # 应用程序服务
-├── main.ts           # 应用程序入口文件
-├── modules/          # 功能模块目录
-│   ├── users/       # 用户模块
-│   ├── groups/      # 群组模块
-│   ├── auth/        # 认证模块
-│   └── cats/        # 示例模块
-├── common/          # 通用工具和常量
-├── config/          # 配置文件
-├── shared/          # 共享模块和组件
-└── types/           # TypeScript 类型定义
+.
+├── database/                   # 数据库相关
+│   ├── migrations/             # TypeORM 迁移文件
+│   └── seeds/                  # 数据填充脚本 (初始化数据)
+├── Dockerfile                  # Docker 配置文件
+├── scripts/                    # 脚本文件
+├── src/                        # 项目源码
+│   ├── app.module.ts           # 应用根模块
+│   ├── app.controller.ts       # 应用根控制器
+│   ├── app.service.ts          # 应用根服务
+│   ├── main.ts                 # 应用入口文件
+│   ├── common/                 # 全局通用模块
+│   │   ├── constants/          # 常量定义
+│   │   ├── context/            # 请求上下文
+│   │   ├── decorators/         # 自定义装饰器
+│   │   ├── exceptions/         # 自定义异常
+│   │   ├── filters/            # 全局过滤器
+│   │   ├── guards/             # 全局守卫
+│   │   ├── interceptors/       # 全局拦截器
+│   │   ├── middleware/         # 中间件
+│   │   ├── pipes/              # 全局管道
+│   │   ├── response/           # 通用响应结构
+│   │   └── subscribers/        # 数据库订阅器
+│   ├── config/                 # 配置模块 (环境变量等)
+│   ├── modules/                # 业务功能模块
+│   │   ├── auth/               # 认证模块
+│   │   ├── cats/               # 示例模块
+│   │   ├── groups/             # 群组模块
+│   │   ├── permissions/        # 权限模块
+│   │   ├── roles/              # 角色模块
+│   │   └── users/              # 用户模块
+│   ├── shared/                 # 共享模块
+│   │   ├── database/           # 数据库连接模块
+│   │   ├── entity/             # 基础实体类 (如：审计字段)
+│   │   ├── static/             # 静态资源模块
+│   │   └── utils/              # 通用工具函数
+│   └── types/                  # TypeScript 类型定义
+└── test/                       # 测试
 ```
 
-每个功能模块（如 users、groups 等）通常包含以下结构：
+每个功能模块（如 `users`、`groups` 等）通常包含以下结构：
 
 ```
 modules/xxx/
-├── dto/            # 数据传输对象
-├── entities/       # 数据库实体
-├── xxx.controller.ts  # 控制器
-├── xxx.service.ts    # 服务
-└── xxx.module.ts     # 模块定义
+├── dto/            # 数据传输对象 (Data Transfer Objects)
+├── entities/       # TypeORM 实体
+├── xxx.controller.ts  # 控制器 (处理路由和 HTTP 请求)
+├── xxx.service.ts    # 服务 (处理业务逻辑)
+└── xxx.module.ts     # 模块定义 (组织模块依赖)
 ```
 
 ## 开发规范
@@ -170,9 +195,19 @@ modules/xxx/
 - [TypeScript 文档](https://www.typescriptlang.org/docs)
 - [TypeORM 文档](https://typeorm.io)
 
-## 贡献指南
+## 希望各位帅哥美女
 
-欢迎提交 Issue 和 Pull Request 来帮助改进这个项目。
+为了实现最佳实践，可以通过 issue 提出包括但不限于：
+
+- 代码规范（如：命名规范、注释规范、代码风格等）
+- 项目结构（如：模块划分、目录结构、文件命名等）
+- 功能实现（如：功能实现、性能优化、安全问题等）
+
+的建议，通过评估和讨论，我会尽力根据建议完善项目。
+
+也可以通过 PR 直接提交您的最佳实践代码，提交 PR 之前，请先创建一个 issue，并描述您的最佳实践。并评论自己 will do （每个人都可以在别人的 issue 中评论自己 will do），在经过评估和讨论和完成之后，我会合并您的 PR。
+
+感谢您的贡献！
 
 ## 许可证
 

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { FindManyOptions, In, Repository } from 'typeorm';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
 import { Permission } from './entities';
@@ -28,6 +28,10 @@ export class PermissionsService {
 
   findAll() {
     return this.permissionRepository.find();
+  }
+
+  findMany(criteria: FindManyOptions<Permission>) {
+    return this.permissionRepository.find(criteria);
   }
 
   findOne(id: string) {

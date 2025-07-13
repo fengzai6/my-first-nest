@@ -1,4 +1,5 @@
 import { PermissionCode } from '@/common/constants';
+import { SpecialRoles, SpecialRolesEnum } from '@/common/decorators';
 import { Permission } from '@/common/decorators/permission.decorator';
 import {
   Body,
@@ -11,7 +12,12 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdatePasswordByAdminDto } from './dto/update-password';
+import {
+  UpdateUserDto,
+  UpdateUserRolesDto,
+  UpdateUserSpecialRolesDto,
+} from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
 @ApiBearerAuth()
@@ -20,7 +26,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @ApiOperation({
-    summary: '创建用户',
+    summary: '创建用户 - NeedPermission',
   })
   @Permission(PermissionCode.USER_CREATE)
   @Post()
@@ -29,7 +35,7 @@ export class UsersController {
   }
 
   @ApiOperation({
-    summary: '获取所有用户',
+    summary: '获取所有用户 - NeedPermission?',
   })
   @Permission(PermissionCode.USER_READ)
   @Get()
@@ -43,11 +49,16 @@ export class UsersController {
   @Permission(PermissionCode.USER_READ)
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.usersService.findOne({ id });
+    return this.usersService.findOne(
+      { id },
+      {
+        roles: true,
+      },
+    );
   }
 
   @ApiOperation({
-    summary: '更新用户',
+    summary: '更新用户 - NeedPermission',
   })
   @Permission(PermissionCode.USER_UPDATE)
   @Patch(':id')
@@ -56,7 +67,43 @@ export class UsersController {
   }
 
   @ApiOperation({
-    summary: '删除用户',
+    summary: '更新用户特殊角色 - NeedSpecialRoles',
+  })
+  @SpecialRoles([SpecialRolesEnum.SuperAdmin])
+  @Patch(':id/special-roles')
+  updateSpecialRoles(
+    @Param('id') id: string,
+    @Body() updateSpecialRolesDto: UpdateUserSpecialRolesDto,
+  ) {
+    return this.usersService.updateUserSpecialRoles(id, updateSpecialRolesDto);
+  }
+
+  @ApiOperation({
+    summary: '更新用户角色 - NeedPermission',
+  })
+  @Permission(PermissionCode.USER_UPDATE)
+  @Patch(':id/roles')
+  updateRoles(
+    @Param('id') id: string,
+    @Body() updateRolesDto: UpdateUserRolesDto,
+  ) {
+    return this.usersService.updateUserRoles(id, updateRolesDto);
+  }
+
+  @ApiOperation({
+    summary: '更新用户密码 - NeedPermission',
+  })
+  @Permission(PermissionCode.USER_UPDATE)
+  @Patch(':id/password')
+  updatePassword(
+    @Param('id') id: string,
+    @Body() updatePasswordDto: UpdatePasswordByAdminDto,
+  ) {
+    return this.usersService.updatePasswordByAdmin(id, updatePasswordDto);
+  }
+
+  @ApiOperation({
+    summary: '删除用户 - NeedPermission',
   })
   @Permission(PermissionCode.USER_DELETE)
   @Delete(':id')

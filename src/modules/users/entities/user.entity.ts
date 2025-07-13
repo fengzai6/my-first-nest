@@ -1,6 +1,5 @@
 import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
 import { Cat } from '@/modules/cats/entities';
-import { GroupMember } from '@/modules/groups/entities';
 import { Role } from '@/modules/roles/entities';
 import { BaseEntity } from '@/shared/entity/base.entity';
 import { Exclude } from 'class-transformer';
