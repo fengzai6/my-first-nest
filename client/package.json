@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",
+    "@hookform/resolvers": "^5.1.1",
+    "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-slot": "^1.2.3",
     "@tailwindcss/vite": "^4.1.11",
     "antd": "^5.26.4",
@@ -20,9 +22,11 @@
     "lucide-react": "^0.525.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-hook-form": "^7.60.0",
     "react-router": "^7.6.3",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",
+    "zod": "^4.0.5",
     "zustand": "^5.0.6"
   },
   "devDependencies": {

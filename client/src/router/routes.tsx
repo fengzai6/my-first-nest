@@ -1,22 +1,27 @@
-import { type RouteObject } from "react-router";
 import { Home } from "@/pages/home";
 import { Login } from "@/pages/login";
 import { NotFound } from "@/pages/not-found";
+import { Navigate, type RouteObject } from "react-router";
+import { AuthGuard } from "./auth-guard";
 
 export const routes: RouteObject[] = [
   {
+    path: "/login",
+    element: <Login />,
+  },
+  {
     path: "/",
-    element: <Home />,
+    element: <AuthGuard />,
     children: [
       {
-        path: "/",
+        index: true,
+        element: <Navigate to="/home" replace />,
+      },
+      {
+        path: "home",
         element: <Home />,
       },
     ],
-  },
-  {
-    path: "/login",
-    element: <Login />,
   },
   {
     path: "*",
