@@ -1,69 +1,60 @@
-# React + TypeScript + Vite
+# 项目前端
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+本项目是 `my-first-nest` 的前端部分，基于 React, TypeScript 和 Vite 构建。
 
-Currently, two official plugins are available:
+## 功能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 用户认证 (登录、注册)
+- (根据你的项目添加更多功能)
 
-## Expanding the ESLint configuration
+## 技术栈
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **框架**: [React](https://react.dev/)
+- **构建工具**: [Vite](https://vitejs.dev/)
+- **UI 库**: [Ant Design](https://ant.design/) & [shadcn/ui](https://ui.shadcn.com/) (通过 `lucide-react`, `class-variance-authority`, etc. 实现)
+- **路由**: [React Router](https://reactrouter.com/)
+- **状态管理**: [Zustand](https://zustand-demo.pmnd.rs/)
+- **表单处理**: [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/)
+- **HTTP 请求**: [Axios](https://axios-http.com/)
+- **样式**: [Tailwind CSS](https://tailwindcss.com/)
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 快速开始
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+### 环境要求
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+请确保你的开发环境已经安装了 [Node.js](https://nodejs.org/) (建议版本 >= 20.19.3).
+
+### 安装依赖
+
+进入 `client` 目录，然后运行以下命令安装项目所需的依赖：
+
+```bash
+yarn
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 运行开发服务器
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+安装完依赖后，可以通过以下命令来启动本地开发服务器：
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+yarn dev
+```
+
+## 目录结构
+
+```
+client/
+├── public/          # 静态资源
+├── src/
+│   ├── assets/        # 图片等资源文件
+│   ├── components/    # 可复用UI组件
+│   ├── constants/     # 常量
+│   ├── lib/           # 工具函数
+│   ├── pages/         # 页面组件
+│   ├── router/        # 路由配置
+│   ├── services/      # API请求和数据服务
+│   ├── stores/        # Zustand 状态管理
+│   ├── app.tsx        # 应用根组件
+│   └── main.tsx       # 应用入口文件
+└── package.json
 ```

@@ -20,6 +20,8 @@
 
 这是一个基于 [NestJS](https://nestjs.com/) 框架的入门级项目，由于在自学nestjs之路上，通过官方文档和搜索引擎所得到的教程都点到为止，并非是实现实际场景的业务，所以我便想完善实践，帮助开发者学习和实践 NestJS 的基础知识。本项目将实现一个简单又不简单的系统，展示 NestJS 的核心特性和最佳实践（个人学习中，可能存在错误），并将尽力的完善相关的注释。在项目的各个角落我也可能留下笔记帮助理解～
 
+然后为了更好的展示项目功能，我添加了客户端（逐步对接中），或许也能帮助到学习前端的同学。
+
 ## 技术栈
 
 - NestJS - 渐进式 Node.js 框架
@@ -27,7 +29,15 @@
 - TypeORM - 强大的 ORM 框架
 - PostgreSQL - 关系型数据库
 - Swagger - API 文档生成工具
-- 即将参与：Redis、React、Vite、TailwindCSS、ShadcnUI、Antd
+- Redis - 缓存
+
+### 客户端
+
+- React
+- Vite
+- TailwindCSS
+- ShadcnUI
+- Antd
 
 ## 项目特点
 
@@ -60,11 +70,11 @@
   - [ ] 对称 RBAC3：1 + 2, 并且可以获取组织拥有的权限，继承 Group，离开 Group 后，权限消失
 - [x] 雪花算法作为 ID 生成器
 - [x] 使用 joi 进行数据验证（环境变量）
+- [ ] 添加客户端来展示项目功能
+  - [ ] 使用 React & Vite & TailwindCSS & ShadcnUI & Antd 制作客户端
 
 ### 计划功能 📋
 
-- [ ] 添加客户端来展示项目功能
-  - [ ] 使用 React & Vite & TailwindCSS & ShadcnUI & Antd 制作客户端
 - [ ] Redis 缓存集成
 - [ ] session 管理
 - [ ] 日志系统实现
