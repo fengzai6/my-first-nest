@@ -1,0 +1,21 @@
+---
+description: client 规则
+globs:
+  - 'client/**'
+alwaysApply: false
+---
+
+1. 项目规范：
+   - 文件目录命名采用 kebab-case 命名
+   - 组件命名采用 PascalCase 命名
+   - 函数命名采用 camelCase 命名 （特殊情况除外：如 api 函数，命名采用 PascalCase 命名）
+   - 变量命名采用 camelCase 命名
+   - 常量命名采用 UPPER_CASE 命名
+   - 类型命名采用 PascalCase 命名
+   - 接口命名以 I 开头，采用大驼峰命名法（CamelCase），例如 IUser
+   - 使用 ES6 箭头函数
+   - 使用 tailwindcss 进行样式管理
+   - 如果需要工具，可以在 lib 目录中进行查找，如果找不到，可以自己实现
+
+2. 其他注意事项
+   - 现在使用的路由包是 react-router，在新版中，react-router 已经将 react-router-dom 合并到 react-router 中，请使用该包进行路由管理。

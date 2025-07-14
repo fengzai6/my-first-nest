@@ -1,0 +1,39 @@
+---
+description: NestJS 规则
+globs:
+  - 'src/**'
+alwaysApply: false
+---
+
+1.  **NestJS Architecture:**
+    - Follow a modular design with clear separation of concerns (Controllers, Services, Modules, DTOs).
+    - Effectively utilize NestJS's Dependency Injection (DI) mechanism.
+    - Properly use Pipes for data validation and transformation.
+    - Implement Guards for authentication and authorization.
+    - Leverage Interceptors for response formatting, logging, or caching.
+    - Implement Exception Filters for centralized error handling.
+
+2.  **General Code Practices:**
+    - **Input Validation:** Strictly validate all incoming data.
+    - **Security:** Consider basic security practices (e.g., preventing SQL injection, XSS).
+    - **Performance:** Write efficient code, avoiding unnecessary computations or database queries.
+    - **Testability:** Structure the code to be easily testable (unit and integration tests).
+
+3.  **TypeORM Usage:**
+    - Clearly define Entities and their relationships (one-to-one, one-to-many, many-to-many).
+    - Utilize the Repository pattern for database interactions.
+    - Consider transaction management to ensure data consistency.
+    - Adhere to Data Access Layer (DAL) best practices.
+
+4.  **RESTful API Design:**
+    - Adhere to standard HTTP methods (GET, POST, PUT, PATCH, DELETE).
+    - Use appropriate HTTP status codes.
+    - Design resource-oriented URL structures.
+    - Consider query parameters for pagination, filtering, and sorting where applicable.
+    - Ensure API idempotency (for PUT/DELETE operations).
+
+5.  **Swagger Integration:**
+    - Utilize NestJS Swagger decorators (`@Api*`) to ensure clear, accurate, and auto-generated API documentation.
+
+6.  **`es-toolkit` Usage:**
+    - Prioritize using functions from the `es-toolkit` library for common utility operations where appropriate.

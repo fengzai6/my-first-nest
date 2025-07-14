@@ -1,0 +1,18 @@
+---
+description: 通用规则
+globs:
+alwaysApply: true
+---
+
+The generated code must strictly adhere to **best practices**, including but not limited to:
+
+1.  **TypeScript Language Features:**
+    - Ensure comprehensive strong typing throughout the codebase for type safety.
+    - Appropriately use Interfaces, Type Aliases.
+    - Write clear and readable type definitions.
+
+2.  **General Code Practices:**
+    - **Readability & Maintainability:** Employ clear naming conventions, concise logic, and appropriate comments (JSDoc where applicable).
+    - **Error Handling:** Implement robust error handling mechanisms, returning meaningful error messages.
+    - **SOLID Principles:** Adhere to SOLID principles (Single Responsibility, Open/Closed, etc.).
+    - **DRY Principle:** Avoid code duplication.
