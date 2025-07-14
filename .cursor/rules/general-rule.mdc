@@ -7,9 +7,11 @@ alwaysApply: true
 The generated code must strictly adhere to **best practices**, including but not limited to:
 
 1.  **TypeScript Language Features:**
+
     - Ensure comprehensive strong typing throughout the codebase for type safety.
     - Appropriately use Interfaces, Type Aliases.
     - Write clear and readable type definitions.
+    - Use const objects with `as const` instead of enums.
 
 2.  **General Code Practices:**
     - **Readability & Maintainability:** Employ clear naming conventions, concise logic, and appropriate comments (JSDoc where applicable).
