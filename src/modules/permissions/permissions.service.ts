@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ErrorException,
+  ErrorExceptionCode,
+} from '@/common/exceptions/error.exception';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindManyOptions, In, Repository } from 'typeorm';
 import { CreatePermissionDto } from './dto/create-permission.dto';
@@ -42,7 +46,7 @@ export class PermissionsService {
     const permission = await this.permissionRepository.findOneBy({ id });
 
     if (!permission) {
-      throw new NotFoundException('Permission not found');
+      throw new ErrorException(ErrorExceptionCode.PERMISSION_NOT_FOUND);
     }
 
     const updatedPermission = this.permissionRepository.merge(
@@ -57,7 +61,7 @@ export class PermissionsService {
     const permission = await this.permissionRepository.findOneBy({ id });
 
     if (!permission) {
-      throw new NotFoundException('Permission not found');
+      throw new ErrorException(ErrorExceptionCode.PERMISSION_NOT_FOUND);
     }
 
     return this.permissionRepository.softDelete(id);

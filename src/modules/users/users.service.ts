@@ -1,6 +1,9 @@
 import { isRequestUser, useRequestUser } from '@/common/context';
 import { SpecialRolesEnum } from '@/common/decorators';
-import { AuthException, AuthExceptionCode } from '@/common/exceptions';
+import {
+  ErrorException,
+  ErrorExceptionCode,
+} from '@/common/exceptions/error.exception';
 import { BaseResponse } from '@/common/response/base.response';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -46,7 +49,7 @@ export class UsersService {
     });
 
     if (isExist) {
-      throw new AuthException(AuthExceptionCode.USER_ALREADY_EXISTS);
+      throw new ErrorException(ErrorExceptionCode.USER_ALREADY_EXISTS);
     }
 
     const hashedPassword = await hash(createUserDto.password, {
@@ -108,7 +111,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new AuthException(AuthExceptionCode.USER_NOT_FOUND);
+      throw new ErrorException(ErrorExceptionCode.USER_NOT_FOUND);
     }
 
     return user;
@@ -147,7 +150,7 @@ export class UsersService {
         const isExist = await this.userRepository.exists({ where });
 
         if (isExist) {
-          throw new AuthException(AuthExceptionCode.USER_ALREADY_EXISTS);
+          throw new ErrorException(ErrorExceptionCode.USER_ALREADY_EXISTS);
         }
       }
     }
@@ -173,7 +176,7 @@ export class UsersService {
     );
 
     if (isSelf && user.username !== defaultAdminUsername) {
-      throw new AuthException(AuthExceptionCode.SUPER_ADMIN_IS_SPECIAL);
+      throw new ErrorException(ErrorExceptionCode.SUPER_ADMIN_IS_SPECIAL);
     }
 
     const updatedUser = this.userRepository.merge(user, {
@@ -201,7 +204,7 @@ export class UsersService {
     const isPasswordValid = await verify(user.password, oldPassword);
 
     if (!isPasswordValid) {
-      throw new AuthException(AuthExceptionCode.INVALID_CREDENTIALS);
+      throw new ErrorException(ErrorExceptionCode.INVALID_CREDENTIALS);
     }
 
     const hashedPassword = await hash(newPassword, {
@@ -212,7 +215,7 @@ export class UsersService {
 
     // 纳尼，居然新的密码不能和旧的密码相同
     if (isSameAsOld) {
-      throw new AuthException(AuthExceptionCode.NEW_PASSWORD_SAME_AS_OLD);
+      throw new ErrorException(ErrorExceptionCode.NEW_PASSWORD_SAME_AS_OLD);
     }
 
     await this.userRepository.update(id, {
@@ -229,7 +232,7 @@ export class UsersService {
     const user = await this.findOne({ id });
 
     if (!user) {
-      throw new AuthException(AuthExceptionCode.USER_NOT_FOUND);
+      throw new ErrorException(ErrorExceptionCode.USER_NOT_FOUND);
     }
 
     const hashedPassword = await hash(newPassword, {
@@ -246,7 +249,7 @@ export class UsersService {
 
     // 如果用户是超级管理员，则不能删除
     if (user.specialRoles.includes(SpecialRolesEnum.SuperAdmin)) {
-      throw new AuthException(AuthExceptionCode.SUPER_ADMIN_IS_SPECIAL);
+      throw new ErrorException(ErrorExceptionCode.SUPER_ADMIN_IS_SPECIAL);
     }
 
     const removedUser = await this.userRepository.softRemove(user);

@@ -1,10 +1,9 @@
 import { isRequestUser, useRequestUser } from '@/common/context';
 import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles.decorator';
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ErrorException } from '@/common/exceptions/error.exception';
+import { GroupExceptionCode } from '@/common/exceptions/group.exception';
+import { BaseResponse } from '@/common/response/base.response';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { pick } from 'es-toolkit';
 import { Repository, TreeRepository } from 'typeorm';
@@ -13,7 +12,6 @@ import { CreateGroupServiceDto } from './dto/create-group.dto';
 import { UpdateGroupMemberDto } from './dto/update-group-member.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { Group, GroupMember } from './entities';
-import { BaseResponse } from '@/common/response/base.response';
 
 @Injectable()
 export class GroupsService {
@@ -32,7 +30,7 @@ export class GroupsService {
       });
 
       if (!parentGroup) {
-        throw new NotFoundException('Parent group not found');
+        throw new ErrorException(GroupExceptionCode.PARENT_GROUP_NOT_FOUND);
       }
 
       group.parent = parentGroup;
@@ -55,7 +53,7 @@ export class GroupsService {
     });
 
     if (!group) {
-      throw new NotFoundException('Group not found.');
+      throw new ErrorException(GroupExceptionCode.GROUP_NOT_FOUND);
     }
 
     // 检查当前组的成员是否为领导
@@ -101,7 +99,7 @@ export class GroupsService {
     const newGroup = this.groupTreeRepository.create(values);
 
     if (!createGroupDto.isOrganization && !createGroupDto.parentId) {
-      throw new BadRequestException('Parent group is required');
+      throw new ErrorException(GroupExceptionCode.PARENT_GROUP_IS_REQUIRED);
     }
 
     // 设置父级和组织
@@ -126,7 +124,7 @@ export class GroupsService {
     });
 
     if (!group) {
-      throw new NotFoundException('Group not found');
+      throw new ErrorException(GroupExceptionCode.GROUP_NOT_FOUND);
     }
 
     await this.setParentAndOrganization(group, parentId);
@@ -206,7 +204,7 @@ export class GroupsService {
     });
 
     if (!group) {
-      throw new NotFoundException('Group not found');
+      throw new ErrorException(GroupExceptionCode.GROUP_NOT_FOUND);
     }
 
     // 检查是否有新的 leader 角色
@@ -233,9 +231,7 @@ export class GroupsService {
       );
 
       if (existingMember) {
-        throw new BadRequestException(
-          `User ${existingMember.user.username} already exists in group ${group.name}`,
-        );
+        throw new ErrorException(GroupExceptionCode.USER_ALREADY_IN_GROUP);
       }
 
       const groupMember = this.groupMemberRepository.create({
@@ -263,7 +259,7 @@ export class GroupsService {
     });
 
     if (!groupMember) {
-      throw new NotFoundException('Group member not found');
+      throw new ErrorException(GroupExceptionCode.GROUP_MEMBER_NOT_FOUND);
     }
 
     // 如果要更新为 leader 角色，需要检查是否已存在 leader
@@ -289,7 +285,9 @@ export class GroupsService {
       role === GroupMemberRolesEnum.Member &&
       groupMember.role === GroupMemberRolesEnum.Leader
     ) {
-      throw new BadRequestException('Cannot update self role to member');
+      throw new ErrorException(
+        GroupExceptionCode.CANNOT_UPDATE_SELF_ROLE_TO_MEMBER,
+      );
     }
 
     groupMember.role = role;
@@ -299,7 +297,7 @@ export class GroupsService {
 
   async removeGroupMember(groupId: string, userId: string) {
     if (isRequestUser(userId)) {
-      throw new BadRequestException('Cannot remove self');
+      throw new ErrorException(GroupExceptionCode.CANNOT_REMOVE_SELF);
     }
 
     const groupMember = await this.groupMemberRepository.findOne({
@@ -310,11 +308,11 @@ export class GroupsService {
     });
 
     if (!groupMember) {
-      throw new NotFoundException('Group member not found');
+      throw new ErrorException(GroupExceptionCode.GROUP_MEMBER_NOT_FOUND);
     }
 
     if (groupMember.role === GroupMemberRolesEnum.Leader) {
-      throw new BadRequestException('Cannot remove leader');
+      throw new ErrorException(GroupExceptionCode.CANNOT_REMOVE_LEADER);
     }
 
     await this.groupMemberRepository.remove(groupMember);

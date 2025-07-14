@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ErrorException,
+  ErrorExceptionCode,
+} from '@/common/exceptions/error.exception';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { PermissionsService } from '../permissions/permissions.service';
@@ -62,7 +66,7 @@ export class RolesService {
     });
 
     if (!role) {
-      throw new NotFoundException('Role not found');
+      throw new ErrorException(ErrorExceptionCode.ROLE_NOT_FOUND);
     }
 
     const permissions = await this.permissionsService.findByCodes(
@@ -83,7 +87,7 @@ export class RolesService {
     });
 
     if (!role) {
-      throw new NotFoundException('Role not found');
+      throw new ErrorException(ErrorExceptionCode.ROLE_NOT_FOUND);
     }
 
     return this.roleRepository.softDelete(id);

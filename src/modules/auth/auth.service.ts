@@ -1,7 +1,7 @@
 import {
-  AuthException,
-  AuthExceptionCode,
-} from '@/common/exceptions/auth.exception';
+  ErrorException,
+  ErrorExceptionCode,
+} from '@/common/exceptions/error.exception';
 import { BaseResponse } from '@/common/response/base.response';
 import { Injectable } from '@nestjs/common';
 import { verify } from 'argon2';
@@ -27,13 +27,13 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new AuthException(AuthExceptionCode.USER_NOT_FOUND);
+      throw new ErrorException(ErrorExceptionCode.USER_NOT_FOUND);
     }
 
     const isPasswordValid = await verify(user.password, loginDto.password);
 
     if (!isPasswordValid) {
-      throw new AuthException(AuthExceptionCode.INVALID_CREDENTIALS);
+      throw new ErrorException(ErrorExceptionCode.INVALID_CREDENTIALS);
     }
 
     return await this.refreshTokenService.create(user);

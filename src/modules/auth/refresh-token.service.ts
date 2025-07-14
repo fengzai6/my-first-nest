@@ -1,5 +1,8 @@
 import { TokenType } from '@/common/constants/auth';
-import { AuthException, AuthExceptionCode } from '@/common/exceptions';
+import {
+  ErrorException,
+  ErrorExceptionCode,
+} from '@/common/exceptions/error.exception';
 import { getConfig } from '@/config/configuration';
 import { User } from '@/modules/users/entities';
 import { Injectable } from '@nestjs/common';
@@ -48,7 +51,7 @@ export class RefreshTokenService {
         await this.remove(tokenRecord);
       }
 
-      throw new AuthException(AuthExceptionCode.INVALID_REFRESH_TOKEN);
+      throw new ErrorException(ErrorExceptionCode.INVALID_REFRESH_TOKEN);
     }
 
     const tokens = await this.generateTokens(tokenRecord.user);
