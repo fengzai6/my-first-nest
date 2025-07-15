@@ -21,9 +21,7 @@ export interface IUpdateGroupDto {
 }
 
 export interface IAddGroupMembersDto {
-  /**
-   * 用户ID列表
-   */
+  /** 用户ID列表 */
   members: string[];
 }
 

@@ -1,5 +1,4 @@
 import type { IBase } from "./base";
-import type { ICat } from "./cat";
 
 export const SpecialRoles = {
   SuperAdmin: "super_admin",
@@ -25,5 +24,4 @@ export interface IUser extends IBase {
   isActive: boolean;
   specialRoles: SpecialRoles[];
   roles: IUserRole[];
-  cats?: ICat[];
 }

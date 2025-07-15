@@ -32,7 +32,7 @@ export const UpdatePassword = async (data: IUpdatePasswordDto) => {
 /**
  * 获取当前用户权限
  */
-export const GetPermissions = async () => {
+export const GetUserPermissions = async () => {
   const res = await http.get<IUserPermission[]>("/account/permissions");
 
   return res.data;

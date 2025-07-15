@@ -4,6 +4,7 @@ export interface ICreateUserDto {
   username: string;
   email: string;
   password: string;
+  /** 角色code列表 */
   roles?: string[];
 }
 
@@ -14,6 +15,7 @@ export interface IUpdateUserDto {
 }
 
 export interface IUpdateUserRolesDto {
+  /** 角色code列表 */
   roles: string[];
 }
 

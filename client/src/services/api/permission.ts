@@ -11,12 +11,18 @@ export const GetPermissions = async () => {
   return res.data;
 };
 
+/**
+ * 获取单个权限
+ */
 export const GetPermission = async (id: string) => {
   const res = await http.get<IPermission>(`/permissions/${id}`);
 
   return res.data;
 };
 
+/**
+ * 更新权限
+ */
 export const UpdatePermission = async (
   id: string,
   data: IUpdatePermissionDto,
