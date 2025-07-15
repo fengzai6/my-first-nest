@@ -19,3 +19,4 @@ alwaysApply: false
 
 2. 其他注意事项
    - 现在使用的路由包是 react-router，在新版中，react-router 已经将 react-router-dom 合并到 react-router 中，请使用该包进行路由管理。
+   - 当使用 zustand 中的多个状态时，使用 useShallow 进行状态浅比较获取，避免不必要的 re-render
