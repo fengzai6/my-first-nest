@@ -37,7 +37,6 @@
 - Vite
 - TailwindCSS
 - ShadcnUI
-- Antd
 
 ## 项目特点
 
@@ -136,6 +135,14 @@ $ yarn db:init
 $ yarn migration:generate <migration_name>
 ```
 
+#### 客户端
+
+```bash
+$ cd client
+$ yarn install
+$ yarn dev
+```
+
 ## 项目结构
 
 ```
@@ -198,6 +205,7 @@ modules/xxx/
 - 统一的错误处理
 - 规范的代码注释
 - 使用 ESLint 和 Prettier 保持代码风格一致
+- 使用 husky 和 commitlint 进行 commit 规范
 
 ## 学习资源
 
@@ -215,7 +223,7 @@ modules/xxx/
 
 的建议，通过评估和讨论，我会尽力根据建议完善项目。
 
-也可以通过 PR 直接提交您的最佳实践代码，提交 PR 之前，请先创建一个 issue，并描述您的最佳实践。并评论自己 will do （每个人都可以在别人的 issue 中评论自己 will do），在经过评估和讨论和完成之后，我会合并您的 PR。
+也可以通过 PR 直接提交您的最佳实践代码，提交 PR 之前，请先创建一个 issue，并描述您的最佳实践。并自己认领 issue （每个人都可以在别人的 issue 中认领并进行开发），在经过评估和讨论和完成之后，我会合并您的 PR。
 
 感谢您的贡献！
 
