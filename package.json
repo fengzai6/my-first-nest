@@ -4,6 +4,7 @@
   "description": "My First NestJS Project For Learning",
   "author": "fengzai6",
   "license": "MIT",
+  "type": "module",
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
