@@ -5,7 +5,7 @@ export const SpecialRoles = {
   Developer: "developer",
 } as const;
 
-export type SpecialRolesType = (typeof SpecialRoles)[keyof typeof SpecialRoles];
+export type SpecialRoles = (typeof SpecialRoles)[keyof typeof SpecialRoles];
 
 export interface IUserRole extends IBase {
   name: string;
@@ -22,6 +22,6 @@ export interface IUser extends IBase {
   username: string;
   email: string;
   isActive: boolean;
-  specialRoles: SpecialRolesType[];
+  specialRoles: SpecialRoles[];
   roles: IUserRole[];
 }
