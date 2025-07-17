@@ -5,6 +5,7 @@ import {
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { Permission } from '../permissions/entities';
 import { PermissionsService } from '../permissions/permissions.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
@@ -63,15 +64,22 @@ export class RolesService {
   async update(id: string, updateRoleDto: UpdateRoleDto) {
     const role = await this.roleRepository.findOne({
       where: { id },
+      relations: {
+        permissions: true,
+      },
     });
 
     if (!role) {
       throw new ErrorException(ErrorExceptionCode.ROLE_NOT_FOUND);
     }
 
-    const permissions = await this.permissionsService.findByCodes(
-      updateRoleDto.permissions,
-    );
+    let permissions: Permission[] = role.permissions;
+
+    if (updateRoleDto.permissions) {
+      permissions = await this.permissionsService.findByCodes(
+        updateRoleDto.permissions,
+      );
+    }
 
     const updatedRole = this.roleRepository.merge(role, {
       ...updateRoleDto,

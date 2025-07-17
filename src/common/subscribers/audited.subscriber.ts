@@ -19,7 +19,7 @@ export class AuditedSubscriber
   private getUser(): User | undefined {
     try {
       return useRequestUser();
-    } catch (e) {
+    } catch {
       return undefined;
     }
   }

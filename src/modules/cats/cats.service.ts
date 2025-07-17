@@ -28,13 +28,15 @@ export class CatsService {
     return this.catRepository.find();
   }
 
-  findOne(id: string): Promise<Cat> {
-    return this.catRepository.findOneBy({ id });
-  }
+  async findOne(id: string): Promise<Cat> {
+    const cat = await this.catRepository.findOneBy({ id });
 
-  // findOneByUuid(uuid: string): string {
-  //   return `This action returns a #${uuid} cat`;
-  // }
+    if (!cat) {
+      throw new ErrorException(ErrorExceptionCode.CAT_NOT_FOUND);
+    }
+
+    return cat;
+  }
 
   async updateOwner(id: string, updateCatDto: UpdateCatDto) {
     const cat = await this.findOne(id);

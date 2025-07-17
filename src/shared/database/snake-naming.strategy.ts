@@ -7,8 +7,8 @@ import { snakeCase } from 'typeorm/util/StringUtils';
 export class SnakeNamingStrategy extends DefaultNamingStrategy {
   columnName(
     propertyName: string,
-    customName: string,
-    embeddedPrefixes: string[],
+    // customName: string,
+    // embeddedPrefixes: string[],
   ): string {
     return snakeCase(propertyName);
   }

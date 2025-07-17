@@ -1,4 +1,5 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { Request } from 'express';
 
 /**
  * 获取 cookies
@@ -7,7 +8,9 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
  */
 export const Cookies = createParamDecorator(
   (data: string, ctx: ExecutionContext) => {
-    const request = ctx.switchToHttp().getRequest();
-    return data ? request.cookies?.[data] : request.cookies;
+    const request = ctx.switchToHttp().getRequest<Request>();
+    return data
+      ? (request.cookies?.[data] as string | undefined)
+      : (request.cookies as Record<string, string>);
   },
 );

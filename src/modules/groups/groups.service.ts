@@ -164,7 +164,7 @@ export class GroupsService {
       }
     }
 
-    const organizationTrees = [];
+    const organizationTrees: Group[] = [];
 
     for (const organizationGroupId of organizationGroupIds) {
       const organizationGroup = await this.groupTreeRepository.findOne({

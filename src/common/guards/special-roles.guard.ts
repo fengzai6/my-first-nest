@@ -1,6 +1,7 @@
 import { matchRoles } from '@/shared/utils';
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Request } from 'express';
 import { SpecialRoles } from '../decorators/special-roles.decorator';
 
 @Injectable()
@@ -19,7 +20,7 @@ export class SpecialRolesGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<Request>();
 
     const user = request.user;
 

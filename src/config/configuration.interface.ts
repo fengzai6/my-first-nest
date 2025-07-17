@@ -32,3 +32,7 @@ export interface AppConfig {
   jwt?: JwtConfig;
   snowflake?: SnowflakeConfig;
 }
+
+export type AppConfigForced = {
+  [K in keyof AppConfig]-?: Required<NonNullable<AppConfig[K]>>;
+};
