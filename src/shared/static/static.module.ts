@@ -6,7 +6,9 @@ import { join } from 'path';
   imports: [
     // 需要在 tsconfig.build.json 中排除 client 目录
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'client/dist'),
+      // rootPath: join(__dirname, '..', 'client/dist'),
+      // 使用 process.cwd() 获取当前工作目录路径
+      rootPath: join(process.cwd(), 'client/dist'),
       exclude: ['/api/*'],
     }),
   ],
