@@ -23,6 +23,10 @@ export const seedUser = async (dataSource: DataSource) => {
     where: { code: RoleCode.ADMIN },
   });
 
+  if (!adminRole) {
+    throw new Error('Admin role not found');
+  }
+
   const exist = await userRepository.findOne({
     where: { username: defaultAdminUsername },
   });
@@ -34,7 +38,7 @@ export const seedUser = async (dataSource: DataSource) => {
     username: defaultAdminUsername,
     password: hashedPassword,
     specialRoles: [SpecialRolesEnum.SuperAdmin],
-    roles: [adminRole as Role],
+    roles: [adminRole],
   });
 
   if (!exist) {

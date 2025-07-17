@@ -1,7 +1,6 @@
 import {
   CallHandler,
   ExecutionContext,
-  HttpStatus,
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
@@ -20,7 +19,7 @@ export class PostResponseInterceptor<T> implements NestInterceptor {
       return next.handle().pipe(
         map((data) => {
           if (response.statusCode === 201) {
-            response.status(HttpStatus.OK);
+            response.status(200);
           }
           return data;
         }),

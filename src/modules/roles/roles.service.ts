@@ -64,6 +64,9 @@ export class RolesService {
   async update(id: string, updateRoleDto: UpdateRoleDto) {
     const role = await this.roleRepository.findOne({
       where: { id },
+      relations: {
+        permissions: true,
+      },
     });
 
     if (!role) {
