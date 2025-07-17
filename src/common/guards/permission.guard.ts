@@ -79,7 +79,17 @@ export class PermissionGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<
+      Request<
+        {
+          groupId: string;
+        },
+        any,
+        {
+          parentId: string;
+        }
+      >
+    >();
 
     const groupId = request.params.groupId || request.body.parentId;
 

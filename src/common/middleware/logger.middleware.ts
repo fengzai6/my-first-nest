@@ -7,6 +7,7 @@ export class LoggerMiddleware implements NestMiddleware {
     const requestLog = {
       method: req.method,
       url: req.url,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       body: req.body,
       headers: req.headers,
       params: req.params,

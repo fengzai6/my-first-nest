@@ -56,7 +56,7 @@ export class UsersService {
       timeCost: 5,
     });
 
-    let roles: Role[];
+    let roles: Role[] = [];
 
     if (createUserDto.roles && createUserDto.roles.length > 0) {
       roles = await this.rolesService.findByCodes(createUserDto.roles);
@@ -65,7 +65,7 @@ export class UsersService {
     const newUser = this.userRepository.create({
       ...createUserDto,
       password: hashedPassword,
-      roles,
+      roles: roles.length > 0 ? roles : undefined,
     });
 
     return this.userRepository.save(newUser);
@@ -127,7 +127,7 @@ export class UsersService {
     const user = await this.findOne({ id });
 
     // 不可以更改默认管理员的用户名，删去username字段
-    const defaultAdminUsername = this.configService.get(
+    const defaultAdminUsername = this.configService.get<string>(
       'DEFAULT_ADMIN_USERNAME',
     );
 
@@ -171,7 +171,7 @@ export class UsersService {
 
     const user = await this.findOne({ id });
 
-    const defaultAdminUsername = this.configService.get(
+    const defaultAdminUsername = this.configService.get<string>(
       'DEFAULT_ADMIN_USERNAME',
     );
 

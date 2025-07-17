@@ -1,3 +1,4 @@
+import { PermissionCodeType } from '@/common/constants';
 import {
   ErrorException,
   ErrorExceptionCode,
@@ -22,7 +23,7 @@ export class PermissionsService {
     return this.permissionRepository.save(permission);
   }
 
-  findByCodes(codes: string[]) {
+  findByCodes(codes: PermissionCodeType[]) {
     return this.permissionRepository.find({
       where: {
         code: In(codes),

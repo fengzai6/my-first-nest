@@ -1,17 +1,3 @@
-import { SetMetadata } from '@nestjs/common';
-
-// 待考察实际使用场景
-export const createRolesDecorator = <T extends any>(
-  metaKey: string,
-  defaultForbiddenMessage?: string,
-) => {
-  return (roles: T[], forbiddenMessage?: string) =>
-    SetMetadata(metaKey, {
-      roles,
-      message: forbiddenMessage || defaultForbiddenMessage,
-    });
-};
-
 /**
  * 检查用户是否具有指定的角色
  * @param roles 需要检查的角色

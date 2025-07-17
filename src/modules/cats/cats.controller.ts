@@ -1,7 +1,6 @@
 import { PermissionCode } from '@/common/constants';
 import { UserInfo } from '@/common/decorators/jwt-auth.decorator';
 import { Permission } from '@/common/decorators/permission.decorator';
-import { BaseResponse } from '@/common/response/base.response';
 import {
   Body,
   Controller,
@@ -14,7 +13,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { User } from '../users/entities/user.entity';
 import { CatsService } from './cats.service';
 import { CreateCatDto } from './dto/create-cat.dto';
@@ -38,7 +37,7 @@ export class CatsController {
   create(@Body() createCatDto: CreateCatDto) {
     console.log(createCatDto);
 
-    this.catsService.create(createCatDto);
+    return this.catsService.create(createCatDto);
   }
 
   @ApiOperation({

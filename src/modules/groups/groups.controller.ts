@@ -79,6 +79,7 @@ export class GroupsController {
   @GroupMemberRoles([GroupMemberRolesEnum.SuperiorLeader])
   @Post(':groupId/roles')
   updateGroupRole(
+    /* eslint-disable @typescript-eslint/no-unused-vars */
     @Param('groupId') groupId: string,
     @Body() updateGroupRoleDto: undefined,
   ) {
