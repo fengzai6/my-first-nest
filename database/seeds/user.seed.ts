@@ -34,7 +34,7 @@ export const seedUser = async (dataSource: DataSource) => {
     username: defaultAdminUsername,
     password: hashedPassword,
     specialRoles: [SpecialRolesEnum.SuperAdmin],
-    roles: [adminRole],
+    roles: [adminRole as Role],
   });
 
   if (!exist) {
@@ -43,8 +43,8 @@ export const seedUser = async (dataSource: DataSource) => {
   } else {
     console.log('admin用户已存在，更新插入');
     await userRepository.save({
-      id: exist.id,
       ...user,
+      id: exist.id,
     });
   }
 };

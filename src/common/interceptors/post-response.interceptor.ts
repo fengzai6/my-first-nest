@@ -10,8 +10,8 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 @Injectable()
-export class PostResponseInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+export class PostResponseInterceptor<T> implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler<T>): Observable<T> {
     const httpContext = context.switchToHttp();
     const response = httpContext.getResponse<Response>();
     const request = httpContext.getRequest<Request>();
@@ -19,7 +19,7 @@ export class PostResponseInterceptor implements NestInterceptor {
     if (request.method === 'POST') {
       return next.handle().pipe(
         map((data) => {
-          if (response.statusCode === HttpStatus.CREATED) {
+          if (response.statusCode === 201) {
             response.status(HttpStatus.OK);
           }
           return data;

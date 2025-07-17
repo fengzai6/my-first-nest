@@ -23,7 +23,7 @@ export class RefreshTokenService {
   ) {}
 
   async create(user: User) {
-    const tokens = await this.generateTokens(user);
+    const tokens = this.generateTokens(user);
 
     const refreshToken = this.refreshTokenRepository.create({
       token: tokens.refreshToken,
@@ -54,7 +54,7 @@ export class RefreshTokenService {
       throw new ErrorException(ErrorExceptionCode.INVALID_REFRESH_TOKEN);
     }
 
-    const tokens = await this.generateTokens(tokenRecord.user);
+    const tokens = this.generateTokens(tokenRecord.user);
 
     await this.refreshTokenRepository.update(tokenRecord.id, {
       token: tokens.refreshToken,
@@ -64,7 +64,7 @@ export class RefreshTokenService {
     return tokens;
   }
 
-  async generateTokens(user: User) {
+  generateTokens(user: User) {
     const payload: JwtPayload = {
       sub: user.id,
       type: TokenType.ACCESS,

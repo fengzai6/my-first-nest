@@ -1,7 +1,6 @@
 import { User } from '@/modules/users/entities/user.entity';
 import {
   ExecutionContext,
-  HttpException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -19,7 +18,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
-    const jwtMeta = this.reflector.get(JWT_META_KEY, context.getHandler());
+    const jwtMeta = this.reflector.get<JwtMetaEnum>(
+      JWT_META_KEY,
+      context.getHandler(),
+    );
 
     if (jwtMeta === JwtMetaEnum.PUBLIC) {
       return true;
@@ -32,8 +34,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     err: any,
     user: User | undefined,
     info: any,
-    context: ExecutionContext,
-    status?: any,
+    // context: ExecutionContext,
+    // status?: any,
   ): TUser {
     console.log('-------------JwtAuthGuard-------------');
     console.log('err:', err);

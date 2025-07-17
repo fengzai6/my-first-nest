@@ -40,7 +40,11 @@ export class GlobalExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof BaseException) {
       // 处理自定义异常
-      const exceptionResponse = exception.getResponse() as any;
+      const exceptionResponse = exception.getResponse() as {
+        message: string;
+        code: string;
+      };
+
       responseBody.statusCode = exception.getStatus();
       responseBody.message = exceptionResponse.message;
       responseBody.code = exceptionResponse.code || exception.name;
@@ -49,7 +53,11 @@ export class GlobalExceptionsFilter implements ExceptionFilter {
       responseBody.statusCode = exception.getStatus();
 
       if (typeof exceptionResponse === 'object') {
-        const exceptionObj = exceptionResponse as any;
+        const exceptionObj = exceptionResponse as {
+          message: string | string[];
+          error: string;
+        };
+
         responseBody.message = Array.isArray(exceptionObj.message)
           ? exceptionObj.message.join(', ')
           : exceptionObj.message;
