@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: my-first-nest-db
+    restart: always
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: first-nest
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    networks:
+      - my-nest-network
+
+networks:
+  my-nest-network:
+    name: my-nest-network
+
+volumes:
+  pg-data:
