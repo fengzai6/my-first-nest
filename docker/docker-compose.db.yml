@@ -1,8 +1,10 @@
+name: my-first-nest
+# 用于启动数据库容器
 services:
-  postgres:
+  db:
     image: postgres:17
     container_name: my-first-nest-db
-    restart: always
+    restart: on-failure:5
     ports:
       - '5432:5432'
     environment:
