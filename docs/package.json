@@ -1,0 +1,16 @@
+{
+  "name": "my-first-nest-docs",
+  "version": "0.0.0",
+  "repository": "https://github.com/fengzai6/my-first-nest",
+  "author": "fengzai6",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^2.0.0-alpha.8",
+    "vue": "^3.5.17"
+  }
+}
