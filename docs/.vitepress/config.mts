@@ -8,7 +8,8 @@ export default defineConfig({
   title: 'My Fires Nest',
   description: '一个全栈 NestJs 项目',
   srcDir: 'src',
-  base: '/docs/',
+  // 由于没有自己的 nginx 服务器，弄不了相关配置
+  // base: '/docs/',
 
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
