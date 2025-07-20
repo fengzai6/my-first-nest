@@ -3,7 +3,7 @@
 layout: home
 
 hero:
-  name: 'My Fires Nest'
+  name: 'My First Nest'
   text: '一个全栈 NestJs 项目'
   tagline: 希望作为一个优秀的实践项目，为我也为你
   actions:
