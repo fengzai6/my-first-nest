@@ -7,7 +7,7 @@ import { GraphChart } from 'echarts/charts';
 import { TitleComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 echarts.use([GraphChart, TitleComponent, TooltipComponent, CanvasRenderer]);
 
@@ -100,5 +100,9 @@ onMounted(() => {
     ],
   };
   myChart.setOption(option);
+
+  onUnmounted(() => {
+    myChart.dispose();
+  });
 });
 </script>

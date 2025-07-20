@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitepress';
 import nav from './nav';
-import sidebars from './siderbars';
+import sidebars from './sidebars';
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({

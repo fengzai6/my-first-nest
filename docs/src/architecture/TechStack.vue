@@ -47,7 +47,8 @@ const techs = [
   {
     name: 'TypeORM',
     href: 'https://typeorm.io/',
-    badgeSrc: 'https://img.shields.io/badge/TypeORM-E0234E?style=for-the-badge',
+    badgeSrc:
+      'https://img.shields.io/badge/TypeORM-E0234E?style=for-the-badge&logo=typeorm&logoColor=white',
     alt: 'TypeORM',
   },
   {
@@ -68,7 +69,7 @@ const techs = [
     name: 'shadcn/ui',
     href: 'https://ui.shadcn.com/',
     badgeSrc:
-      'https://img.shields.io/badge/shadcn/ui-000000?style=for-the-badge&logo=shadcn-ui&logoColor=white',
+      'https://img.shields.io/badge/shadcn%2Fui-000000?style=for-the-badge&logo=shadcnui&logoColor=white',
     alt: 'shadcn/ui',
   },
   {
