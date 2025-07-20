@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitepress';
 import nav from './nav';
 import sidebars from './siderbars';
@@ -53,4 +54,8 @@ export default defineConfig({
       },
     ],
   ],
+
+  vite: {
+    plugins: [tailwindcss()],
+  },
 });
