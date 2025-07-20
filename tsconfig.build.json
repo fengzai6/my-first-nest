@@ -6,6 +6,7 @@
     "dist",
     "**/*spec.ts",
     "commitlint.config.ts",
-    "client"
+    "client",
+    "docs"
   ]
 }

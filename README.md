@@ -5,14 +5,17 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/fengzai6/my-first-nest/releases/latest">
-    <img src="https://img.shields.io/github/v/release/fengzai6/my-first-nest" alt="Release">
+  <a href="https://github.com/fengzai6/my-first-nest/stargazers">
+    <img src="https://img.shields.io/github/stars/fengzai6/my-first-nest" alt="Stars">
   </a>
   <a href="https://github.com/fengzai6/my-first-nest/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/fengzai6/my-first-nest" alt="License">
   </a>
-  <a href="https://github.com/fengzai6/my-first-nest/stargazers">
-    <img src="https://img.shields.io/github/stars/fengzai6/my-first-nest" alt="Stars">
+   <a href="https://first-nest-docs.qqwj.top/">
+    <img src="https://img.shields.io/badge/docs-online-brightgreen" alt="Documentation">
+  </a>
+  <a href="https://github.com/fengzai6/my-first-nest/releases/latest">
+    <img src="https://img.shields.io/github/v/release/fengzai6/my-first-nest" alt="Release">
   </a>
 </p>
 
@@ -258,6 +261,7 @@ modules/xxx/
 
 ## 学习资源
 
+- [项目文档](https://first-nest-docs.qqwj.top/)
 - [NestJS 官方文档](https://docs.nestjs.com)
 - [TypeScript 文档](https://www.typescriptlang.org/docs)
 - [TypeORM 文档](https://typeorm.io)
