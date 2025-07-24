@@ -1,3 +1,4 @@
+import { IsProduction } from '@/common/constants';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { defaultConfig } from './config.default';
@@ -12,9 +13,7 @@ import { productionConfig } from './env/config.production';
       validationSchema,
       load: [
         defaultConfig,
-        process.env.NODE_ENV === 'production'
-          ? productionConfig
-          : developmentConfig,
+        IsProduction ? productionConfig : developmentConfig,
       ],
     }),
   ],

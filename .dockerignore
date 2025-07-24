@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+*.log
+*.md
+
+# docker
+docker
+
+# client
+client/node_modules
+client/dist 

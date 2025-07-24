@@ -9,11 +9,13 @@ export const seedUser = async (dataSource: DataSource) => {
   // 使用环境变量或默认值
   const defaultAdminUsername = process.env.DEFAULT_ADMIN_USERNAME;
 
-  if (!defaultAdminUsername) {
-    throw new Error('DEFAULT_ADMIN_USERNAME is not set');
-  }
-
   const defaultAdminPassword = process.env.DEFAULT_ADMIN_PASSWORD;
+
+  if (!defaultAdminUsername || !defaultAdminPassword) {
+    throw new Error(
+      'DEFAULT_ADMIN_USERNAME or DEFAULT_ADMIN_PASSWORD is not set',
+    );
+  }
 
   const userRepository = dataSource.getRepository(User);
   const roleRepository = dataSource.getRepository(Role);

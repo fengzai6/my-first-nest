@@ -7,10 +7,10 @@ export const productionConfig = registerAs(
     server: {
       port: 80,
     },
-    swagger: {
-      enabled: false,
+    swagger: {},
+    database: {
+      synchronize: false,
     },
-    database: {},
     jwt: {},
   }),
 );

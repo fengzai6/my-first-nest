@@ -6,7 +6,6 @@ export const developmentConfig = registerAs(
   (): AppConfig => ({
     server: {},
     database: {
-      url: process.env.DATABASE_URL,
       synchronize: true,
       // logging: true,
     },
