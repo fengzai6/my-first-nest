@@ -174,7 +174,7 @@ $ yarn dev
     - **方式二：运行本地已构建的镜像**
       首先，您需要在项目根目录手动构建镜像：
       ```bash
-      docker build -t my-first-nest-app:local .
+      docker build -t my-first-nest:local .
       ```
       然后，使用 `local` compose 文件启动它：
       ```bash
