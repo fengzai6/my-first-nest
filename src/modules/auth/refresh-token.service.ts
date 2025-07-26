@@ -40,7 +40,11 @@ export class RefreshTokenService {
     return tokens;
   }
 
-  async refreshToken(refreshToken: string) {
+  async refreshToken(refreshToken: string | undefined) {
+    if (!refreshToken) {
+      throw new ErrorException(ErrorExceptionCode.INVALID_REFRESH_TOKEN);
+    }
+
     const tokenRecord = await this.refreshTokenRepository.findOne({
       where: { token: refreshToken },
       relations: ['user'],
