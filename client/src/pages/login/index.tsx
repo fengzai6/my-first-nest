@@ -11,8 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Login as loginApi } from "@/services/api/auth";
 import { useUserStore } from "@/stores/user";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const formSchema = z.object({
@@ -27,15 +29,24 @@ export const Login = () => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: "xiaojian",
-      password: "password",
+      username: "admin",
+      password: "admin1234",
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: (values: z.infer<typeof formSchema>) => loginApi(values),
+    onSuccess: (data) => {
+      setJwtToken(data);
+      navigate("/");
+    },
+    onError: (error) => {
+      toast.error(error.message);
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const res = await loginApi(values);
-    setJwtToken(res);
-    navigate("/");
+    mutation.mutate(values);
   };
 
   return (
@@ -76,7 +87,11 @@ export const Login = () => {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full">
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={mutation.isPending}
+            >
               登录
             </Button>
           </form>
