@@ -24,6 +24,16 @@ export class User extends BaseEntity {
 
   @Column({
     nullable: true,
+  })
+  nickname: string;
+
+  @Column({
+    nullable: true,
+  })
+  avatar: string;
+
+  @Column({
+    nullable: true,
     type: 'simple-array',
   })
   specialRoles: SpecialRolesEnum[];
@@ -36,6 +46,7 @@ export class User extends BaseEntity {
   /**
    * 关联
    */
+
   @ManyToMany(() => Role, (role) => role.users)
   @JoinTable({
     name: 'user_roles',

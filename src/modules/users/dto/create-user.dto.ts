@@ -34,6 +34,22 @@ export class CreateUserDto {
   password: string;
 
   @ApiProperty({
+    description: 'The name of the user',
+    example: 'xiaojian',
+  })
+  @IsOptional()
+  @IsString()
+  nickname?: string;
+
+  @ApiProperty({
+    description: 'The avatar of the user',
+    example: 'avatar-url',
+  })
+  @IsOptional()
+  @IsString()
+  avatar?: string;
+
+  @ApiProperty({
     description: '用户角色code列表',
     example: [RoleCode.ADMIN],
   })
