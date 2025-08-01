@@ -19,3 +19,17 @@ export const tryCatch = async <T = any>(
     return [e || new Error("unknown error")];
   }
 };
+
+/**
+ * 获取字符串的首字母缩写的大写
+ * @param str
+ * @returns
+ */
+export const initials = (str: string) => {
+  if (!str) return "";
+
+  return str
+    .split(" ")
+    .map((word) => word[0].toUpperCase())
+    .join("");
+};

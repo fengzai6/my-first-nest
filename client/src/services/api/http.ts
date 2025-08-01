@@ -107,7 +107,9 @@ http.interceptors.response.use(
         useUserStore.getState().logout();
         processQueue(err);
 
-        return Promise.reject(err);
+        return Promise.reject({
+          message: "登录状态已过期，请重新登录",
+        });
       } finally {
         isRefreshing = false;
       }
