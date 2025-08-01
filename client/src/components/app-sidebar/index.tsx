@@ -14,7 +14,6 @@ import {
   SidebarMenuItem,
 } from "../ui/sidebar";
 import { NavUser } from "./nav-user";
-import { useUserStore } from "@/stores/user";
 
 const sidebarGroups = [
   {
@@ -41,7 +40,6 @@ const sidebarGroups = [
 
 export const AppSidebar = () => {
   const location = useLocation();
-  const user = useUserStore((state) => state.user);
 
   return (
     <Sidebar collapsible="icon">
@@ -77,7 +75,7 @@ export const AppSidebar = () => {
         })}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   );

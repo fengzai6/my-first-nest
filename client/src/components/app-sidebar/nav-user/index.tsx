@@ -1,12 +1,3 @@
-import {
-  BadgeCheck,
-  Bell,
-  ChevronsUpDown,
-  CreditCard,
-  LogOut,
-  Sparkles,
-} from "lucide-react";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -23,10 +14,30 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import type { IUser } from "@/services/types/user";
+import { initials } from "@/lib/utils";
+import { Logout } from "@/services/api/auth";
+import { useUserStore } from "@/stores/user";
+import { useMutation } from "@tanstack/react-query";
+import { BadgeCheck, Bell, ChevronsUpDown, LogOut } from "lucide-react";
+import { toast } from "sonner";
+import { useShallow } from "zustand/shallow";
 
-export const NavUser = ({ user }: { user: IUser }) => {
+export const NavUser = () => {
+  const [user, logout] = useUserStore(
+    useShallow((state) => [state.user, state.logout]),
+  );
+
   const { isMobile } = useSidebar();
+
+  const logoutMutation = useMutation({
+    mutationFn: Logout,
+    onSuccess: () => {
+      logout();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
 
   return (
     <SidebarMenu>
@@ -38,11 +49,15 @@ export const NavUser = ({ user }: { user: IUser }) => {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg">
-                {/* <AvatarImage src={user.avatar} alt={user.username} /> */}
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                <AvatarImage src={user.avatar} alt={user.displayName} />
+                <AvatarFallback className="rounded-lg">
+                  {initials(user.displayName)}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{user.username}</span>
+                <span className="truncate font-semibold">
+                  {user.displayName}
+                </span>
                 <span className="truncate text-xs">{user.email}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
@@ -57,12 +72,14 @@ export const NavUser = ({ user }: { user: IUser }) => {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  {/* <AvatarImage src={user.avatar} alt={user.name} /> */}
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarImage src={user.avatar} alt={user.displayName} />
+                  <AvatarFallback className="rounded-lg">
+                    {initials(user.displayName)}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">
-                    {user.username}
+                    {user.displayName}
                   </span>
                   <span className="truncate text-xs">{user.email}</span>
                 </div>
@@ -71,19 +88,8 @@ export const NavUser = ({ user }: { user: IUser }) => {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <Sparkles />
-                Upgrade to Pro
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
                 <BadgeCheck />
                 Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCard />
-                Billing
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Bell />
@@ -91,7 +97,7 @@ export const NavUser = ({ user }: { user: IUser }) => {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => logoutMutation.mutate()}>
               <LogOut />
               Log out
             </DropdownMenuItem>
