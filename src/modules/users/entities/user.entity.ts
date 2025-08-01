@@ -2,7 +2,7 @@ import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
 import { Cat } from '@/modules/cats/entities';
 import { Role } from '@/modules/roles/entities';
 import { BaseEntity } from '@/shared/entity/base.entity';
-import { Exclude } from 'class-transformer';
+import { Exclude, Expose } from 'class-transformer';
 import { Column, Entity, JoinTable, ManyToMany, OneToMany } from 'typeorm';
 
 @Entity('users')
@@ -42,6 +42,11 @@ export class User extends BaseEntity {
     default: true,
   })
   isActive: boolean;
+
+  @Expose()
+  get displayName() {
+    return this.nickname || this.username;
+  }
 
   /**
    * 关联
