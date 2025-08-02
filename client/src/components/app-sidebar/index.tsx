@@ -6,12 +6,13 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
+  useSidebar,
 } from "../ui/sidebar";
 import { NavUser } from "./nav-user";
 
@@ -40,13 +41,16 @@ const sidebarGroups = [
 
 export const AppSidebar = () => {
   const location = useLocation();
+  const { state } = useSidebar();
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center space-x-2 px-2">
+        <div className="flex items-center space-x-2 px-2 py-[0.375rem]">
           <img src={NestJsIcon} alt="Logo" className="h-5 w-5" />
-          <div>My First Nest</div>
+          {state === "expanded" && (
+            <div className="text-sm whitespace-nowrap">My First Nest</div>
+          )}
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -54,22 +58,19 @@ export const AppSidebar = () => {
           return (
             <SidebarGroup key={index}>
               <SidebarGroupLabel>{item.label}</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {item.content.map((contentItem, i) => (
-                    <SidebarMenuItem key={contentItem.name + i}>
-                      <SidebarMenuButton
-                        isActive={location.pathname.startsWith(
-                          contentItem.path,
-                        )}
-                      >
-                        {contentItem.icon}
-                        <span>{contentItem.name}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
+              <SidebarMenu>
+                {item.content.map((contentItem, i) => (
+                  <SidebarMenuItem key={contentItem.name + i}>
+                    <SidebarMenuButton
+                      tooltip={contentItem.name}
+                      isActive={location.pathname.startsWith(contentItem.path)}
+                    >
+                      {contentItem.icon}
+                      <span>{contentItem.name}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
             </SidebarGroup>
           );
         })}
@@ -77,6 +78,7 @@ export const AppSidebar = () => {
       <SidebarFooter>
         <NavUser />
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 };
