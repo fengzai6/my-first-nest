@@ -1,5 +1,7 @@
 import { Home } from "@/pages/home";
 import { Login } from "@/pages/login";
+import { Groups } from "@/pages/management/groups";
+import { Roles } from "@/pages/management/roles";
 import { Users } from "@/pages/management/users";
 import { NotFound } from "@/pages/not-found";
 import { Register } from "@/pages/register";
@@ -34,6 +36,14 @@ export const routes: RouteObject[] = [
           {
             path: "users",
             element: <Users />,
+          },
+          {
+            path: "roles",
+            element: <Roles />,
+          },
+          {
+            path: "groups",
+            element: <Groups />,
           },
         ],
       },

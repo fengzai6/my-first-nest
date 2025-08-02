@@ -27,7 +27,7 @@ export const Root = () => {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="overflow-x-hidden overflow-y-auto">
         <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center justify-between gap-2 px-4 shadow-sm backdrop-blur-sm">
           <SidebarTrigger />
           <div className="flex items-center space-x-2"></div>

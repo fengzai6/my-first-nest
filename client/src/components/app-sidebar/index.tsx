@@ -36,6 +36,16 @@ const sidebarGroups = [
         icon: <UserOutlined />,
         path: "/management/users",
       },
+      {
+        name: "角色管理",
+        icon: <UserOutlined />,
+        path: "/management/roles",
+      },
+      {
+        name: "群组管理",
+        icon: <UserOutlined />,
+        path: "/management/groups",
+      },
     ],
   },
 ];
