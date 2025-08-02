@@ -1,6 +1,7 @@
 import NestJsIcon from "@/assets/nestjs.svg";
 import { HomeOutlined, UserOutlined } from "@ant-design/icons";
-import { useLocation } from "react-router";
+import { useMemo } from "react";
+import { Link, useLocation } from "react-router";
 import {
   Sidebar,
   SidebarContent,
@@ -23,7 +24,7 @@ const sidebarGroups = [
       {
         name: "Home",
         icon: <HomeOutlined />,
-        path: "/home",
+        path: "/",
       },
     ],
   },
@@ -33,7 +34,7 @@ const sidebarGroups = [
       {
         name: "用户管理",
         icon: <UserOutlined />,
-        path: "/users",
+        path: "/management/users",
       },
     ],
   },
@@ -42,6 +43,15 @@ const sidebarGroups = [
 export const AppSidebar = () => {
   const location = useLocation();
   const { state } = useSidebar();
+
+  const getIsActive = useMemo(() => {
+    return (path: string) => {
+      if (path === "/") {
+        return location.pathname === "/";
+      }
+      return location.pathname.startsWith(path);
+    };
+  }, [location.pathname]);
 
   return (
     <Sidebar collapsible="icon">
@@ -61,13 +71,16 @@ export const AppSidebar = () => {
               <SidebarMenu>
                 {item.content.map((contentItem, i) => (
                   <SidebarMenuItem key={contentItem.name + i}>
-                    <SidebarMenuButton
-                      tooltip={contentItem.name}
-                      isActive={location.pathname.startsWith(contentItem.path)}
-                    >
-                      {contentItem.icon}
-                      <span>{contentItem.name}</span>
-                    </SidebarMenuButton>
+                    <Link to={contentItem.path}>
+                      <SidebarMenuButton
+                        tooltip={contentItem.name}
+                        isActive={getIsActive(contentItem.path)}
+                        className="cursor-pointer"
+                      >
+                        {contentItem.icon}
+                        <span>{contentItem.name}</span>
+                      </SidebarMenuButton>
+                    </Link>
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
