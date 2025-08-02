@@ -101,7 +101,10 @@
     "typescript-eslint": "^8.37.0"
   },
   "lint-staged": {
-    "*.ts": "eslint --fix"
+    "src/**/*.ts": "eslint --fix",
+    "test/**/*.ts": "eslint --fix",
+    "database/**/*.ts": "eslint --fix",
+    "client/**/*.{ts,tsx}": "cd client && npm run lint"
   },
   "jest": {
     "moduleFileExtensions": [

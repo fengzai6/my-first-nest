@@ -8,8 +8,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Login as loginApi } from "@/services/api/auth";
-import { useUserStore } from "@/stores/user";
+import { SignUp as signUpApi } from "@/services/api/auth";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -17,36 +16,54 @@ import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { z } from "zod";
 
-const formSchema = z.object({
-  username: z.string().min(1, "用户名不能为空"),
-  password: z.string().min(1, "密码不能为空"),
-});
+const formSchema = z
+  .object({
+    username: z.string().min(1, "用户名不能为空").min(3, "用户名至少3个字符"),
+    email: z.email("请输入有效的邮箱地址").min(1, "邮箱不能为空"),
+    password: z.string().min(1, "密码不能为空").min(6, "密码至少6个字符"),
+    confirmPassword: z.string().min(1, "确认密码不能为空"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "两次输入的密码不一致",
+    path: ["confirmPassword"],
+  });
 
-export const Login = () => {
+export const Register = () => {
   const navigate = useNavigate();
-  const setJwtToken = useUserStore((state) => state.setJwtToken);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: "admin",
-      password: "admin1234",
+      username: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
     },
   });
 
   const mutation = useMutation({
-    mutationFn: (values: z.infer<typeof formSchema>) => loginApi(values),
-    onSuccess: (data) => {
-      setJwtToken(data);
-      navigate("/");
+    mutationFn: (values: {
+      username: string;
+      email: string;
+      password: string;
+    }) => signUpApi(values),
+    onSuccess: () => {
+      toast.success("注册成功！请登录");
+      navigate("/login");
     },
     onError: (error) => {
-      toast.error(error.message);
+      toast.error(error.message || "注册失败，请重试");
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    mutation.mutate(values);
+    const submitData = {
+      username: values.username,
+      email: values.email,
+      password: values.password,
+    };
+
+    mutation.mutate(submitData);
   };
 
   return (
@@ -54,15 +71,15 @@ export const Login = () => {
       <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-8 shadow-lg">
         <div className="text-center">
           <div className="text-3xl font-bold tracking-tight text-gray-900">
-            登录
+            注册账户
           </div>
           <div className="mt-2 text-sm text-gray-600">
-            还没有账户？{" "}
+            已有账户？{" "}
             <Link
-              to="/register"
+              to="/login"
               className="font-medium text-blue-600 hover:text-blue-500"
             >
-              立即注册
+              立即登录
             </Link>
           </div>
         </div>
@@ -76,6 +93,23 @@ export const Login = () => {
                   <FormLabel>用户名</FormLabel>
                   <FormControl>
                     <Input placeholder="请输入用户名" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>邮箱</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="请输入邮箱地址"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -98,12 +132,29 @@ export const Login = () => {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>确认密码</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      placeholder="请再次输入密码"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <Button
               type="submit"
               className="w-full"
               disabled={mutation.isPending}
             >
-              登录
+              {mutation.isPending ? "注册中..." : "注册"}
             </Button>
           </form>
         </Form>

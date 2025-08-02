@@ -9,8 +9,8 @@ export type SpecialRoles = (typeof SpecialRoles)[keyof typeof SpecialRoles];
 
 export interface IUserRole extends IBase {
   name: string;
-  description?: string;
   code: string;
+  description?: string;
 }
 
 export interface IUserPermission extends IBase {
@@ -20,8 +20,11 @@ export interface IUserPermission extends IBase {
 
 export interface IUser extends IBase {
   username: string;
-  email: string;
+  email?: string;
+  nickname?: string;
+  displayName: string;
+  avatar?: string;
+  specialRoles?: SpecialRoles[];
+  roles?: IUserRole[];
   isActive: boolean;
-  specialRoles: SpecialRoles[];
-  roles: IUserRole[];
 }

@@ -6,6 +6,17 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 
+/**
+ * 无需自动刷新 token 的 API 列表
+ */
+const NO_AUTO_REFRESH_API_LIST = ["/auth/login", "/auth/refresh-token"];
+
+const isNoAutoRefreshApi = (url: string | undefined) => {
+  if (!url) return false;
+
+  return NO_AUTO_REFRESH_API_LIST.some((item) => url.includes(item));
+};
+
 interface FailedRequest {
   resolve: (value: unknown) => void;
   reject: (reason?: any) => void;
@@ -62,7 +73,7 @@ http.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      !originalRequest.url?.includes("/auth/refresh-token")
+      !isNoAutoRefreshApi(originalRequest.url)
     ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -96,10 +107,16 @@ http.interceptors.response.use(
         useUserStore.getState().logout();
         processQueue(err);
 
-        return Promise.reject(err);
+        return Promise.reject({
+          message: "登录状态已过期，请重新登录",
+        });
       } finally {
         isRefreshing = false;
       }
+    }
+
+    if (error.response?.data) {
+      return Promise.reject(error.response.data);
     }
 
     return Promise.reject(error);
