@@ -10,7 +10,7 @@ import { useEffect } from "react";
 const { TextArea } = Input;
 const { Option } = Select;
 
-interface GroupFormProps {
+interface IGroupFormProps {
   group?: IGroup | null;
   groups: IGroup[];
   onSubmit: (
@@ -26,7 +26,7 @@ export const GroupForm = ({
   onSubmit,
   onCancel,
   loading = false,
-}: GroupFormProps) => {
+}: IGroupFormProps) => {
   const [form] = Form.useForm();
 
   useEffect(() => {

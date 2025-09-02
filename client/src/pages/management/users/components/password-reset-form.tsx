@@ -10,7 +10,7 @@ const passwordResetSchema = z
   .object({
     newPassword: z
       .string()
-      .min(6, "密码至少6个字符")
+      .min(8, "密码至少8个字符")
       .max(100, "密码不能超过100个字符"),
     confirmPassword: z.string(),
   })
@@ -21,13 +21,13 @@ const passwordResetSchema = z
 
 type PasswordResetFormData = z.infer<typeof passwordResetSchema>;
 
-interface PasswordResetFormProps {
+interface IPasswordResetFormProps {
   onSubmit: (data: IUpdatePasswordByAdminDto) => void;
   onCancel: () => void;
   loading?: boolean;
 }
 
-export const PasswordResetForm: React.FC<PasswordResetFormProps> = ({
+export const PasswordResetForm: React.FC<IPasswordResetFormProps> = ({
   onSubmit,
   onCancel,
   loading = false,

@@ -18,8 +18,6 @@ import type { IRole } from "@/services/types/role";
 import type { IUser } from "@/services/types/user";
 import { SpecialRoles as SpecialRolesEnum } from "@/services/types/user";
 
-const { Option } = Select;
-
 // 表单验证schema
 const roleAssignmentSchema = z.object({
   roles: z.array(z.string()),
@@ -28,7 +26,7 @@ const roleAssignmentSchema = z.object({
 
 type RoleAssignmentFormData = z.infer<typeof roleAssignmentSchema>;
 
-interface RoleAssignmentFormProps {
+interface IRoleAssignmentFormProps {
   userId: string | null;
   user?: IUser;
   roles: IRole[];
@@ -37,7 +35,7 @@ interface RoleAssignmentFormProps {
   loading?: boolean;
 }
 
-export const RoleAssignmentForm: React.FC<RoleAssignmentFormProps> = ({
+export const RoleAssignmentForm: React.FC<IRoleAssignmentFormProps> = ({
   userId,
   user,
   roles,
@@ -128,25 +126,12 @@ export const RoleAssignmentForm: React.FC<RoleAssignmentFormProps> = ({
                 disabled={loading}
                 allowClear
                 showSearch
-                filterOption={(input, option) =>
-                  (option?.children as string)
-                    ?.toLowerCase()
-                    .includes(input.toLowerCase())
-                }
-              >
-                {roles.map((role) => (
-                  <Option key={role.code} value={role.code}>
-                    <div>
-                      <div>{role.name}</div>
-                      {role.description && (
-                        <div className="text-xs text-gray-500">
-                          {role.description}
-                        </div>
-                      )}
-                    </div>
-                  </Option>
-                ))}
-              </Select>
+                optionFilterProp="label"
+                options={roles.map((role) => ({
+                  label: role.name,
+                  value: role.code,
+                }))}
+              />
             )}
           />
         </Form.Item>

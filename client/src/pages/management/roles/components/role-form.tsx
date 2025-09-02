@@ -8,7 +8,7 @@ import type { IRole } from "@/services/types/role";
 const { TextArea } = Input;
 const { Title } = Typography;
 
-interface RoleFormProps {
+interface IRoleFormProps {
   role?: IRole | null;
   permissions: IPermission[];
   onSubmit: (data: ICreateRoleDto | IUpdateRoleDto) => void;
@@ -16,7 +16,7 @@ interface RoleFormProps {
   loading: boolean;
 }
 
-export const RoleForm: React.FC<RoleFormProps> = ({
+export const RoleForm: React.FC<IRoleFormProps> = ({
   role,
   permissions,
   onSubmit,

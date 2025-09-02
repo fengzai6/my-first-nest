@@ -39,7 +39,7 @@ const updateUserSchema = z.object({
 type CreateUserFormData = z.infer<typeof createUserSchema>;
 type UpdateUserFormData = z.infer<typeof updateUserSchema>;
 
-interface UserFormProps {
+interface IUserFormProps {
   user?: IUser | null;
   roles: IRole[];
   onSubmit: (data: ICreateUserDto | IUpdateUserDto) => void;
@@ -47,7 +47,7 @@ interface UserFormProps {
   loading?: boolean;
 }
 
-export const UserForm: React.FC<UserFormProps> = ({
+export const UserForm: React.FC<IUserFormProps> = ({
   user,
   roles,
   onSubmit,

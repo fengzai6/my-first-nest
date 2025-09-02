@@ -25,7 +25,7 @@ import { useState } from "react";
 const { Title, Text } = Typography;
 const { Option } = Select;
 
-interface GroupMemberManagementProps {
+interface IGroupMemberManagementProps {
   group: IGroup | null;
   users: IUser[];
   onAddMembers: (data: IAddGroupMembersDto) => void;
@@ -45,7 +45,7 @@ export const GroupMemberManagement = ({
   onUpdateMember,
   onRemoveMember,
   loading,
-}: GroupMemberManagementProps) => {
+}: IGroupMemberManagementProps) => {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   if (!group) return null;

@@ -28,8 +28,7 @@ export const tryCatch = async <T = any>(
 export const initials = (str: string) => {
   if (!str) return "";
 
-  return str
-    .split(" ")
-    .map((word) => word[0].toUpperCase())
-    .join("");
+  const words = str.trim().split(/\s+/).filter(Boolean);
+
+  return words.map((word) => word.charAt(0).toUpperCase()).join("");
 };
