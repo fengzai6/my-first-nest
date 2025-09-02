@@ -1,5 +1,6 @@
+import { Root } from "@/components/root";
 import { useUserStore } from "@/stores/user";
-import { Navigate, Outlet } from "react-router";
+import { Navigate } from "react-router";
 
 export const AuthGuard = () => {
   const jwtToken = useUserStore((state) => state.jwtToken);
@@ -8,5 +9,5 @@ export const AuthGuard = () => {
     return <Navigate to="/login" replace />;
   }
 
-  return <Outlet />;
+  return <Root />;
 };
