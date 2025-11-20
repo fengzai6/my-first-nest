@@ -24,6 +24,8 @@
     "web:build": "pnpm --filter @my-first-nest/web build",
     "docs:dev": "pnpm --filter @my-first-nest/docs dev",
     "docs:build": "pnpm --filter @my-first-nest/docs build",
+    "docker:build:server": "docker build -f apps/server/Dockerfile -t my-first-nest-server .",
+    "docker:build:web": "docker build -f apps/web/Dockerfile -t my-first-nest-web .",
     "prepare": "husky"
   },
   "repository": {
