@@ -13,6 +13,7 @@ interface IUserStore {
 
 const defaultUser: IUser = {
   id: "",
+  displayName: "",
   username: "",
   email: "",
   isActive: false,

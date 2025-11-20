@@ -1,17 +1,17 @@
 {
-  "name": "my-first-nest-docs",
-  "version": "0.0.0",
+  "name": "@my-first-nest/docs",
+  "version": "0.0.1",
+  "description": "My First NestJS Project For Learning - Documentation",
   "repository": "https://github.com/fengzai6/my-first-nest",
   "author": "fengzai6",
   "license": "MIT",
   "scripts": {
     "dev": "vitepress dev",
     "build": "vitepress build",
+    "clean": "rm -rf dist .vitepress/dist",
     "preview": "vitepress preview"
   },
   "devDependencies": {
-    "prettier": "^3.6.2",
-    "prettier-plugin-tailwindcss": "^0.6.14",
     "vitepress": "^2.0.0-alpha.8",
     "vue": "^3.5.17"
   },

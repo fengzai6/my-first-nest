@@ -7,8 +7,8 @@ echo "Running in production mode..."
 
 # 初始化数据库
 echo "Initializing database..."
-node dist/database/manage.js init
+node apps/server/dist/database/manage.js init
 
 # 启动服务
 echo "Starting service..."
-node dist/src/main
+node apps/server/dist/src/main

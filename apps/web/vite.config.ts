@@ -5,8 +5,8 @@ import { defineConfig, loadEnv } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // 从项目根目录加载 .env 文件
-  const env = loadEnv(mode, path.resolve(__dirname, ".."), "");
+  // 从server目录加载 .env 文件
+  const env = loadEnv(mode, path.resolve(__dirname, "../server"), "");
 
   const SERVER_PORT = env.PORT || 3000;
 

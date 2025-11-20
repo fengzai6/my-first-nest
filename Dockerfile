@@ -1,52 +1,102 @@
-# 1. 后端构建环境
-FROM node:22-alpine AS backend-builder
-
+# ===========================================
+# 基础镜像 - 包含 Node.js 和 pnpm
+# ===========================================
+FROM node:22-slim AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
 WORKDIR /app
 
-COPY package.json ./
-# 首先，只安装生产依赖
-RUN yarn install --production
-# 备份生产依赖
-RUN cp -R node_modules /prod_node_modules
+# ===========================================
+# 依赖安装阶段 - 安装所有依赖用于构建
+# ===========================================
+FROM base AS deps
+# 复制 workspace 配置文件
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# 复制各个应用的 package.json
+COPY apps/server/package.json ./apps/server/
+COPY apps/web/package.json ./apps/web/
 
-# 然后，安装所有依赖（包括开发依赖）以进行构建
-RUN yarn install && yarn cache clean
+# 安装所有依赖（包括开发依赖，用于构建）
+RUN pnpm install --frozen-lockfile
 
-COPY . .
-RUN yarn build
+# ===========================================
+# 后端构建阶段
+# ===========================================
+FROM base AS server-builder
+# 复制依赖
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/server/node_modules ./apps/server/node_modules
 
-# 2. 前端构建环境
-FROM node:22-alpine AS frontend-builder
+# 复制后端源代码和配置
+COPY package.json pnpm-workspace.yaml ./
+COPY apps/server ./apps/server
 
-WORKDIR /app
+# 构建后端
+WORKDIR /app/apps/server
+RUN pnpm build
 
-COPY client/package.json ./client/
-# 安装依赖后清理缓存
-RUN cd client && yarn install && yarn cache clean
+# ===========================================
+# 前端构建阶段
+# ===========================================
+FROM base AS web-builder
+# 复制依赖
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 
-COPY client ./client
-RUN cd client && yarn build
+# 复制前端源代码和配置
+COPY package.json pnpm-workspace.yaml ./
+COPY apps/web ./apps/web
 
-# 3. 生产环境
-FROM node:22-alpine
+# 构建前端
+WORKDIR /app/apps/web
+RUN pnpm build
 
-WORKDIR /app
+# ===========================================
+# 生产依赖准备阶段 - 从完整依赖中移除开发依赖
+# ===========================================
+FROM base AS prod-deps
+# 复制完整的依赖（包括已编译的原生模块）
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/server/node_modules ./apps/server/node_modules
+
+# 复制 workspace 配置文件
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/server/package.json ./apps/server/
+
+# 移除开发依赖，保留生产依赖
+RUN pnpm prune --prod
+
+# ===========================================
+# 最终生产镜像
+# ===========================================
+FROM base AS production
 
 # 设置环境变量
 ENV NODE_ENV=production
 
-# 从后端构建环境复制 package.json, yarn.lock 和生产依赖
-COPY --from=backend-builder /app/package.json ./
-COPY --from=backend-builder /prod_node_modules ./node_modules
+# 复制 workspace 配置
+COPY package.json pnpm-workspace.yaml ./
+COPY apps/server/package.json ./apps/server/
 
-# 从后端构建环境复制构建产物
-COPY --from=backend-builder /app/dist ./dist
-# 从前端构建环境复制构建产物
-COPY --from=frontend-builder /app/client/dist ./client/dist
+# 从生产依赖阶段复制 node_modules
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=prod-deps /app/apps/server/node_modules ./apps/server/node_modules
 
-# 复制脚本并添加可执行权限
-COPY scripts/start.sh ./start.sh
-# 修复 Windows 换行符 (CRLF) 问题
-RUN sed -i 's/\r$//' ./start.sh
+# 从后端构建阶段复制构建产物
+COPY --from=server-builder /app/apps/server/dist ./apps/server/dist
+COPY --from=server-builder /app/apps/server/database ./apps/server/database
 
-CMD ["sh", "./start.sh"]
+# 从前端构建阶段复制构建产物
+COPY --from=web-builder /app/apps/web/dist ./apps/web/dist
+
+# 复制启动脚本
+COPY scripts/start.sh ./scripts/start.sh
+# 修复 Windows 换行符 (CRLF) 问题并添加可执行权限
+RUN sed -i 's/\r$//' ./scripts/start.sh && chmod +x ./scripts/start.sh
+
+# 暴露端口（根据实际配置调整）
+EXPOSE 3000
+
+# 启动应用
+CMD ["sh", "./scripts/start.sh"]

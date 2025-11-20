@@ -1,5 +1,7 @@
 {
-  "cSpell.words": ["metatype"],
+  "cSpell.words": ["metatype", "fengzai", "tailwindcss"],
+  "editor.detectIndentation": false,
+  "editor.tabSize": 2,
   "editor.codeActionsOnSave": {
     "source.organizeImports": "explicit",
     "source.fixAll.eslint": "explicit"
