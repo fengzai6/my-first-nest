@@ -1,17 +1,20 @@
 import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 import path from "path";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig } from "vite";
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
-  // 从server目录加载 .env 文件
-  const env = loadEnv(mode, path.resolve(__dirname, "../server"), "");
-
-  const SERVER_PORT = env.PORT || 3000;
-
+export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react({
+        babel: {
+          plugins: ["babel-plugin-react-compiler"],
+        },
+      }),
+      // pnpm 在这里有 bug 导致报错，所以设置为 any
+      tailwindcss() as any,
+    ],
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
@@ -20,7 +23,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         "/api": {
-          target: `http://localhost:${SERVER_PORT}`,
+          target: `http://localhost:8080`,
           changeOrigin: true,
         },
       },
