@@ -1,4 +1,4 @@
-# 第一个 NestJS 项目
+# 第一个 NestJS 项目 - Monorepo
 
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
@@ -21,29 +21,55 @@
 
 ## 项目简介
 
-这是一个基于 [NestJS](https://nestjs.com/) 框架的入门级项目，由于在自学nestjs之路上，通过官方文档和搜索引擎所得到的教程都点到为止，并非是实现实际场景的业务，所以我便想完善实践，帮助开发者学习和实践 NestJS 的基础知识。本项目将实现一个简单又不简单的系统，展示 NestJS 的核心特性和最佳实践（个人学习中，可能存在错误），并将尽力的完善相关的注释。在项目的各个角落我也可能留下笔记帮助理解～
+这是一个基于 [NestJS](https://nestjs.com/) 框架的入门级项目，采用 **Monorepo** 架构管理。项目旨在帮助开发者学习和实践 NestJS 的基础知识，同时展示现代化的全栈开发最佳实践。
 
-然后为了更好的展示项目功能，我添加了客户端（逐步对接中），或许也能帮助到学习前端的同学。
+本项目包含：
 
-希望这个属于我的第一个 NestJS 项目，也能成为你的第一个 NestJS 项目参考🥰
+- 🚀 **后端服务** (NestJS + TypeScript + TypeORM)
+- 🎨 **前端应用** (React + TypeScript + Vite + Tailwind CSS)
+- 📚 **文档站点** (VitePress + Vue 3)
 
-**项目特点：** `最佳实践` `严格的TypeScript` `技术与时俱进` `代码可读性强` `功能完善` `技术栈覆盖广泛`
+采用 PNPM Workspace 进行包管理，实现代码共享和统一构建流程。
+
+**项目特点：** `Monorepo架构` `最佳实践` `严格的TypeScript` `技术与时俱进` `代码可读性强` `功能完善` `技术栈覆盖广泛`
 
 ## 技术栈
 
-- NestJS - 渐进式 Node.js 框架
-- TypeScript - 类型安全的 JavaScript 超集
-- TypeORM - 强大的 ORM 框架
-- PostgreSQL - 关系型数据库
-- Swagger - API 文档生成工具
-- Redis - 缓存
+### 🏗️ 架构
 
-### 客户端
+- **PNPM Workspace** - Monorepo 包管理
+- **TypeScript** - 类型安全的 JavaScript 超集
 
-- React
-- Vite
-- TailwindCSS
-- ShadcnUI
+### 🚀 后端 (Server)
+
+- **NestJS** - 渐进式 Node.js 框架
+- **TypeORM** - 强大的 ORM 框架
+- **PostgreSQL** - 关系型数据库
+- **Swagger** - API 文档生成工具
+- **JWT** - 认证与授权
+- **Redis** - 缓存
+
+### 🎨 前端 (Web)
+
+- **React 19** - 用户界面库
+- **Vite** - 快速构建工具
+- **Tailwind CSS** - 实用优先的 CSS 框架
+- **Ant Design** - 企业级 UI 设计语言
+- **Zustand** - 轻量级状态管理
+- **React Query** - 数据获取和缓存
+
+### 📚 文档 (Docs)
+
+- **VitePress** - 静态站点生成器
+- **Vue 3** - 渐进式 JavaScript 框架
+- **ECharts** - 数据可视化
+
+### 🛠️ 开发工具
+
+- **ESLint** - 代码质量检查
+- **Prettier** - 代码格式化
+- **Husky** - Git hooks
+- **CommitLint** - 提交信息规范
 
 ## 项目特点
 
@@ -102,52 +128,74 @@
 
 ### 环境要求
 
-- Node.js (>= 20.19.3)
-- npm 或 yarn
-- PostgreSQL
+- **Node.js** (>= 20.19.5)
+- **PNPM** (>= 9.0.0) 推荐使用 PNPM 进行包管理
+- **PostgreSQL** (>= 12.0)
 
 ### 安装依赖
 
 ```bash
-$ yarn install
+# 安装所有应用的依赖
+pnpm install
 ```
 
 ### 配置环境变量
 
-复制 `.env.example` 文件为 `.env`，并根据需要修改配置：
+复制 server 应用的环境变量文件：
 
 ```bash
-$ cp .env.example .env
+cp apps/server/.env.example apps/server/.env
 ```
+
+根据需要修改 `apps/server/.env` 文件中的配置。
 
 ### 运行项目
 
 ```bash
-# 开发模式
-$ yarn start:dev
+# 同时启动所有应用 (并行模式)
+pnpm dev
 
-# 生产模式
-$ yarn start:prod
+# 或者分别启动各个应用
+pnpm server:dev   # 启动后端服务器 (端口: 3000)
+pnpm web:dev      # 启动前端应用 (端口: 5173)
+pnpm docs:dev     # 启动文档站点 (端口: 5173)
 ```
 
-#### 初始化数据库
+### 数据库操作
 
 ```bash
-$ yarn db:init
+# 初始化数据库
+pnpm --filter @my-first-nest/server db:init
+
+# 生成迁移文件
+pnpm --filter @my-first-nest/server migration:generate <migration_name>
+
+# 执行迁移
+pnpm --filter @my-first-nest/server db:migrate
+
+# 填充种子数据
+pnpm --filter @my-first-nest/server db:seed
 ```
 
-#### 数据库生成迁移
+### 构建项目
 
 ```bash
-$ yarn migration:generate <migration_name>
+# 构建所有应用
+pnpm build
+
+# 或者分别构建
+pnpm server:build
+pnpm web:build
+pnpm docs:build
 ```
 
-#### 客户端
+### 其他常用命令
 
 ```bash
-$ cd client
-$ yarn install
-$ yarn dev
+pnpm lint         # 运行所有应用的代码检查
+pnpm format       # 格式化所有代码
+pnpm test         # 运行所有测试
+pnpm clean        # 清理所有构建产物
 ```
 
 ## Docker
@@ -198,44 +246,46 @@ docker-compose -f docker-compose.local.yml down
 ## 项目结构
 
 ```
-.
-├── database/                   # 数据库相关
-│   ├── migrations/             # TypeORM 迁移文件
-│   └── seeds/                  # 数据填充脚本 (初始化数据)
-├── Dockerfile                  # Docker 配置文件
-├── scripts/                    # 脚本文件
-├── src/                        # 项目源码
-│   ├── app.module.ts           # 应用根模块
-│   ├── app.controller.ts       # 应用根控制器
-│   ├── app.service.ts          # 应用根服务
-│   ├── main.ts                 # 应用入口文件
-│   ├── common/                 # 全局通用模块
-│   │   ├── constants/          # 常量定义
-│   │   ├── context/            # 请求上下文
-│   │   ├── decorators/         # 自定义装饰器
-│   │   ├── exceptions/         # 自定义异常
-│   │   ├── filters/            # 全局过滤器
-│   │   ├── guards/             # 全局守卫
-│   │   ├── interceptors/       # 全局拦截器
-│   │   ├── middleware/         # 中间件
-│   │   ├── pipes/              # 全局管道
-│   │   ├── response/           # 通用响应结构
-│   │   └── subscribers/        # 数据库订阅器
-│   ├── config/                 # 配置模块 (环境变量等)
-│   ├── modules/                # 业务功能模块
-│   │   ├── auth/               # 认证模块
-│   │   ├── cats/               # 示例模块
-│   │   ├── groups/             # 群组模块
-│   │   ├── permissions/        # 权限模块
-│   │   ├── roles/              # 角色模块
-│   │   └── users/              # 用户模块
-│   ├── shared/                 # 共享模块
-│   │   ├── database/           # 数据库连接模块
-│   │   ├── entity/             # 基础实体类 (如：审计字段)
-│   │   ├── static/             # 静态资源模块
-│   │   └── utils/              # 通用工具函数
-│   └── types/                  # TypeScript 类型定义
-└── test/                       # 测试
+my-first-nest/                 # Monorepo 根目录
+├── apps/                      # 应用程序
+│   ├── server/                # 🚀 NestJS 后端服务
+│   │   ├── database/          # 数据库相关
+│   │   │   ├── migrations/    # TypeORM 迁移文件
+│   │   │   └── seeds/         # 数据填充脚本
+│   │   ├── src/               # 源代码
+│   │   │   ├── common/        # 全局通用模块
+│   │   │   ├── config/        # 配置模块
+│   │   │   ├── modules/       # 业务功能模块
+│   │   │   │   ├── auth/      # 认证模块
+│   │   │   │   ├── users/     # 用户模块
+│   │   │   │   ├── roles/     # 角色模块
+│   │   │   │   └── ...        # 其他模块
+│   │   │   ├── shared/        # 共享模块
+│   │   │   └── types/         # 类型定义
+│   │   └── test/              # 测试
+│   ├── web/                   # 🎨 React 前端应用
+│   │   ├── src/
+│   │   │   ├── components/    # 组件
+│   │   │   ├── pages/         # 页面
+│   │   │   ├── services/      # API 服务
+│   │   │   ├── stores/        # 状态管理
+│   │   │   └── ...
+│   │   └── public/            # 静态资源
+│   └── docs/                  # 📚 VitePress 文档站点
+│       ├── src/
+│       │   ├── guide/         # 指南
+│       │   ├── architecture/  # 架构说明
+│       │   └── notes/         # 学习笔记
+│       └── public/            # 静态资源
+├── packages/                  # 🔧 共享包 (可选)
+├── docker/                    # 🐳 Docker 配置
+│   ├── docker-compose.app.yml
+│   ├── docker-compose.db.yml
+│   └── docker-compose.local.yml
+├── scripts/                   # 📜 脚本文件
+├── package.json              # 根包配置 (Monorepo 管理)
+├── pnpm-workspace.yaml       # PNPM 工作区配置
+└── ...                       # 其他配置文件
 ```
 
 每个功能模块（如 `users`、`groups` 等）通常包含以下结构：

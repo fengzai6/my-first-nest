@@ -1,9 +1,9 @@
 import { RoleCode } from '@/common/constants';
 import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
 import { Role } from '@/modules/roles/entities/role.entity';
+import { User } from '@/modules/users/entities/user.entity';
 import * as argon2 from 'argon2';
 import { DataSource } from 'typeorm';
-import { User } from '../../src/modules/users/entities/user.entity';
 
 export const seedUser = async (dataSource: DataSource) => {
   // 使用环境变量或默认值

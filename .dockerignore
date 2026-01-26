@@ -1,14 +1,128 @@
+# ===========================================
+# Dependencies (will be installed in Docker)
+# ===========================================
 node_modules
+*/node_modules
+apps/*/node_modules
+packages/*/node_modules
+
+# ===========================================
+# Build outputs (will be built in Docker)
+# ===========================================
 dist
+build
+.next
+apps/*/dist
+apps/*/build
+apps/*/.next
+apps/docs/.vitepress/dist
+apps/docs/.vitepress/cache
+
+# ===========================================
+# Git and Version Control
+# ===========================================
 .git
 .gitignore
-.env
+.gitattributes
+
+# ===========================================
+# Environment files
+# ===========================================
+.env*
+!.env.example
+
+# ===========================================
+# IDE and Editor files
+# ===========================================
+.vscode
+.idea
+*.swp
+*.swo
+*.sublime-*
+.editorconfig
+
+# ===========================================
+# OS files
+# ===========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===========================================
+# Logs
+# ===========================================
+logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===========================================
+# Test and Coverage
+# ===========================================
+coverage
+*.lcov
+.nyc_output
+**/*.test.ts
+**/*.spec.ts
+**/*.e2e-spec.ts
+test/
+tests/
+
+# ===========================================
+# Docker related
+# ===========================================
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+docker/
+
+# ===========================================
+# CI/CD
+# ===========================================
+.github
+.gitlab-ci.yml
+.circleci
+.travis.yml
+
+# ===========================================
+# Temporary files
+# ===========================================
+tmp
+temp
+*.tmp
+*.temp
+
+# ===========================================
+# Package manager lock files
+# ===========================================
+# Keep pnpm-lock.yaml, ignore others
+package-lock.json
+yarn.lock
+
+# ===========================================
+# Cache directories
+# ===========================================
+.cache
+.parcel-cache
+.eslintcache
+.turbo
+.swc
+
+# ===========================================
+# Documentation (keep critical files)
+# ===========================================
+apps/docs/
 *.md
+!README.md
 
-# docker
-docker
-
-# client
-client/node_modules
-client/dist 
+# ===========================================
+# Miscellaneous
+# ===========================================
+.husky
+.commitlintrc*
+.prettierrc*
+.eslintrc*
+eslint.config.*
+prettier.config.*

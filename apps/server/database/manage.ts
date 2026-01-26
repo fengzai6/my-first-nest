@@ -68,4 +68,4 @@ const manage = async () => {
   }
 };
 
-manage();
+manage().catch(console.error);
