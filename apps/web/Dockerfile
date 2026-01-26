@@ -2,18 +2,17 @@
 # 基础镜像
 # ===========================================
 FROM node:22-slim AS base
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN corepack enable && corepack prepare yarn@4.12.0 --activate
 WORKDIR /app
 
 # ===========================================
 # 依赖安装阶段
 # ===========================================
 FROM base AS deps
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY .yarn ./.yarn
 COPY apps/web/package.json ./apps/web/
-RUN pnpm install --frozen-lockfile --filter @my-first-nest/web...
+RUN yarn workspaces focus @my-first-nest/web
 
 # ===========================================
 # 构建阶段
@@ -21,10 +20,10 @@ RUN pnpm install --frozen-lockfile --filter @my-first-nest/web...
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json ./
 COPY apps/web ./apps/web
 WORKDIR /app/apps/web
-RUN pnpm build
+RUN yarn build
 
 # ===========================================
 # 运行阶段 (Nginx)
