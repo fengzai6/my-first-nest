@@ -6,7 +6,7 @@ import type {
   IUpdateUserSpecialRolesDto,
 } from "../dtos/user";
 import type { IUser } from "../types/user";
-import http from "./http";
+import http from "./new-http";
 
 /**
  * 创建用户

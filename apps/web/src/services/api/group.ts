@@ -6,7 +6,7 @@ import type {
   IUpdateGroupMemberDto,
 } from "../dtos/group";
 import type { IGroup } from "../types/group";
-import http from "./http";
+import http from "./new-http";
 
 export const CreateGroup = async (data: ICreateGroupDto) => {
   const res = await http.post<IGroup>("/groups", data);

@@ -1,6 +1,6 @@
 import type { ICreateCatDto, IUpdateCatOwnerDto } from "../dtos/cat";
 import type { ICat } from "../types/cat";
-import http from "./http";
+import http from "./new-http";
 
 export const GetCats = async () => {
   const res = await http.get<ICat[]>("/cats");
