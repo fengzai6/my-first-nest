@@ -269,8 +269,9 @@ describe("createHttpClient edge cases", () => {
   it("refresh 进行中时新来的 401 请求会复用同一次 refresh", async () => {
     const tokenStore = createTokenStore("old-access", "old-refresh");
     const refreshAccessToken = vi.fn(createRefreshAccessToken(tokenStore));
-    let releaseRefresh: ((value: void | PromiseLike<void>) => void) | null =
-      null;
+    let releaseRefresh: (value?: void | PromiseLike<void>) => void = () => {
+      throw new Error("refresh resolver not initialized");
+    };
 
     const refreshStarted = new Promise<void>((resolve) => {
       releaseRefresh = resolve;
@@ -367,9 +368,7 @@ describe("createHttpClient edge cases", () => {
     const firstRequest = http.get("/profile");
     await waitRefreshStarted;
     const secondRequest = http.get("/me");
-    if (releaseRefresh) {
-      releaseRefresh();
-    }
+    releaseRefresh();
 
     const [first, second] = await Promise.all([firstRequest, secondRequest]);
 
