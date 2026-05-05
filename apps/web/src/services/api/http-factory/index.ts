@@ -6,6 +6,7 @@ import type {
 import axios, { AxiosError } from "axios";
 import { TokenRefreshManager } from "./token-refresh-manager";
 import type {
+  AccessTokenResult,
   HttpClientOptions,
   RequestRetryState,
   ResolvedHttpClientOptions,
@@ -24,6 +25,8 @@ const HTTP_CLIENT_MESSAGES = {
   refreshTokenExpired: "refreshToken 已失效，登录过期",
   loginExpired: "登录已失效，请重新登录",
 };
+
+const DEFAULT_REFRESH_BUFFER_MS = 60_000;
 
 const createHttpClientError = <T = unknown>(
   message: string,
@@ -74,6 +77,25 @@ const overrideErrorMessage = <T>(error: T): T => {
 const formatAccessToken = (prefix: string, token: string) => {
   const normalizedPrefix = prefix.trim();
   return normalizedPrefix ? `${normalizedPrefix} ${token}` : token;
+};
+
+const normalizeTokenResult = (result: AccessTokenResult) => {
+  if (!result || typeof result === "string") {
+    return { token: result ?? "", expiresAt: null, refreshBufferMs: undefined };
+  }
+
+  return {
+    token: result.token,
+    expiresAt: new Date(result.expiresAt),
+    refreshBufferMs: result.refreshBufferMs,
+  };
+};
+
+const isTokenExpiringSoon = (
+  expiresAt: Date,
+  refreshBufferMs: number,
+): boolean => {
+  return Date.now() >= expiresAt.getTime() - refreshBufferMs;
 };
 
 const shouldSkipRefresh = (
@@ -202,13 +224,29 @@ export const createHttpClient = (options: HttpClientOptions): AxiosInstance => {
         return config;
       }
 
-      const accessToken = await resolvedOptions.getAccessToken();
-      if (!accessToken) return config;
+      const tokenResult = await resolvedOptions.getAccessToken();
+      const { token, expiresAt, refreshBufferMs } =
+        normalizeTokenResult(tokenResult);
+
+      if (!token) return config;
+
+      // 主动刷新：token 即将过期时异步触发刷新，不阻塞当前请求
+      if (
+        refreshEnabled &&
+        expiresAt &&
+        !shouldSkipRefresh(resolvedOptions.skipRefreshUrls, config)
+      ) {
+        const bufferMs = refreshBufferMs ?? DEFAULT_REFRESH_BUFFER_MS;
+
+        if (bufferMs > 0 && isTokenExpiringSoon(expiresAt, bufferMs)) {
+          refreshAccessToken().catch(() => {});
+        }
+      }
 
       config.headers = config.headers ?? {};
       config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
         resolvedOptions.accessTokenPrefix,
-        accessToken,
+        token,
       );
 
       return config;

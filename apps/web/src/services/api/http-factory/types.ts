@@ -1,6 +1,23 @@
 import type { AxiosRequestConfig, AxiosResponse } from "axios";
 
 /**
+ * token 详细信息，用于主动刷新判断。
+ */
+export interface AccessTokenDetail {
+  token: string;
+  expiresAt: Date | string;
+  /**
+   * 提前刷新的毫秒数，默认 60000（1 分钟）。
+   */
+  refreshBufferMs?: number;
+}
+
+/**
+ * getAccessToken 的返回值类型，兼容旧版纯字符串返回。
+ */
+export type AccessTokenResult = string | AccessTokenDetail | null;
+
+/**
  * 请求内部状态。
  */
 export interface RequestRetryState {
@@ -46,8 +63,11 @@ export interface HttpClientOptions {
 
   /**
    * 获取当前 access token。
+   *
+   * 返回 `string` 时仅注入 token，不做主动刷新判断。
+   * 返回 `AccessTokenDetail` 时，会在 token 即将过期前主动触发刷新。
    */
-  getAccessToken: () => string | null | Promise<string | null>;
+  getAccessToken: () => AccessTokenResult | Promise<AccessTokenResult>;
 
   /**
    * 自定义刷新逻辑，必须返回最终要用于重试请求的 access token。
