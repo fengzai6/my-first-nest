@@ -78,19 +78,27 @@ export const http = createHttpClient({
     const data = response.data as {
       accessToken?: string;
       refreshToken?: string;
+      expiresAt?: string;
     };
 
     if (!data.accessToken) {
       throw new Error("refresh 响应缺少 accessToken");
     }
 
-    browserTokenStore.setAccessToken(data.accessToken);
+    const expiresAt = data.expiresAt
+      ? new Date(data.expiresAt)
+      : new Date(Date.now() + 15 * 60_000);
+
+    browserTokenStore.setAccessToken(data.accessToken, expiresAt);
 
     if (data.refreshToken !== undefined) {
       browserTokenStore.setRefreshToken(data.refreshToken);
     }
 
-    return data.accessToken;
+    return {
+      token: data.accessToken,
+      expiresAt,
+    };
   },
   shouldRefreshByResponseData: (response) => {
     const data = response.data as { code?: number };

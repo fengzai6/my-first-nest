@@ -262,14 +262,11 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
       const config = response.config as InternalAxiosRequestConfig &
         RequestRetryState;
 
-      if (resolvedOptions.shouldRefreshByResponseData(response)) {
-        if (
-          !refreshEnabled ||
-          shouldSkipRefresh(resolvedOptions.skipRefreshUrls, config)
-        ) {
-          return response;
-        }
-
+      if (
+        resolvedOptions.shouldRefreshByResponseData(response) &&
+        refreshEnabled &&
+        !shouldSkipRefresh(resolvedOptions.skipRefreshUrls, config)
+      ) {
         return retryAfterRefresh(config);
       }
 
