@@ -13,12 +13,21 @@ const newHttp = createHttpClient({
     timeout: 1000 * 10,
   },
   getAccessToken: () => {
-    return useUserStore.getState().jwtToken?.accessToken ?? null;
+    const jwtToken = useUserStore.getState().jwtToken;
+    if (!jwtToken?.accessToken) return null;
+
+    return {
+      token: jwtToken.accessToken,
+      expiresAt: new Date(jwtToken.expiresAt),
+    };
   },
   refreshAccessToken: async () => {
-    const { accessToken } = await RefreshToken();
+    const { accessToken, expiresAt } = await RefreshToken();
 
-    return accessToken;
+    return {
+      token: accessToken,
+      expiresAt,
+    };
   },
   onAuthFailure: () => {
     useUserStore.getState().logout();

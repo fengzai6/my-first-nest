@@ -26,8 +26,11 @@ export interface RequestRetryState {
 
 /**
  * 创建 HTTP 客户端时可传入的配置。
+ *
+ * @typeParam T - getAccessToken / refreshAccessToken 的统一返回类型，
+ *   默认为 `AccessTokenResult`。当 T 为 `AccessTokenDetail` 时启用主动刷新。
  */
-export interface HttpClientOptions {
+export interface HttpClientOptions<T extends AccessTokenResult = AccessTokenResult> {
   /**
    * 透传给 axios.create 的初始化配置。
    */
@@ -67,12 +70,13 @@ export interface HttpClientOptions {
    * 返回 `string` 时仅注入 token，不做主动刷新判断。
    * 返回 `AccessTokenDetail` 时，会在 token 即将过期前主动触发刷新。
    */
-  getAccessToken: () => AccessTokenResult | Promise<AccessTokenResult>;
+  getAccessToken: () => T | Promise<T>;
 
   /**
-   * 自定义刷新逻辑，必须返回最终要用于重试请求的 access token。
+   * 自定义刷新逻辑，返回类型必须与 getAccessToken 一致。
+   * 返回 AccessTokenDetail 时可携带新的过期时间，避免后续请求因旧过期时间重复触发刷新。
    */
-  refreshAccessToken?: () => string | Promise<string>;
+  refreshAccessToken?: () => T | Promise<T>;
 
   /**
    * 登录失效后的统一收尾回调。
@@ -115,12 +119,12 @@ type ResolvedHttpClientOptionKeys =
   | "onAuthFailure"
   | "isRefreshFailure";
 
-type ResolvedHttpClientOptionOverrides = {
-  [K in ResolvedHttpClientOptionKeys]-?: NonNullable<HttpClientOptions[K]>;
+type ResolvedHttpClientOptionOverrides<T extends AccessTokenResult> = {
+  [K in ResolvedHttpClientOptionKeys]-?: NonNullable<HttpClientOptions<T>[K]>;
 };
 
-export type ResolvedHttpClientOptions = Omit<
-  HttpClientOptions,
+export type ResolvedHttpClientOptions<T extends AccessTokenResult = AccessTokenResult> = Omit<
+  HttpClientOptions<T>,
   ResolvedHttpClientOptionKeys
 > &
-  ResolvedHttpClientOptionOverrides;
+  ResolvedHttpClientOptionOverrides<T>;

@@ -1,7 +1,9 @@
-export class TokenRefreshManager {
-  private refreshingPromise: Promise<string> | null = null;
+import type { AccessTokenResult } from "./types";
 
-  async runRefresh(task: () => Promise<string>): Promise<string> {
+export class TokenRefreshManager {
+  private refreshingPromise: Promise<AccessTokenResult> | null = null;
+
+  async runRefresh(task: () => Promise<AccessTokenResult>): Promise<AccessTokenResult> {
     if (!this.refreshingPromise) {
       this.refreshingPromise = (async () => {
         try {

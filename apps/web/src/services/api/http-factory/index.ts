@@ -111,11 +111,13 @@ const shouldSkipRefresh = (
   return skipRefreshUrls.some((url) => requestUrl.includes(url));
 };
 
-export const createHttpClient = (options: HttpClientOptions): AxiosInstance => {
+export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult>(
+  options: HttpClientOptions<T>,
+): AxiosInstance => {
   const refreshManager = new TokenRefreshManager();
   const refreshEnabled = options.refreshAccessToken !== undefined;
 
-  const resolvedOptions: ResolvedHttpClientOptions = {
+  const resolvedOptions: ResolvedHttpClientOptions<T> = {
     authFailureCodes: [],
     accessTokenHeaderName: "Authorization",
     accessTokenPrefix: "Bearer",
@@ -166,7 +168,7 @@ export const createHttpClient = (options: HttpClientOptions): AxiosInstance => {
     await resolvedOptions.onAuthFailure(error);
   };
 
-  const refreshAccessToken = async (): Promise<string> => {
+  const refreshAccessToken = async (): Promise<AccessTokenResult> => {
     const requestRefreshAccessToken = resolvedOptions.refreshAccessToken;
 
     if (!refreshEnabled || !requestRefreshAccessToken) {
@@ -201,12 +203,13 @@ export const createHttpClient = (options: HttpClientOptions): AxiosInstance => {
     config._retry = true;
 
     try {
-      const newAccessToken = await refreshAccessToken();
+      const refreshResult = await refreshAccessToken();
+      const { token } = normalizeTokenResult(refreshResult);
 
       config.headers = config.headers ?? {};
       config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
         resolvedOptions.accessTokenPrefix,
-        newAccessToken,
+        token,
       );
 
       return await instance.request(config);
