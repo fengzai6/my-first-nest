@@ -1,6 +1,6 @@
 import type { IUpdatePermissionDto } from "../dtos/permission";
 import type { IPermission } from "../types/permission";
-import http from "./http";
+import http from "./new-http";
 
 /**
  * 获取所有权限

@@ -1,6 +1,6 @@
 import type { ICreateRoleDto, IUpdateRoleDto } from "../dtos/role";
 import type { IRole } from "../types/role";
-import http from "./http";
+import http from "./new-http";
 
 /**
  * 获取所有角色

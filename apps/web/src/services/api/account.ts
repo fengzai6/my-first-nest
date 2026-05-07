@@ -1,6 +1,6 @@
 import type { IUpdatePasswordDto, IUpdateUserDto } from "../dtos/user";
 import type { IUser, IUserPermission } from "../types/user";
-import http from "./http";
+import http from "./new-http";
 
 /**
  * 获取当前用户信息

@@ -1,6 +1,6 @@
 import type { ILoginDto, ILoginResponse, ISignUpDto } from "../dtos/auth";
 import type { IUser } from "../types/user";
-import http from "./http";
+import http from "./new-http";
 
 export const SignUp = async (data: ISignUpDto) => {
   const res = await http.post<IUser>("/auth/signup", data);
