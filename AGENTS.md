@@ -74,6 +74,7 @@ cd apps/web && yarn test
 
 ### React
 
+- 使用 ES6 箭头函数
 - 使用 react-compiler，无需手动 `memo` / `useCallback`
 - 组件代码顺序：state → function → useEffect
 - 多个 zustand 状态使用 `useShallow` 避免 re-render
@@ -84,9 +85,34 @@ cd apps/web && yarn test
 
 - 模块结构：`module.ts` + `controller.ts` + `service.ts` + `dto/` + `entities/`
 - 使用 class-validator 做 DTO 验证
+- 使用 Pipes 做数据验证与转换
+- 使用 Interceptors 做响应格式化、日志或缓存
 - 全局异常过滤器：`common/filters/`
 - Guard：`common/guards/`
 - 装饰器：`common/decorators/`
+
+### TypeORM
+
+- 使用 Repository 模式进行数据库操作
+- 使用事务管理确保数据一致性
+- 遵循 DAL（Data Access Layer）最佳实践
+
+### RESTful API
+
+- 遵循标准 HTTP 方法（GET / POST / PUT / PATCH / DELETE）
+- 使用恰当的 HTTP 状态码
+- 资源导向的 URL 设计
+- 需要时使用 query 参数做分页、筛选、排序
+- PUT / DELETE 操作确保幂等性
+- 使用 Swagger 装饰器（`@Api*`）生成 API 文档
+
+### 通用编码
+
+- 严格校验所有输入数据
+- 关注基础安全实践（防 SQL 注入、XSS 等）
+- 编写高效代码，避免不必要的计算和数据库查询
+- 代码结构便于可测试性（单元测试、集成测试）
+- 优先使用 `es-toolkit` 处理常见工具函数
 
 ## Git 规范
 

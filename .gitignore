@@ -70,3 +70,4 @@ pnpm-lock.yaml
 .pnp.*
 
 .kiro
+.claude
