@@ -29,7 +29,7 @@
 - 🎨 **前端应用** (React + TypeScript + Vite + Tailwind CSS)
 - 📚 **文档站点** (VitePress + Vue 3)
 
-采用 PNPM Workspace 进行包管理，实现代码共享和统一构建流程。
+采用 Yarn Workspace 进行包管理，实现代码共享和统一构建流程。
 
 **项目特点：** `Monorepo架构` `最佳实践` `严格的TypeScript` `技术与时俱进` `代码可读性强` `功能完善` `技术栈覆盖广泛`
 
@@ -37,7 +37,7 @@
 
 ### 🏗️ 架构
 
-- **PNPM Workspace** - Monorepo 包管理
+- **Yarn Workspace** - Monorepo 包管理
 - **TypeScript** - 类型安全的 JavaScript 超集
 
 ### 🚀 后端 (Server)
@@ -47,6 +47,7 @@
 - **PostgreSQL** - 关系型数据库
 - **Swagger** - API 文档生成工具
 - **JWT** - 认证与授权
+- **Socket.IO** - 实时双向通信
 - **Redis** - 缓存
 
 ### 🎨 前端 (Web)
@@ -79,6 +80,8 @@
 - 依赖注入的使用
 - 数据验证和错误处理
 - 基本的认证和授权
+- WebSocket 实时通信（房间、点对点、广播、ACK 确认）
+- 全链路 TypeScript 类型安全（Socket 事件类型约束）
 
 ## 项目路线图
 
@@ -102,6 +105,14 @@
   - [ ] 对称 RBAC3：1 + 2, 并且可以获取组织拥有的权限，继承 Group，离开 Group 后，权限消失
 - [x] 雪花算法作为 ID 生成器
 - [x] 使用 joi 进行数据验证（环境变量）
+- [x] WebSocket 实时通信
+  - [x] NestJS WebSocket Gateway + Socket.IO
+  - [x] JWT 鉴权守卫（WsJwtGuard）
+  - [x] 房间管理（join/leave）
+  - [x] 点对点消息、广播
+  - [x] ACK 确认机制 + DTO 输入验证
+  - [x] 全链路 TypeScript 事件类型约束
+  - [x] React Hook 封装（useSocket）
 - [ ] 添加客户端来展示项目功能
   - [ ] 使用 React & Vite & TailwindCSS & ShadcnUI & Antd 制作客户端
 
@@ -117,7 +128,7 @@
 - [ ] 国际化支持，统一管理响应信息，并根据用户语言返回不同的多语言
 - [ ] 接口限流（全局或者指定配置）
 - [ ] 第三方登录集成：GitHub等
-- [ ] WebSocket 实时通信
+- [x] WebSocket 实时通信
 - [ ] sse 实时通信
 - [ ] 使用文档制作
   - [ ] 使用 Vitepress/Docusaurus 制作项目文档
@@ -129,14 +140,14 @@
 ### 环境要求
 
 - **Node.js** (>= 20.19.5)
-- **PNPM** (>= 9.0.0) 推荐使用 PNPM 进行包管理
+- **Yarn** (>= 4.0.0) 推荐使用 Yarn 进行包管理
 - **PostgreSQL** (>= 12.0)
 
 ### 安装依赖
 
 ```bash
 # 安装所有应用的依赖
-pnpm install
+yarn install
 ```
 
 ### 配置环境变量
@@ -153,49 +164,49 @@ cp apps/server/.env.example apps/server/.env
 
 ```bash
 # 同时启动所有应用 (并行模式)
-pnpm dev
+yarn dev
 
 # 或者分别启动各个应用
-pnpm server:dev   # 启动后端服务器 (端口: 3000)
-pnpm web:dev      # 启动前端应用 (端口: 5173)
-pnpm docs:dev     # 启动文档站点 (端口: 5173)
+yarn server:dev   # 启动后端服务器 (端口: 8080)
+yarn web:dev      # 启动前端应用 (端口: 5173)
+yarn docs:dev     # 启动文档站点 (端口: 5173)
 ```
 
 ### 数据库操作
 
 ```bash
 # 初始化数据库
-pnpm --filter @my-first-nest/server db:init
+yarn workspace @my-first-nest/server db:init
 
 # 生成迁移文件
-pnpm --filter @my-first-nest/server migration:generate <migration_name>
+yarn workspace @my-first-nest/server migration:generate <migration_name>
 
 # 执行迁移
-pnpm --filter @my-first-nest/server db:migrate
+yarn workspace @my-first-nest/server db:migrate
 
 # 填充种子数据
-pnpm --filter @my-first-nest/server db:seed
+yarn workspace @my-first-nest/server db:seed
 ```
 
 ### 构建项目
 
 ```bash
 # 构建所有应用
-pnpm build
+yarn build
 
 # 或者分别构建
-pnpm server:build
-pnpm web:build
-pnpm docs:build
+yarn server:build
+yarn web:build
+yarn docs:build
 ```
 
 ### 其他常用命令
 
 ```bash
-pnpm lint         # 运行所有应用的代码检查
-pnpm format       # 格式化所有代码
-pnpm test         # 运行所有测试
-pnpm clean        # 清理所有构建产物
+yarn lint         # 运行所有应用的代码检查
+yarn format       # 格式化所有代码
+yarn test         # 运行所有测试
+yarn clean        # 清理所有构建产物
 ```
 
 ## Docker
@@ -259,6 +270,7 @@ my-first-nest/                 # Monorepo 根目录
 │   │   │   │   ├── auth/      # 认证模块
 │   │   │   │   ├── users/     # 用户模块
 │   │   │   │   ├── roles/     # 角色模块
+│   │   │   │   ├── socket/    # WebSocket 实时通信模块
 │   │   │   │   └── ...        # 其他模块
 │   │   │   ├── shared/        # 共享模块
 │   │   │   └── types/         # 类型定义
@@ -269,6 +281,7 @@ my-first-nest/                 # Monorepo 根目录
 │   │   │   ├── pages/         # 页面
 │   │   │   ├── services/      # API 服务
 │   │   │   ├── stores/        # 状态管理
+│   │   │   ├── hooks/         # 自定义 Hooks（useSocket 等）
 │   │   │   └── ...
 │   │   └── public/            # 静态资源
 │   └── docs/                  # 📚 VitePress 文档站点
@@ -284,7 +297,7 @@ my-first-nest/                 # Monorepo 根目录
 │   └── docker-compose.local.yml
 ├── scripts/                   # 📜 脚本文件
 ├── package.json              # 根包配置 (Monorepo 管理)
-├── pnpm-workspace.yaml       # PNPM 工作区配置
+├── AGENTS.md                 # AI Agent 项目规则
 └── ...                       # 其他配置文件
 ```
 

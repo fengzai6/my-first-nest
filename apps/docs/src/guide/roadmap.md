@@ -20,6 +20,14 @@
   - [ ] 对称 RBAC3：1 + 2, 并且可以获取组织拥有的权限，继承 Group，离开 Group 后，权限消失
 - [x] 雪花算法作为 ID 生成器
 - [x] 使用 joi 进行数据验证（环境变量）
+- [x] WebSocket 实时通信
+  - [x] NestJS WebSocket Gateway + Socket.IO
+  - [x] JWT 鉴权守卫（WsJwtGuard）
+  - [x] 房间管理（join/leave）
+  - [x] 点对点消息、广播
+  - [x] ACK 确认机制 + DTO 输入验证
+  - [x] 全链路 TypeScript 事件类型约束
+  - [x] React Hook 封装（useSocket）
 - [ ] 添加客户端来展示项目功能
   - [ ] 使用 React & React Router & Vite & TailwindCSS & ShadcnUI & Antd 制作客户端
 
@@ -35,7 +43,7 @@
 - [ ] 国际化支持，统一管理响应信息，并根据用户语言返回不同的多语言
 - [ ] 接口限流（全局或者指定配置）
 - [ ] 第三方登录集成：GitHub等
-- [ ] WebSocket 实时通信
+- [x] WebSocket 实时通信
 - [ ] sse 实时通信
 - [ ] 使用文档制作
   - [ ] 使用 Vitepress/Docusaurus 制作项目文档

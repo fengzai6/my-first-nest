@@ -5,6 +5,7 @@
 - TypeORM - 强大的 ORM 框架
 - PostgreSQL - 关系型数据库
 - Swagger - API 文档生成工具
+- Socket.IO - 实时双向通信
 - Redis - 缓存
 
 ## 客户端
@@ -47,6 +48,7 @@
 │   │   ├── groups/             # 群组模块
 │   │   ├── permissions/        # 权限模块
 │   │   ├── roles/              # 角色模块
+│   │   ├── socket/             # WebSocket 实时通信模块
 │   │   └── users/              # 用户模块
 │   ├── shared/                 # 共享模块
 │   │   ├── database/           # 数据库连接模块
