@@ -25,27 +25,25 @@ export class WsJwtGuard implements CanActivate {
       throw new WsException({ status: 401, message: 'No token provided' });
     }
 
+    let payload: JwtPayload;
     try {
-      const payload = this.jwtService.verify<JwtPayload>(token, {
+      payload = this.jwtService.verify<JwtPayload>(token, {
         secret: getConfig(this.configService).jwt.secret,
       });
-
-      if (payload.type !== TokenType.ACCESS) {
-        throw new WsException({ status: 401, message: 'Invalid token type' });
-      }
-
-      const user = await this.usersService.findOne({ id: payload.sub });
-      if (!user) {
-        throw new WsException({ status: 401, message: 'User not found' });
-      }
-
-      client.user = user;
-      return true;
-    } catch (error) {
-      if (error instanceof WsException) {
-        throw error;
-      }
+    } catch {
       throw new WsException({ status: 401, message: 'Invalid token' });
     }
+
+    if (payload.type !== TokenType.ACCESS) {
+      throw new WsException({ status: 401, message: 'Invalid token type' });
+    }
+
+    const user = await this.usersService.findOne({ id: payload.sub });
+    if (!user) {
+      throw new WsException({ status: 401, message: 'User not found' });
+    }
+
+    client.user = user;
+    return true;
   }
 }

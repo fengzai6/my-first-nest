@@ -100,7 +100,10 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
         username: user.username,
         displayName: user.displayName,
       });
-    } catch {
+    } catch (error) {
+      this.logger.warn(
+        `Authentication failed for client ${client.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       this.rejectClient(client);
     }
   }
