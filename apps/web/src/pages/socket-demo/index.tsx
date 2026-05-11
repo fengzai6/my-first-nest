@@ -10,8 +10,6 @@ interface LogItem {
   timestamp: string;
 }
 
-let logId = 0;
-
 export const SocketDemo = () => {
   const user = useUserStore((state) => state.user);
   const { isConnected, emit, on, off, joinRoom, leaveRoom } =
@@ -25,13 +23,14 @@ export const SocketDemo = () => {
   const [directMessage, setDirectMessage] = useState("");
   const [broadcastMessage, setBroadcastMessage] = useState("");
 
+  const logIdRef = useRef(0);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   const addLog = useCallback((type: string, message: string) => {
     setLogs((prev) => [
       ...prev,
       {
-        id: ++logId,
+        id: ++logIdRef.current,
         type,
         message,
         timestamp: new Date().toLocaleTimeString(),

@@ -35,7 +35,9 @@ export const useSocket = (): UseSocketReturn => {
   const joinedRoomsRef = useRef(new Set<string>());
 
   useEffect(() => {
-    socket.connect();
+    if (!socket.connected) {
+      socket.connect();
+    }
 
     const handleConnect = () => {
       setIsConnected(true);
