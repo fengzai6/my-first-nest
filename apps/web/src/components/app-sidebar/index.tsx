@@ -1,5 +1,5 @@
 import NestJsIcon from "@/assets/nestjs.svg";
-import { HomeOutlined, UserOutlined } from "@ant-design/icons";
+import { HomeOutlined, UserOutlined, ApiOutlined } from "@ant-design/icons";
 import { useMemo } from "react";
 import { Link, useLocation } from "react-router";
 import {
@@ -25,6 +25,11 @@ const sidebarGroups = [
         name: "Home",
         icon: <HomeOutlined />,
         path: "/",
+      },
+      {
+        name: "Socket Demo",
+        icon: <ApiOutlined />,
+        path: "/socket-demo",
       },
     ],
   },

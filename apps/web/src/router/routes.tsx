@@ -5,6 +5,7 @@ import { Roles } from "@/pages/management/roles";
 import { Users } from "@/pages/management/users";
 import { NotFound } from "@/pages/not-found";
 import { Register } from "@/pages/register";
+import { SocketDemo } from "@/pages/socket-demo";
 import { Navigate, Outlet, type RouteObject } from "react-router";
 import { AuthGuard } from "./auth-guard";
 
@@ -24,6 +25,10 @@ export const routes: RouteObject[] = [
       {
         index: true,
         element: <Home />,
+      },
+      {
+        path: "socket-demo",
+        element: <SocketDemo />,
       },
       {
         path: "management",

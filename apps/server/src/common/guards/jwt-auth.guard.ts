@@ -18,6 +18,11 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
+    // 跳过 WebSocket 上下文，由 WsJwtGuard 处理
+    if (context.getType() === 'ws') {
+      return true;
+    }
+
     const jwtMeta = this.reflector.get<JwtMetaEnum>(
       JWT_META_KEY,
       context.getHandler(),
