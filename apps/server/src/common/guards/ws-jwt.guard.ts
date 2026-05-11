@@ -39,9 +39,6 @@ export class WsJwtGuard implements CanActivate {
     }
 
     const user = await this.usersService.findOne({ id: payload.sub });
-    if (!user) {
-      throw new WsException({ status: 401, message: 'User not found' });
-    }
 
     client.user = user;
     return true;
