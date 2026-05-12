@@ -15,18 +15,18 @@ import { GroupMember } from './group-member.entity';
 @Tree('closure-table')
 export class Group extends AuditedEntity {
   @Column()
-  name: string;
+  name!: string;
 
   @Column({
     nullable: true,
   })
-  description: string;
+  description!: string;
 
   @Column({
     default: false,
   })
   @JoinColumn({ name: 'is_organization' })
-  isOrganization: boolean;
+  isOrganization!: boolean;
 
   // @ManyToOne(() => Group, (group) => group.subGroups, { nullable: true })
   @TreeParent()
@@ -34,16 +34,16 @@ export class Group extends AuditedEntity {
   // 但是我设置为 parent_id 的时候，migration 依旧是生成的 parent 字段
   // @JoinColumn({ name: 'parent_id' })
   @JoinColumn({ name: 'parent' })
-  parent: Group;
+  parent!: Group;
 
   // @OneToMany(() => Group, (group) => group.parentGroup)
   @TreeChildren()
-  children: Group[];
+  children!: Group[];
 
   @ManyToOne(() => Group, { nullable: true })
   @JoinColumn({ name: 'organization_group_id' })
-  organizationGroup: Group;
+  organizationGroup!: Group;
 
   @OneToMany(() => GroupMember, (groupMember) => groupMember.group)
-  members: GroupMember[];
+  members!: GroupMember[];
 }
