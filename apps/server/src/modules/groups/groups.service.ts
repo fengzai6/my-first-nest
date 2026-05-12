@@ -45,18 +45,16 @@ export class GroupsService {
     groupId: string,
     userId: string,
   ): Promise<GroupMemberRolesEnum | null> {
-    const group = await this.groupTreeRepository.findOne({
-      where: { id: groupId },
-    });
+    const [group, membership] = await Promise.all([
+      this.groupTreeRepository.findOne({ where: { id: groupId } }),
+      this.groupMemberRepository.findOne({
+        where: { group: { id: groupId }, user: { id: userId } },
+      }),
+    ]);
 
     if (!group) {
       throw new ErrorException(GroupExceptionCode.GROUP_NOT_FOUND);
     }
-
-    // 直接查询当前组内该用户的角色
-    const membership = await this.groupMemberRepository.findOne({
-      where: { group: { id: groupId }, user: { id: userId } },
-    });
 
     if (!membership) {
       return null;
@@ -165,7 +163,6 @@ export class GroupsService {
 
     const organizationGroups = await this.groupTreeRepository.find({
       where: { id: In([...organizationGroupIds]) },
-      relations: ['members', 'members.user'],
     });
 
     const organizationTrees = await Promise.all(

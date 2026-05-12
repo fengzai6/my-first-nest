@@ -207,11 +207,10 @@ export class UsersService {
       throw new ErrorException(ErrorExceptionCode.INVALID_CREDENTIALS);
     }
 
-    const hashedPassword = await hash(newPassword, {
-      timeCost: 5,
-    });
-
-    const isSameAsOld = await verify(user.password, newPassword);
+    const [hashedPassword, isSameAsOld] = await Promise.all([
+      hash(newPassword, { timeCost: 5 }),
+      verify(user.password, newPassword),
+    ]);
 
     // 纳尼，居然新的密码不能和旧的密码相同
     if (isSameAsOld) {
