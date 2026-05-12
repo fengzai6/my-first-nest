@@ -28,6 +28,7 @@ async function bootstrap() {
 
   const serverUrl = `http://127.0.0.1:${server.port}`;
 
+  Logger.log(`\x1b[34mNODE_ENV: ${process.env.NODE_ENV}\x1b[0m`);
   Logger.log(`\x1b[34mApplication is running on: ${serverUrl}\x1b[0m`);
   Logger.log(
     `\x1b[34mSwagger is running on: ${serverUrl}/${swagger.path}\x1b[0m`,

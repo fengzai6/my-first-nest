@@ -29,8 +29,8 @@ export const defaultConfig = registerAs(
     },
     jwt: {
       secret: process.env.JWT_SECRET || '123456',
-      accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || 3600,
-      refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || 604800,
+      accessExpiresIn: Number(process.env.JWT_ACCESS_EXPIRES_IN) || 3600,
+      refreshExpiresIn: Number(process.env.JWT_REFRESH_EXPIRES_IN) || 604800,
     },
     snowflake: {
       workerId: process.env.WORKER_ID || 0,
