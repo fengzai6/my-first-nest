@@ -81,13 +81,12 @@ const formatAccessToken = (prefix: string, token: string) => {
 
 const normalizeTokenResult = (result: AccessTokenResult) => {
   if (!result || typeof result === "string") {
-    return { token: result ?? "", expiresAt: null, refreshBufferMs: undefined };
+    return { token: result ?? "", expiresAt: null };
   }
 
   return {
     token: result.token,
     expiresAt: new Date(result.expiresAt),
-    refreshBufferMs: result.refreshBufferMs,
   };
 };
 
@@ -123,6 +122,7 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
     accessTokenPrefix: "Bearer",
     unauthorizedStatusCode: 401,
     skipRefreshUrls: [],
+    refreshBufferMs: DEFAULT_REFRESH_BUFFER_MS,
     isBusinessSuccess: () => true,
     mapBusinessError: (response: AxiosResponse<unknown>) => {
       return createHttpClientError(
@@ -228,7 +228,7 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
       }
 
       const tokenResult = await resolvedOptions.getAccessToken();
-      const { token, expiresAt, refreshBufferMs } =
+      const { token, expiresAt } =
         normalizeTokenResult(tokenResult);
 
       if (!token) return config;
@@ -239,7 +239,7 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
         expiresAt &&
         !shouldSkipRefresh(resolvedOptions.skipRefreshUrls, config)
       ) {
-        const bufferMs = refreshBufferMs ?? DEFAULT_REFRESH_BUFFER_MS;
+        const bufferMs = resolvedOptions.refreshBufferMs;
 
         if (bufferMs > 0 && isTokenExpiringSoon(expiresAt, bufferMs)) {
           refreshAccessToken().catch(() => {});

@@ -6,10 +6,6 @@ import type { AxiosRequestConfig, AxiosResponse } from "axios";
 export interface AccessTokenDetail {
   token: string;
   expiresAt: Date | string | number;
-  /**
-   * 提前刷新的毫秒数，默认 60000（1 分钟）。
-   */
-  refreshBufferMs?: number;
 }
 
 /**
@@ -65,6 +61,11 @@ export interface HttpClientOptions<T extends AccessTokenResult = AccessTokenResu
   skipRefreshUrls?: string[];
 
   /**
+   * 提前刷新的毫秒数，默认 60000（1 分钟）。
+   */
+  refreshBufferMs?: number;
+
+  /**
    * 获取当前 access token。
    *
    * 返回 `string` 时仅注入 token，不做主动刷新判断。
@@ -115,6 +116,7 @@ type ResolvedHttpClientOptionKeys =
   | "isBusinessSuccess"
   | "mapBusinessError"
   | "skipRefreshUrls"
+  | "refreshBufferMs"
   | "shouldRefreshByResponseData"
   | "onAuthFailure"
   | "isRefreshFailure";

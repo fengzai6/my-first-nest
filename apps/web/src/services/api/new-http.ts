@@ -12,6 +12,7 @@ const newHttp = createHttpClient({
     },
     timeout: 1000 * 10,
   },
+  refreshBufferMs: import.meta.env.DEV ? 1000 * 10 : undefined,
   getAccessToken: () => {
     const jwtToken = useUserStore.getState().jwtToken;
     if (!jwtToken?.accessToken) return null;
