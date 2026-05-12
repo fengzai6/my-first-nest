@@ -6,7 +6,7 @@ import { BaseResponse } from '@/common/response/base.response';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { pick } from 'es-toolkit';
-import { Repository, TreeRepository } from 'typeorm';
+import { In, Repository, TreeRepository } from 'typeorm';
 import { AddGroupMembersDto } from './dto/create-group-members.dto';
 import { CreateGroupServiceDto } from './dto/create-group.dto';
 import { UpdateGroupMemberDto } from './dto/update-group-member.dto';
@@ -45,46 +45,45 @@ export class GroupsService {
     groupId: string,
     userId: string,
   ): Promise<GroupMemberRolesEnum | null> {
-    let groupMemberRole: GroupMemberRolesEnum | null = null;
-
     const group = await this.groupTreeRepository.findOne({
       where: { id: groupId },
-      relations: ['members', 'members.user'],
     });
 
     if (!group) {
       throw new ErrorException(GroupExceptionCode.GROUP_NOT_FOUND);
     }
 
-    // 检查当前组的成员是否为领导
-    const membership = group.members.find(
-      (member) => member.user.id === userId,
-    );
-
-    if (membership) {
-      groupMemberRole = membership.role;
-    }
-
-    // 查询所有祖先组及其成员
-    const ancestors = await this.groupTreeRepository.findAncestors(group, {
-      relations: ['members', 'members.user'],
+    // 直接查询当前组内该用户的角色
+    const membership = await this.groupMemberRepository.findOne({
+      where: { group: { id: groupId }, user: { id: userId } },
     });
 
-    // 检查任何祖先组中是否有该用户作为领导
-    const isSuperiorLeader = ancestors.some(
-      (ancestor) =>
-        ancestor.members.some(
-          (member) =>
-            member.user.id === userId &&
-            member.role === GroupMemberRolesEnum.Leader,
-        ) && ancestor.id !== groupId,
-    );
-
-    if (isSuperiorLeader) {
-      groupMemberRole = GroupMemberRolesEnum.SuperiorLeader;
+    if (!membership) {
+      return null;
     }
 
-    return groupMemberRole;
+    // 查询祖先组中该用户是否为 Leader
+    const ancestors = await this.groupTreeRepository.findAncestors(group);
+
+    const ancestorIds = ancestors
+      .filter((a) => a.id !== groupId)
+      .map((a) => a.id);
+
+    if (ancestorIds.length > 0) {
+      const superiorLeader = await this.groupMemberRepository.findOne({
+        where: {
+          group: { id: In(ancestorIds) },
+          user: { id: userId },
+          role: GroupMemberRolesEnum.Leader,
+        },
+      });
+
+      if (superiorLeader) {
+        return GroupMemberRolesEnum.SuperiorLeader;
+      }
+    }
+
+    return membership.role;
   }
 
   async createGroup(createGroupDto: CreateGroupServiceDto) {
@@ -164,27 +163,18 @@ export class GroupsService {
       }
     }
 
-    const organizationTrees: Group[] = [];
+    const organizationGroups = await this.groupTreeRepository.find({
+      where: { id: In([...organizationGroupIds]) },
+      relations: ['members', 'members.user'],
+    });
 
-    for (const organizationGroupId of organizationGroupIds) {
-      const organizationGroup = await this.groupTreeRepository.findOne({
-        where: { id: organizationGroupId },
-        relations: ['members', 'members.user'],
-      });
-
-      if (!organizationGroup) {
-        continue;
-      }
-
-      const tree = await this.groupTreeRepository.findDescendantsTree(
-        organizationGroup,
-        {
+    const organizationTrees = await Promise.all(
+      organizationGroups.map((group) =>
+        this.groupTreeRepository.findDescendantsTree(group, {
           relations: ['members', 'members.user'],
-        },
-      );
-
-      organizationTrees.push(tree);
-    }
+        }),
+      ),
+    );
 
     return organizationTrees;
   }
@@ -200,53 +190,32 @@ export class GroupsService {
   async addGroupMembers(groupId: string, { members }: AddGroupMembersDto) {
     const group = await this.groupTreeRepository.findOne({
       where: { id: groupId },
-      relations: ['members', 'members.user'],
     });
 
     if (!group) {
       throw new ErrorException(GroupExceptionCode.GROUP_NOT_FOUND);
     }
 
-    // 检查是否有新的 leader 角色
-    // const hasNewLeader = members.some(
-    //   (member) => member.role === GroupMemberRolesEnum.Leader,
-    // );
+    const existingMembers = await this.groupMemberRepository.find({
+      where: {
+        group: { id: groupId },
+        user: { id: In(members) },
+      },
+    });
 
-    // // 如果有新的 leader，需要检查并处理现有 leader
-    // if (hasNewLeader) {
-    //   const existingLeader = group.members.find(
-    //     (member) => member.role === GroupMemberRolesEnum.Leader,
-    //   );
+    if (existingMembers.length > 0) {
+      throw new ErrorException(GroupExceptionCode.USER_ALREADY_IN_GROUP);
+    }
 
-    //   // 如果已经存在 leader，将其降级为 admin
-    //   if (existingLeader) {
-    //     existingLeader.role = GroupMemberRolesEnum.Member;
-    //     await this.groupMemberRepository.save(existingLeader);
-    //   }
-    // }
-
-    const newGroupMembers = members.map((userId) => {
-      const existingMember = group.members.find(
-        (member) => member.user.id === userId,
-      );
-
-      if (existingMember) {
-        throw new ErrorException(GroupExceptionCode.USER_ALREADY_IN_GROUP);
-      }
-
-      const groupMember = this.groupMemberRepository.create({
+    const newGroupMembers = members.map((userId) =>
+      this.groupMemberRepository.create({
         group,
         user: { id: userId },
         role: GroupMemberRolesEnum.Member,
-      });
+      }),
+    );
 
-      return groupMember;
-    });
-
-    const savedGroupMembers =
-      await this.groupMemberRepository.save(newGroupMembers);
-
-    return savedGroupMembers;
+    return this.groupMemberRepository.save(newGroupMembers);
   }
 
   async updateGroupMember(
@@ -262,7 +231,16 @@ export class GroupsService {
       throw new ErrorException(GroupExceptionCode.GROUP_MEMBER_NOT_FOUND);
     }
 
-    // 如果要更新为 leader 角色，需要检查是否已存在 leader
+    if (
+      isRequestUser(userId) &&
+      role === GroupMemberRolesEnum.Member &&
+      groupMember.role === GroupMemberRolesEnum.Leader
+    ) {
+      throw new ErrorException(
+        GroupExceptionCode.CANNOT_UPDATE_SELF_ROLE_TO_MEMBER,
+      );
+    }
+
     if (
       role === GroupMemberRolesEnum.Leader &&
       groupMember.role !== GroupMemberRolesEnum.Leader
@@ -278,16 +256,6 @@ export class GroupsService {
         existingLeader.role = GroupMemberRolesEnum.Member;
         await this.groupMemberRepository.save(existingLeader);
       }
-    }
-
-    if (
-      isRequestUser(userId) &&
-      role === GroupMemberRolesEnum.Member &&
-      groupMember.role === GroupMemberRolesEnum.Leader
-    ) {
-      throw new ErrorException(
-        GroupExceptionCode.CANNOT_UPDATE_SELF_ROLE_TO_MEMBER,
-      );
     }
 
     groupMember.role = role;
