@@ -10,38 +10,38 @@ export class User extends BaseEntity {
   @Column({
     unique: true,
   })
-  username!: string;
+  username: string;
 
   @Column({
     unique: true,
     nullable: true,
   })
-  email!: string;
+  email: string;
 
   @Exclude()
   @Column()
-  password!: string;
+  password: string;
 
   @Column({
     nullable: true,
   })
-  nickname!: string;
+  nickname: string;
 
   @Column({
     nullable: true,
   })
-  avatar!: string;
+  avatar: string;
 
   @Column({
     nullable: true,
     type: 'simple-array',
   })
-  specialRoles!: SpecialRolesEnum[];
+  specialRoles: SpecialRolesEnum[];
 
   @Column({
     default: true,
   })
-  isActive!: boolean;
+  isActive: boolean;
 
   @Expose()
   get displayName() {
@@ -64,10 +64,10 @@ export class User extends BaseEntity {
       referencedColumnName: 'id',
     },
   })
-  roles!: Role[];
+  roles: Role[];
 
   @OneToMany(() => Cat, (cat) => cat.owner)
-  cats!: Cat[];
+  cats: Cat[];
 
   // @OneToMany(() => GroupMember, (groupMember) => groupMember.user)
   // groupMemberships: GroupMember[];

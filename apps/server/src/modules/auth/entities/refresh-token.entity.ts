@@ -5,14 +5,14 @@ import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 @Entity('users_refresh_tokens')
 export class RefreshToken extends BaseEntity {
   @Column()
-  token!: string;
+  token: string;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })
-  user!: User;
+  user: User;
 
   @Column()
-  expiresAt!: Date;
+  expiresAt: Date;
 
   // 目前退出登录使用直接移除的方式，所以不需要这个字段
   // @Column({

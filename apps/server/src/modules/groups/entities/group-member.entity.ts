@@ -9,16 +9,16 @@ import { Group } from './group.entity';
 export class GroupMember extends BaseEntity {
   @ManyToOne(() => Group, (group) => group.members)
   @JoinColumn({ name: 'group_id' })
-  group!: Group;
+  group: Group;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })
-  user!: User;
+  user: User;
 
   @Column({
     type: 'enum',
     enum: GroupMemberRolesEnum,
     default: GroupMemberRolesEnum.Member,
   })
-  role!: GroupMemberRolesEnum;
+  role: GroupMemberRolesEnum;
 }

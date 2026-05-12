@@ -6,16 +6,16 @@ import { Column, Entity, JoinTable, ManyToMany } from 'typeorm';
 @Entity('roles')
 export class Role extends BaseEntity {
   @Column()
-  name!: string;
+  name: string;
 
   @Column({ nullable: true })
-  description!: string;
+  description: string;
 
   @Column({ unique: true })
-  code!: string;
+  code: string;
 
   @ManyToMany(() => User, (user) => user.roles)
-  users!: User[];
+  users: User[];
 
   @ManyToMany(() => Permission, (permission) => permission.roles, {
     // eager: true, // 设置为 true 后，在查询时会自动加载关联的 Permission 数据
@@ -31,5 +31,5 @@ export class Role extends BaseEntity {
       referencedColumnName: 'id',
     },
   })
-  permissions!: Permission[];
+  permissions: Permission[];
 }

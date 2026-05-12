@@ -11,10 +11,10 @@ export abstract class AuditedEntity extends BaseEntity {
   @Exclude()
   @ManyToOne('User', { nullable: true }) // 使用字符串形式引用实体，避免循环依赖
   @JoinColumn({ name: 'created_by_id' })
-  createdBy!: User;
+  createdBy: User;
 
   @Exclude()
   @ManyToOne('User', { nullable: true })
   @JoinColumn({ name: 'updated_by_id' })
-  updatedBy!: User;
+  updatedBy: User;
 }
