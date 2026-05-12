@@ -46,8 +46,8 @@ trap 'shutdown; exit 143' INT TERM
 while true; do
   # 检查 Nest 服务是否仍在运行
   if ! kill -0 "$server_pid" 2>/dev/null; then
-    wait "$server_pid"
-    server_exit=$?
+    server_exit=0
+    wait "$server_pid" || server_exit=$?
     echo "Nest server exited with code $server_exit, shutting down..."
     kill -TERM "$nginx_pid" 2>/dev/null || true
     wait "$nginx_pid" 2>/dev/null || true
@@ -56,8 +56,8 @@ while true; do
 
   # 检查 Nginx 是否仍在运行
   if ! kill -0 "$nginx_pid" 2>/dev/null; then
-    wait "$nginx_pid"
-    nginx_exit=$?
+    nginx_exit=0
+    wait "$nginx_pid" || nginx_exit=$?
     echo "Nginx exited with code $nginx_exit, shutting down..."
     kill -TERM "$server_pid" 2>/dev/null || true
     wait "$server_pid" 2>/dev/null || true
