@@ -74,25 +74,18 @@ export class RefreshTokenService {
       type: TokenType.ACCESS,
     };
 
+    const { jwt } = getConfig(this.configService);
+
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(
       { ...payload, type: TokenType.REFRESH },
       {
-        expiresIn: getConfig(this.configService).jwt.refreshExpiresIn,
+        expiresIn: jwt.refreshExpiresIn,
       },
     );
 
-    const accessExpiresAt = new Date();
-    accessExpiresAt.setSeconds(
-      accessExpiresAt.getSeconds() +
-        getConfig(this.configService).jwt.accessExpiresIn,
-    );
-
-    const refreshExpiresAt = new Date();
-    refreshExpiresAt.setSeconds(
-      refreshExpiresAt.getSeconds() +
-        getConfig(this.configService).jwt.refreshExpiresIn,
-    );
+    const accessExpiresAt = Date.now() + jwt.accessExpiresIn * 1000;
+    const refreshExpiresAt = new Date(Date.now() + jwt.refreshExpiresIn * 1000);
 
     return { accessToken, refreshToken, accessExpiresAt, refreshExpiresAt };
   }

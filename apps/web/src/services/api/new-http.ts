@@ -18,7 +18,7 @@ const newHttp = createHttpClient({
 
     return {
       token: jwtToken.accessToken,
-      expiresAt: new Date(jwtToken.expiresAt),
+      expiresAt: jwtToken.expiresAt,
     };
   },
   refreshAccessToken: async () => {

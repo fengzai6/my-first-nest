@@ -5,7 +5,7 @@ import type { AxiosRequestConfig, AxiosResponse } from "axios";
  */
 export interface AccessTokenDetail {
   token: string;
-  expiresAt: Date | string;
+  expiresAt: Date | string | number;
   /**
    * 提前刷新的毫秒数，默认 60000（1 分钟）。
    */
