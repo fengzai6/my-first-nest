@@ -6,10 +6,11 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    image: my-first-nest
+    image: my-first-nest:latest
     ports:
       - '3000:80'
     environment:
+      PORT: 3000
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/first-nest
       DEFAULT_ADMIN_USERNAME: admin
       DEFAULT_ADMIN_PASSWORD: admin1234

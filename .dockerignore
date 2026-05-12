@@ -71,14 +71,6 @@ test/
 tests/
 
 # ===========================================
-# Docker related
-# ===========================================
-Dockerfile*
-docker-compose*.yml
-.dockerignore
-docker/
-
-# ===========================================
 # CI/CD
 # ===========================================
 .github
@@ -95,11 +87,10 @@ temp
 *.temp
 
 # ===========================================
-# Package manager lock files
+# Docker context trimming
 # ===========================================
-# Keep pnpm-lock.yaml, ignore others
-package-lock.json
-yarn.lock
+Dockerfile.bak
+docker/docker-compose*.yml
 
 # ===========================================
 # Cache directories
@@ -113,7 +104,8 @@ yarn.lock
 # ===========================================
 # Documentation (keep critical files)
 # ===========================================
-apps/docs/
+apps/docs/*
+!apps/docs/package.json
 *.md
 !README.md
 
