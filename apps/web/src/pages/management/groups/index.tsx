@@ -3,7 +3,6 @@ import {
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
-  TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,12 +16,12 @@ import {
   Table,
   Tag,
   Tooltip,
-  Tree,
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 
+import { GroupTree } from "@/components/group-tree";
 import {
   AddGroupMembers,
   CreateGroup,
@@ -235,57 +234,6 @@ export const Groups = () => {
     setIsMemberManagementOpen(true);
   };
 
-  // 构建树形数据
-  const buildTreeData = (groups: IGroup[]): any[] => {
-    return groups.map((group) => ({
-      title: (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <TeamOutlined className="mr-2" />
-            <span className="font-medium">{group.name}</span>
-            {group.isOrganization && (
-              <Tag color="orange" className="ml-2">
-                组织
-              </Tag>
-            )}
-            <Tag color="blue" className="ml-1">
-              {group.members?.length || 0} 人
-            </Tag>
-          </div>
-          <Space size="small">
-            <Tooltip title="编辑群组">
-              <Button
-                type="text"
-                size="small"
-                icon={<EditOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEditGroup(group);
-                }}
-              />
-            </Tooltip>
-            <Tooltip title="管理成员">
-              <Button
-                type="text"
-                size="small"
-                icon={<UserOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleManageMembers(group);
-                }}
-              />
-            </Tooltip>
-          </Space>
-        </div>
-      ),
-      key: group.id,
-      children:
-        group.children && group.children.length > 0
-          ? buildTreeData(group.children)
-          : undefined,
-    }));
-  };
-
   // 表格列定义
   const columns: ColumnsType<IGroupWithLevel> = [
     {
@@ -427,11 +375,35 @@ export const Groups = () => {
         </div>
 
         {viewMode === "tree" ? (
-          <Tree
-            treeData={buildTreeData(groupTrees)}
-            defaultExpandAll
-            showLine
-            blockNode
+          <GroupTree
+            groups={groupTrees}
+            loading={groupsLoading}
+            renderExtra={(group) => (
+              <Space size="small">
+                <Tooltip title="编辑群组">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditGroup(group);
+                    }}
+                  />
+                </Tooltip>
+                <Tooltip title="管理成员">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<UserOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleManageMembers(group);
+                    }}
+                  />
+                </Tooltip>
+              </Space>
+            )}
           />
         ) : (
           <Table
