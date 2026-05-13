@@ -1,3 +1,4 @@
+import { Cats } from "@/pages/management/cats";
 import { Home } from "@/pages/home";
 import { Login } from "@/pages/login";
 import { Groups } from "@/pages/management/groups";
@@ -5,6 +6,7 @@ import { Roles } from "@/pages/management/roles";
 import { Users } from "@/pages/management/users";
 import { NotFound } from "@/pages/not-found";
 import { Register } from "@/pages/register";
+import { Settings } from "@/pages/settings";
 import { SocketDemo } from "@/pages/socket-demo";
 import { Navigate, Outlet, type RouteObject } from "react-router";
 import { AuthGuard } from "./auth-guard";
@@ -31,6 +33,10 @@ export const routes: RouteObject[] = [
         element: <SocketDemo />,
       },
       {
+        path: "settings",
+        element: <Settings />,
+      },
+      {
         path: "management",
         element: <Outlet />,
         children: [
@@ -49,6 +55,10 @@ export const routes: RouteObject[] = [
           {
             path: "groups",
             element: <Groups />,
+          },
+          {
+            path: "cats",
+            element: <Cats />,
           },
         ],
       },

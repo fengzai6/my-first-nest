@@ -1,6 +1,7 @@
 import {
   DeleteOutlined,
   EditOutlined,
+  InfoCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -161,9 +162,25 @@ export const Roles = () => {
         <div className="max-h-20 overflow-y-auto">
           <Space wrap size="small">
             {permissions?.slice(0, 5).map((permission) => (
-              <Tag key={permission.id} color="cyan">
-                {permission.name}
-              </Tag>
+              <Tooltip
+                key={permission.id}
+                title={
+                  <div>
+                    <div className="font-medium">{permission.name}</div>
+                    {permission.description && (
+                      <div className="text-xs">{permission.description}</div>
+                    )}
+                    <div className="text-xs text-gray-400">
+                      {permission.code}
+                    </div>
+                  </div>
+                }
+              >
+                <Tag color="cyan" className="cursor-help">
+                  <InfoCircleOutlined className="mr-1" />
+                  {permission.name}
+                </Tag>
+              </Tooltip>
             ))}
             {permissions?.length > 5 && (
               <Tag color="default">+{permissions.length - 5} 更多</Tag>

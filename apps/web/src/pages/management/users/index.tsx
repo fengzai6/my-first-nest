@@ -1,6 +1,7 @@
 import {
   DeleteOutlined,
   EditOutlined,
+  EyeOutlined,
   KeyOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -12,6 +13,9 @@ import {
   Avatar,
   Button,
   Card,
+  Descriptions,
+  Divider,
+  Drawer,
   Input,
   message,
   Modal,
@@ -34,11 +38,13 @@ import {
   UpdateUser,
   UpdateUserPasswordByAdmin,
   UpdateUserRoles,
+  UpdateUserSpecialRoles,
 } from "@/services/api/user";
 import type {
   IUpdatePasswordByAdminDto,
   IUpdateUserDto,
   IUpdateUserRolesDto,
+  IUpdateUserSpecialRolesDto,
 } from "@/services/dtos/user";
 import type { IUser } from "@/services/types/user";
 import { PasswordResetForm, RoleAssignmentForm, UserForm } from "./components";
@@ -51,8 +57,10 @@ export const Users = () => {
   const [isUserFormOpen, setIsUserFormOpen] = useState(false);
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
   const [isRoleAssignmentOpen, setIsRoleAssignmentOpen] = useState(false);
+  const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<IUser | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [viewingUser, setViewingUser] = useState<IUser | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -147,6 +155,24 @@ export const Users = () => {
     },
   });
 
+  // 更新用户特殊角色
+  const updateUserSpecialRolesMutation = useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: IUpdateUserSpecialRolesDto;
+    }) => UpdateUserSpecialRoles(id, data),
+    onSuccess: () => {
+      message.success("特殊角色更新成功");
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (error: any) => {
+      message.error(error.response?.data?.message || "特殊角色更新失败");
+    },
+  });
+
   // 过滤用户数据
   const filteredUsers = users.filter(
     (user) =>
@@ -184,6 +210,12 @@ export const Users = () => {
       id: user.id,
       data: { isActive: !user.isActive },
     });
+  };
+
+  // 处理查看详情
+  const handleViewDetail = (user: IUser) => {
+    setViewingUser(user);
+    setIsDetailDrawerOpen(true);
   };
 
   // 表格列定义
@@ -258,9 +290,16 @@ export const Users = () => {
     {
       title: "操作",
       key: "actions",
-      width: 200,
+      width: 240,
       render: (_, record: IUser) => (
         <Space size="small">
+          <Tooltip title="查看详情">
+            <Button
+              type="text"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewDetail(record)}
+            />
+          </Tooltip>
           <Tooltip title="编辑用户">
             <Button
               type="text"
@@ -452,13 +491,111 @@ export const Users = () => {
               updateUserRolesMutation.mutate({ id: selectedUserId, data });
             }
           }}
+          onSubmitSpecialRoles={(data: IUpdateUserSpecialRolesDto) => {
+            if (selectedUserId) {
+              updateUserSpecialRolesMutation.mutate({
+                id: selectedUserId,
+                data,
+              });
+            }
+          }}
           onCancel={() => {
             setIsRoleAssignmentOpen(false);
             setSelectedUserId(null);
           }}
-          loading={updateUserRolesMutation.isPending}
+          loading={
+            updateUserRolesMutation.isPending ||
+            updateUserSpecialRolesMutation.isPending
+          }
         />
       </Modal>
+
+      {/* 用户详情抽屉 */}
+      <Drawer
+        title="用户详情"
+        open={isDetailDrawerOpen}
+        onClose={() => {
+          setIsDetailDrawerOpen(false);
+          setViewingUser(null);
+        }}
+        width={500}
+      >
+        {viewingUser && (
+          <div>
+            <div className="mb-6 flex items-center space-x-4">
+              <Avatar
+                size={64}
+                src={viewingUser.avatar}
+                icon={<UserOutlined />}
+              />
+              <div>
+                <div className="text-xl font-semibold">
+                  {viewingUser.displayName}
+                </div>
+                <div className="text-gray-500">@{viewingUser.username}</div>
+              </div>
+            </div>
+
+            <Divider />
+
+            <Descriptions column={1} labelStyle={{ fontWeight: "bold" }}>
+              <Descriptions.Item label="用户 ID">
+                {viewingUser.id}
+              </Descriptions.Item>
+              <Descriptions.Item label="邮箱">
+                {viewingUser.email || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="昵称">
+                {viewingUser.nickname || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Tag color={viewingUser.isActive ? "green" : "red"}>
+                  {viewingUser.isActive ? "正常" : "禁用"}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="创建时间">
+                {new Date(viewingUser.createdAt).toLocaleString("zh-CN")}
+              </Descriptions.Item>
+              <Descriptions.Item label="更新时间">
+                {new Date(viewingUser.updatedAt).toLocaleString("zh-CN")}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider />
+
+            <div className="mb-4">
+              <div className="mb-2 font-bold">普通角色</div>
+              <Space wrap>
+                {viewingUser.roles && viewingUser.roles.length > 0 ? (
+                  viewingUser.roles.map((role) => (
+                    <Tag key={role.id} color="blue">
+                      {role.name}
+                    </Tag>
+                  ))
+                ) : (
+                  <span className="text-gray-500">暂无角色</span>
+                )}
+              </Space>
+            </div>
+
+            <div className="mb-4">
+              <div className="mb-2 font-bold">特殊角色</div>
+              <Space wrap>
+                {viewingUser.specialRoles &&
+                viewingUser.specialRoles.length > 0 ? (
+                  viewingUser.specialRoles.map((role) => (
+                    <Tag key={role} color="red">
+                      {role === "super_admin" ? "超级管理员" : "开发者"}
+                    </Tag>
+                  ))
+                ) : (
+                  <span className="text-gray-500">暂无特殊角色</span>
+                )}
+              </Space>
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 };
