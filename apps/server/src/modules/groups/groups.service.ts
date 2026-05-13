@@ -57,11 +57,8 @@ export class GroupsService {
       throw new ErrorException(GroupExceptionCode.GROUP_NOT_FOUND);
     }
 
-    if (!membership) {
-      return null;
-    }
-
-    // 查询祖先组中该用户是否为 Leader
+    // 先查祖先组中该用户是否为 Leader，再决定是否因非成员而返回 null。
+    // 如果顺序反过来，父组 Leader 访问子组时会因不是子组成员而被错误拒绝。
     const ancestors = await this.groupTreeRepository.findAncestors(group);
 
     const ancestorIds = ancestors
@@ -80,6 +77,10 @@ export class GroupsService {
       if (superiorLeader) {
         return GroupMemberRolesEnum.SuperiorLeader;
       }
+    }
+
+    if (!membership) {
+      return null;
     }
 
     return membership.role;
@@ -261,6 +262,12 @@ export class GroupsService {
       groupMember.role !== GroupMemberRolesEnum.Leader
     ) {
       return this.groupMemberRepository.manager.transaction(async (manager) => {
+        // 对组行加悲观写锁，序列化同一组内的角色变更，防止并发晋升产生多个 Leader
+        await manager.getRepository(Group).findOne({
+          where: { id: groupId },
+          lock: { mode: 'pessimistic_write' },
+        });
+
         const memberRepo = manager.getRepository(GroupMember);
 
         const existingLeader = await memberRepo.findOne({
@@ -268,6 +275,7 @@ export class GroupsService {
             group: { id: groupId },
             role: GroupMemberRolesEnum.Leader,
           },
+          lock: { mode: 'pessimistic_write' },
         });
 
         if (existingLeader) {
