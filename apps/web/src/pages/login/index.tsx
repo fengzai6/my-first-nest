@@ -28,10 +28,6 @@ export const Login = () => {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      username: "admin",
-      password: "admin1234",
-    },
   });
 
   const mutation = useMutation({

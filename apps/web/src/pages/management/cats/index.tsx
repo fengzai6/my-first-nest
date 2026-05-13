@@ -55,10 +55,13 @@ export const Cats = () => {
     queryFn: GetCats,
   });
 
-  const { data: users = [] } = useQuery({
-    queryKey: ["users"],
-    queryFn: GetUsers,
+  const { data: usersPage } = useQuery({
+    queryKey: ["users", "selector"],
+    // 此处仅用于「主人选择器」的下拉数据，传较大 pageSize 一次性拉取；
+    // 后续若用户数量增长应改成异步搜索 + 远端筛选。
+    queryFn: () => GetUsers({ pageSize: 1000 }),
   });
+  const users = usersPage?.list ?? [];
 
   const createCatMutation = useMutation({
     mutationFn: CreateCat,

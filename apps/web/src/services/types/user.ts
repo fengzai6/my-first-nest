@@ -28,3 +28,16 @@ export interface IUser extends IBase {
   roles?: IUserRole[];
   isActive: boolean;
 }
+
+export interface IFindUsersQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}
+
+export interface IUsersPage {
+  list: IUser[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

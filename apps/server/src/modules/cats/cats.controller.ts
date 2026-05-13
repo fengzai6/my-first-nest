@@ -6,10 +6,7 @@ import {
   Controller,
   Delete,
   Get,
-  HttpException,
-  HttpStatus,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
 } from '@nestjs/common';
@@ -54,49 +51,17 @@ export class CatsController {
   })
   @Permission(PermissionCode.CAT_READ)
   @Get()
-  async findAll(@UserInfo() user: User): Promise<Cat[]> {
-    try {
-      console.log('user:', user);
-      return this.catsService.findAll();
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: HttpStatus.FORBIDDEN,
-          error: 'This is a custom message',
-        },
-        HttpStatus.FORBIDDEN,
-        {
-          cause: error,
-        },
-      );
-    }
+  findAll(@UserInfo() user: User): Promise<Cat[]> {
+    console.log('user:', user);
+    return this.catsService.findAll();
   }
-
-  // 抛出异常：Forbidden 403
-  // @Get()
-  // async findAll() {
-  //   throw new ForbiddenException();;
-  // }
-
-  // @Get(':id')
-  // findOne(
-  //   @Param(
-  //     'id',
-  //     // 可以传递配置选项
-  //     new ParseIntPipe({ errorHttpStatusCode: HttpStatus.NOT_ACCEPTABLE }),
-  //   )
-  //   id: number,
-  // ) {
-  //   return this.catsService.findOne(id);
-  // }
 
   @ApiOperation({
     summary: 'Get a cat by id',
   })
   @Permission(PermissionCode.CAT_READ)
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: string) {
-    console.log(id);
+  findOne(@Param('id') id: string) {
     return this.catsService.findOne(id);
   }
 

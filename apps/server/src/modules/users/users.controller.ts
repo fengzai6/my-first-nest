@@ -9,9 +9,11 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { CreateUserDto } from './dto/create-user.dto';
+import { FindUsersDto } from './dto/find-users.dto';
 import { UpdatePasswordByAdminDto } from './dto/update-password';
 import {
   UpdateUserDto,
@@ -39,8 +41,8 @@ export class UsersController {
   })
   @Permission(PermissionCode.USER_READ)
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@Query() query: FindUsersDto) {
+    return this.usersService.findAll(query);
   }
 
   @ApiOperation({

@@ -54,6 +54,8 @@ const { Search } = Input;
 
 export const Users = () => {
   const [searchText, setSearchText] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [isUserFormOpen, setIsUserFormOpen] = useState(false);
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
   const [isRoleAssignmentOpen, setIsRoleAssignmentOpen] = useState(false);
@@ -64,16 +66,22 @@ export const Users = () => {
 
   const queryClient = useQueryClient();
 
-  // 获取用户列表
+  // 用户列表 —— 服务端分页 + 搜索：搜索关键字、页码、每页数量都作为 queryKey 一部分，
+  // react-query 会在任一变化时自动重取，避免客户端全量加载导致内存与网络浪费。
   const {
-    data: users = [],
+    data: usersPage,
     isLoading: usersLoading,
     error: usersError,
     refetch: refetchUsers,
   } = useQuery({
-    queryKey: ["users"],
-    queryFn: GetUsers,
+    queryKey: ["users", { page, pageSize, search: searchText }],
+    queryFn: () =>
+      GetUsers({ page, pageSize, search: searchText || undefined }),
+    placeholderData: (prev) => prev,
   });
+
+  const users = usersPage?.list ?? [];
+  const total = usersPage?.total ?? 0;
 
   // 获取角色列表
   const { data: roles = [] } = useQuery({
@@ -172,14 +180,6 @@ export const Users = () => {
       message.error(error.response?.data?.message || "特殊角色更新失败");
     },
   });
-
-  // 过滤用户数据
-  const filteredUsers = users.filter(
-    (user) =>
-      user.username.toLowerCase().includes(searchText.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchText.toLowerCase()) ||
-      user.displayName.toLowerCase().includes(searchText.toLowerCase()),
-  );
 
   // 处理编辑用户
   const handleEditUser = (user: IUser) => {
@@ -386,26 +386,32 @@ export const Users = () => {
               size="large"
               style={{ width: 400 }}
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={(e) => {
+                setSearchText(e.target.value);
+                setPage(1);
+              }}
             />
-            <div className="text-gray-500">
-              共 {filteredUsers.length} 个用户
-            </div>
+            <div className="text-gray-500">共 {total} 个用户</div>
           </div>
         </div>
 
         <Table
           columns={columns}
-          dataSource={filteredUsers}
+          dataSource={users}
           rowKey="id"
           loading={usersLoading}
           pagination={{
-            total: filteredUsers.length,
-            pageSize: 10,
+            current: page,
+            pageSize,
+            total,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total, range) =>
-              `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+            showTotal: (t, range) =>
+              `第 ${range[0]}-${range[1]} 条，共 ${t} 条`,
+            onChange: (nextPage, nextPageSize) => {
+              setPage(nextPage);
+              setPageSize(nextPageSize);
+            },
           }}
           scroll={{ x: 1200 }}
         />

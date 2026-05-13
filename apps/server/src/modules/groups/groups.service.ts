@@ -162,19 +162,34 @@ export class GroupsService {
       }
     }
 
-    const organizationGroups = await this.groupTreeRepository.find({
-      where: { id: In([...organizationGroupIds]) },
-    });
+    // 一次性查出所有相关 group（组织根 + 它们的所有子群组），避免在循环中
+    // 对每个根调用 findDescendantsTree 产生 N+1 查询。
+    // 利用 organizationGroup 关联：非根 group 的 organizationGroup 始终指向其顶层组织
+    // （见 setParentAndOrganization 的赋值逻辑）。
+    const ids = [...organizationGroupIds];
+    const allGroups = await this.groupTreeRepository
+      .createQueryBuilder('group')
+      .leftJoinAndSelect('group.members', 'members')
+      .leftJoinAndSelect('members.user', 'memberUser')
+      .leftJoinAndSelect('group.parent', 'parent')
+      .leftJoinAndSelect('group.organizationGroup', 'org')
+      .where('group.id IN (:...ids) OR org.id IN (:...ids)', { ids })
+      .getMany();
 
-    const organizationTrees = await Promise.all(
-      organizationGroups.map((group) =>
-        this.groupTreeRepository.findDescendantsTree(group, {
-          relations: ['members', 'members.user'],
-        }),
-      ),
-    );
+    // 内存中按 parent 关系组装树
+    const nodeMap = new Map<string, Group>();
+    for (const g of allGroups) {
+      nodeMap.set(g.id, Object.assign(g, { children: [] as Group[] }));
+    }
+    for (const g of allGroups) {
+      if (g.parent && nodeMap.has(g.parent.id)) {
+        nodeMap.get(g.parent.id)!.children.push(nodeMap.get(g.id)!);
+      }
+    }
 
-    return organizationTrees;
+    return ids
+      .map((id) => nodeMap.get(id))
+      .filter((node): node is Group => Boolean(node));
   }
 
   async getGroupTrees() {
@@ -239,21 +254,30 @@ export class GroupsService {
       );
     }
 
+    // 升级为 Leader 时需要先降级原 Leader：两步写操作必须在同一事务里，
+    // 否则并发场景下会出现「两个 Leader 同时存在」的中间态。
     if (
       role === GroupMemberRolesEnum.Leader &&
       groupMember.role !== GroupMemberRolesEnum.Leader
     ) {
-      const existingLeader = await this.groupMemberRepository.findOne({
-        where: {
-          group: { id: groupId },
-          role: GroupMemberRolesEnum.Leader,
-        },
-      });
+      return this.groupMemberRepository.manager.transaction(async (manager) => {
+        const memberRepo = manager.getRepository(GroupMember);
 
-      if (existingLeader) {
-        existingLeader.role = GroupMemberRolesEnum.Member;
-        await this.groupMemberRepository.save(existingLeader);
-      }
+        const existingLeader = await memberRepo.findOne({
+          where: {
+            group: { id: groupId },
+            role: GroupMemberRolesEnum.Leader,
+          },
+        });
+
+        if (existingLeader) {
+          existingLeader.role = GroupMemberRolesEnum.Member;
+          await memberRepo.save(existingLeader);
+        }
+
+        groupMember.role = role;
+        return memberRepo.save(groupMember);
+      });
     }
 
     groupMember.role = role;

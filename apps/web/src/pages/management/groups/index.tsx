@@ -19,7 +19,7 @@ import {
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { GroupTree } from "@/components/group-tree";
 import {
@@ -66,11 +66,14 @@ export const Groups = () => {
     queryFn: GetGroupTrees,
   });
 
-  // 获取用户列表（用于成员管理）
-  const { data: users = [] } = useQuery({
-    queryKey: ["users"],
-    queryFn: GetUsers,
+  // 获取用户列表（用于成员管理选择器）
+  const { data: usersPage } = useQuery({
+    queryKey: ["users", "selector"],
+    // 此处仅用于「成员选择器」的下拉数据，传较大 pageSize 一次性拉取；
+    // 后续若用户数量增长应改成异步搜索 + 远端筛选。
+    queryFn: () => GetUsers({ pageSize: 1000 }),
   });
+  const users = usersPage?.list ?? [];
 
   // 扩展的群组类型，包含层级信息
   type IGroupWithLevel = IGroup & { level?: number };
@@ -90,33 +93,35 @@ export const Groups = () => {
     return result;
   };
 
-  const allGroups = flattenGroups(groupTrees);
+  // 用 useMemo 缓存扁平化结果：flattenGroups 每次返回新对象，若直接在渲染体调用，
+  // 下方依赖 allGroups 的 useEffect 会因引用变化无限触发。
+  const allGroups = useMemo(
+    () => flattenGroups(groupTrees),
+    [groupTrees],
+  );
 
   // 当群组数据更新时，同步更新选中的群组数据
   useEffect(() => {
-    if (selectedGroup && allGroups.length > 0) {
-      const updatedGroup = allGroups.find((g) => g.id === selectedGroup.id);
-      if (updatedGroup) {
-        // 比较成员数量和成员信息，如果有变化则更新
-        const currentMemberCount = selectedGroup.members?.length || 0;
-        const updatedMemberCount = updatedGroup.members?.length || 0;
+    if (!selectedGroup) return;
 
-        if (currentMemberCount !== updatedMemberCount) {
-          setSelectedGroup(updatedGroup);
-        } else if (selectedGroup.members && updatedGroup.members) {
-          // 检查成员角色是否有变化
-          const memberRolesChanged = selectedGroup.members.some(
-            (member, index) => {
-              const updatedMember = updatedGroup.members?.[index];
-              return updatedMember && member.role !== updatedMember.role;
-            },
-          );
+    const updatedGroup = allGroups.find((g) => g.id === selectedGroup.id);
+    if (!updatedGroup) return;
 
-          if (memberRolesChanged) {
-            setSelectedGroup(updatedGroup);
-          }
-        }
-      }
+    // 仅在「成员数量」或「成员角色」实际变化时才更新 selectedGroup，
+    // 否则会与 allGroups 引用变化叠加形成 setState → re-render → effect 循环。
+    const currentMemberCount = selectedGroup.members?.length || 0;
+    const updatedMemberCount = updatedGroup.members?.length || 0;
+    const memberCountChanged = currentMemberCount !== updatedMemberCount;
+
+    const rolesChanged =
+      !memberCountChanged &&
+      !!selectedGroup.members?.some((member, index) => {
+        const updatedMember = updatedGroup.members?.[index];
+        return updatedMember && member.role !== updatedMember.role;
+      });
+
+    if (memberCountChanged || rolesChanged) {
+      setSelectedGroup(updatedGroup);
     }
   }, [allGroups, selectedGroup]);
 
