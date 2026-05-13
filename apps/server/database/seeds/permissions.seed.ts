@@ -1,4 +1,4 @@
-import { PERMISSIONS } from '@/common/constants';
+import { PERMISSIONS } from '@/common/constants/permissions';
 import { Permission } from '@/modules/permissions/entities/permission.entity';
 import { DataSource } from 'typeorm';
 

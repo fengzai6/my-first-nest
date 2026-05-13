@@ -1,4 +1,4 @@
-import { PermissionCode } from '@/common/constants';
+import { PermissionCode } from '@/common/constants/permissions';
 import { UserInfo } from '@/common/decorators/jwt-auth.decorator';
 import { Permission } from '@/common/decorators/permission.decorator';
 import {

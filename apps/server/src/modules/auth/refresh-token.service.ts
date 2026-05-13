@@ -4,7 +4,7 @@ import {
   ErrorExceptionCode,
 } from '@/common/exceptions/error.exception';
 import { getConfig } from '@/config/configuration';
-import { User } from '@/modules/users/entities';
+import { User } from '@/modules/users/entities/user.entity';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';

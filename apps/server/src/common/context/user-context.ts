@@ -1,4 +1,4 @@
-import { User } from '@/modules/users/entities';
+import { User } from '@/modules/users/entities/user.entity';
 import { AsyncLocalStorage } from 'async_hooks';
 
 // 单例模式，保证 AsyncLocalStorage 的实例是唯一的，并在拦截器中使用

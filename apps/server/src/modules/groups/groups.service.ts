@@ -1,4 +1,4 @@
-import { isRequestUser, useRequestUser } from '@/common/context';
+import { isRequestUser, useRequestUser } from '@/common/context/user-context';
 import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles.decorator';
 import { ErrorException } from '@/common/exceptions/error.exception';
 import { GroupExceptionCode } from '@/common/exceptions/group.exception';
@@ -11,7 +11,8 @@ import { AddGroupMembersDto } from './dto/create-group-members.dto';
 import { CreateGroupServiceDto } from './dto/create-group.dto';
 import { UpdateGroupMemberDto } from './dto/update-group-member.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
-import { Group, GroupMember } from './entities';
+import { GroupMember } from './entities/group-member.entity';
+import { Group } from './entities/group.entity';
 
 @Injectable()
 export class GroupsService {

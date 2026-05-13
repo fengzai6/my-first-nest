@@ -1,5 +1,5 @@
-import { PermissionCode } from '@/common/constants';
-import { DisabledEndpoint } from '@/common/decorators';
+import { PermissionCode } from '@/common/constants/permissions';
+import { DisabledEndpoint } from '@/common/decorators/disabled-endpoint.decorator';
 import { Permission } from '@/common/decorators/permission.decorator';
 import {
   Body,

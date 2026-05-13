@@ -1,10 +1,10 @@
-import { PermissionCode } from '@/common/constants';
+import { PermissionCode } from '@/common/constants/permissions';
+import { DisabledEndpoint } from '@/common/decorators/disabled-endpoint.decorator';
 import {
-  DisabledEndpoint,
   GroupMemberRoles,
   GroupMemberRolesEnum,
-  Permission,
-} from '@/common/decorators';
+} from '@/common/decorators/group-member-roles.decorator';
+import { Permission } from '@/common/decorators/permission.decorator';
 import {
   Body,
   Controller,
@@ -19,7 +19,7 @@ import { AddGroupMembersDto } from './dto/create-group-members.dto';
 import { CreateGroupDto, CreateRootOrgGroupDto } from './dto/create-group.dto';
 import { UpdateGroupMemberDto } from './dto/update-group-member.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
-import { Group } from './entities';
+import { Group } from './entities/group.entity';
 import { GroupsService } from './groups.service';
 
 /**

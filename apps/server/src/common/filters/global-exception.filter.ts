@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { IsProduction } from '../constants';
+import { IsProduction } from '../constants/environment';
 import { BaseException } from '../exceptions/base.exception';
 
 /**

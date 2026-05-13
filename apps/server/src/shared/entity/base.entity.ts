@@ -6,7 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { generateSnowflakeId } from '../utils';
+import { generateSnowflakeId } from '../utils/snowflake';
 
 /**
  * 基础实体类

@@ -1,5 +1,5 @@
 import { GroupsService } from '@/modules/groups/groups.service';
-import { User } from '@/modules/users/entities';
+import { User } from '@/modules/users/entities/user.entity';
 import { UsersService } from '@/modules/users/users.service';
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -7,9 +7,9 @@ import { Request } from 'express';
 import {
   GroupMemberRoles,
   GroupMemberRolesEnum,
-  Permission,
-  SpecialRolesEnum,
-} from '../decorators';
+} from '../decorators/group-member-roles.decorator';
+import { Permission } from '../decorators/permission.decorator';
+import { SpecialRolesEnum } from '../decorators/special-roles.decorator';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {

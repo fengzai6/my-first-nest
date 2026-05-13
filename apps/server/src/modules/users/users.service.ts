@@ -1,5 +1,5 @@
-import { isRequestUser, useRequestUser } from '@/common/context';
-import { SpecialRolesEnum } from '@/common/decorators';
+import { isRequestUser, useRequestUser } from '@/common/context/user-context';
+import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
 import {
   ErrorException,
   ErrorExceptionCode,
@@ -17,7 +17,7 @@ import {
   Repository,
 } from 'typeorm';
 import { PermissionsService } from '../permissions/permissions.service';
-import { Role } from '../roles/entities';
+import { Role } from '../roles/entities/role.entity';
 import { RolesService } from '../roles/roles.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import {
@@ -29,7 +29,7 @@ import {
   UpdateUserRolesDto,
   UpdateUserSpecialRolesDto,
 } from './dto/update-user.dto';
-import { User } from './entities';
+import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {

@@ -5,11 +5,11 @@ import {
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { Permission } from '../permissions/entities';
+import { Permission } from '../permissions/entities/permission.entity';
 import { PermissionsService } from '../permissions/permissions.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
-import { Role } from './entities';
+import { Role } from './entities/role.entity';
 
 @Injectable()
 export class RolesService {
