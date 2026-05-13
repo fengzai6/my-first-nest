@@ -101,11 +101,4 @@ export class RolesService {
     return this.roleRepository.softDelete(id);
   }
 
-  async getRolesByUserId(userId: string) {
-    const roles = await this.roleRepository.find({
-      where: { users: { id: userId } },
-    });
-
-    return roles;
-  }
 }
