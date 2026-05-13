@@ -5,7 +5,7 @@ import type {
   IUpdateUserRolesDto,
   IUpdateUserSpecialRolesDto,
 } from "../dtos/user";
-import type { IUser } from "../types/user";
+import type { IFindUsersQuery, IUser, IUsersPage } from "../types/user";
 import http from "./new-http";
 
 /**
@@ -18,10 +18,10 @@ export const CreateUser = async (data: ICreateUserDto) => {
 };
 
 /**
- * 获取所有用户
+ * 获取用户分页列表
  */
-export const GetUsers = async () => {
-  const res = await http.get<IUser[]>("/users");
+export const GetUsers = async (params?: IFindUsersQuery) => {
+  const res = await http.get<IUsersPage>("/users", { params });
 
   return res.data;
 };

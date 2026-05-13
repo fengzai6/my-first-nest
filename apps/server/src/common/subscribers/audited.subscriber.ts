@@ -1,4 +1,4 @@
-import { User } from '@/modules/users/entities';
+import { User } from '@/modules/users/entities/user.entity';
 import { AuditedEntity } from '@/shared/entity/audited.entity';
 import {
   EntitySubscriberInterface,
@@ -6,7 +6,7 @@ import {
   InsertEvent,
   UpdateEvent,
 } from 'typeorm';
-import { useRequestUser } from '../context';
+import { useRequestUser } from '../context/user-context';
 
 @EventSubscriber()
 export class AuditedSubscriber

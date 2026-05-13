@@ -7,6 +7,8 @@ export interface ExceptionInfo {
 }
 
 export class BaseException extends HttpException {
+  public readonly code?: string;
+
   constructor(info: ExceptionInfo) {
     super(
       {
@@ -16,5 +18,6 @@ export class BaseException extends HttpException {
       },
       info.status,
     );
+    this.code = info.code;
   }
 }

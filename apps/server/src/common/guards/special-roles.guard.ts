@@ -1,4 +1,4 @@
-import { matchRoles } from '@/shared/utils';
+import { matchRoles } from '@/shared/utils/roles';
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';

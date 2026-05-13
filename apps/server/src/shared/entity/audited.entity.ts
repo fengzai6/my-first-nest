@@ -1,4 +1,4 @@
-import type { User } from '@/modules/users/entities';
+import type { User } from '@/modules/users/entities/user.entity';
 import { Exclude } from 'class-transformer';
 import { JoinColumn, ManyToOne } from 'typeorm';
 import { BaseEntity } from './base.entity';

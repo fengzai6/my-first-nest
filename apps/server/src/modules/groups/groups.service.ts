@@ -1,4 +1,4 @@
-import { isRequestUser, useRequestUser } from '@/common/context';
+import { isRequestUser, useRequestUser } from '@/common/context/user-context';
 import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles.decorator';
 import { ErrorException } from '@/common/exceptions/error.exception';
 import { GroupExceptionCode } from '@/common/exceptions/group.exception';
@@ -6,12 +6,13 @@ import { BaseResponse } from '@/common/response/base.response';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { pick } from 'es-toolkit';
-import { Repository, TreeRepository } from 'typeorm';
+import { In, Repository, TreeRepository } from 'typeorm';
 import { AddGroupMembersDto } from './dto/create-group-members.dto';
 import { CreateGroupServiceDto } from './dto/create-group.dto';
 import { UpdateGroupMemberDto } from './dto/update-group-member.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
-import { Group, GroupMember } from './entities';
+import { GroupMember } from './entities/group-member.entity';
+import { Group } from './entities/group.entity';
 
 @Injectable()
 export class GroupsService {
@@ -45,46 +46,44 @@ export class GroupsService {
     groupId: string,
     userId: string,
   ): Promise<GroupMemberRolesEnum | null> {
-    let groupMemberRole: GroupMemberRolesEnum | null = null;
-
-    const group = await this.groupTreeRepository.findOne({
-      where: { id: groupId },
-      relations: ['members', 'members.user'],
-    });
+    const [group, membership] = await Promise.all([
+      this.groupTreeRepository.findOne({ where: { id: groupId } }),
+      this.groupMemberRepository.findOne({
+        where: { group: { id: groupId }, user: { id: userId } },
+      }),
+    ]);
 
     if (!group) {
       throw new ErrorException(GroupExceptionCode.GROUP_NOT_FOUND);
     }
 
-    // 检查当前组的成员是否为领导
-    const membership = group.members.find(
-      (member) => member.user.id === userId,
-    );
+    // 先查祖先组中该用户是否为 Leader，再决定是否因非成员而返回 null。
+    // 如果顺序反过来，父组 Leader 访问子组时会因不是子组成员而被错误拒绝。
+    const ancestors = await this.groupTreeRepository.findAncestors(group);
 
-    if (membership) {
-      groupMemberRole = membership.role;
+    const ancestorIds = ancestors
+      .filter((a) => a.id !== groupId)
+      .map((a) => a.id);
+
+    if (ancestorIds.length > 0) {
+      const superiorLeader = await this.groupMemberRepository.findOne({
+        where: {
+          group: { id: In(ancestorIds) },
+          user: { id: userId },
+          role: GroupMemberRolesEnum.Leader,
+        },
+      });
+
+      if (superiorLeader) {
+        return GroupMemberRolesEnum.SuperiorLeader;
+      }
     }
 
-    // 查询所有祖先组及其成员
-    const ancestors = await this.groupTreeRepository.findAncestors(group, {
-      relations: ['members', 'members.user'],
-    });
-
-    // 检查任何祖先组中是否有该用户作为领导
-    const isSuperiorLeader = ancestors.some(
-      (ancestor) =>
-        ancestor.members.some(
-          (member) =>
-            member.user.id === userId &&
-            member.role === GroupMemberRolesEnum.Leader,
-        ) && ancestor.id !== groupId,
-    );
-
-    if (isSuperiorLeader) {
-      groupMemberRole = GroupMemberRolesEnum.SuperiorLeader;
+    if (!membership) {
+      return null;
     }
 
-    return groupMemberRole;
+    return membership.role;
   }
 
   async createGroup(createGroupDto: CreateGroupServiceDto) {
@@ -164,29 +163,34 @@ export class GroupsService {
       }
     }
 
-    const organizationTrees: Group[] = [];
+    // 一次性查出所有相关 group（组织根 + 它们的所有子群组），避免在循环中
+    // 对每个根调用 findDescendantsTree 产生 N+1 查询。
+    // 利用 organizationGroup 关联：非根 group 的 organizationGroup 始终指向其顶层组织
+    // （见 setParentAndOrganization 的赋值逻辑）。
+    const ids = [...organizationGroupIds];
+    const allGroups = await this.groupTreeRepository
+      .createQueryBuilder('group')
+      .leftJoinAndSelect('group.members', 'members')
+      .leftJoinAndSelect('members.user', 'memberUser')
+      .leftJoinAndSelect('group.parent', 'parent')
+      .leftJoinAndSelect('group.organizationGroup', 'org')
+      .where('group.id IN (:...ids) OR org.id IN (:...ids)', { ids })
+      .getMany();
 
-    for (const organizationGroupId of organizationGroupIds) {
-      const organizationGroup = await this.groupTreeRepository.findOne({
-        where: { id: organizationGroupId },
-        relations: ['members', 'members.user'],
-      });
-
-      if (!organizationGroup) {
-        continue;
+    // 内存中按 parent 关系组装树
+    const nodeMap = new Map<string, Group>();
+    for (const g of allGroups) {
+      nodeMap.set(g.id, Object.assign(g, { children: [] as Group[] }));
+    }
+    for (const g of allGroups) {
+      if (g.parent && nodeMap.has(g.parent.id)) {
+        nodeMap.get(g.parent.id)!.children.push(nodeMap.get(g.id)!);
       }
-
-      const tree = await this.groupTreeRepository.findDescendantsTree(
-        organizationGroup,
-        {
-          relations: ['members', 'members.user'],
-        },
-      );
-
-      organizationTrees.push(tree);
     }
 
-    return organizationTrees;
+    return ids
+      .map((id) => nodeMap.get(id))
+      .filter((node): node is Group => Boolean(node));
   }
 
   async getGroupTrees() {
@@ -200,53 +204,32 @@ export class GroupsService {
   async addGroupMembers(groupId: string, { members }: AddGroupMembersDto) {
     const group = await this.groupTreeRepository.findOne({
       where: { id: groupId },
-      relations: ['members', 'members.user'],
     });
 
     if (!group) {
       throw new ErrorException(GroupExceptionCode.GROUP_NOT_FOUND);
     }
 
-    // 检查是否有新的 leader 角色
-    // const hasNewLeader = members.some(
-    //   (member) => member.role === GroupMemberRolesEnum.Leader,
-    // );
+    const existingMembers = await this.groupMemberRepository.find({
+      where: {
+        group: { id: groupId },
+        user: { id: In(members) },
+      },
+    });
 
-    // // 如果有新的 leader，需要检查并处理现有 leader
-    // if (hasNewLeader) {
-    //   const existingLeader = group.members.find(
-    //     (member) => member.role === GroupMemberRolesEnum.Leader,
-    //   );
+    if (existingMembers.length > 0) {
+      throw new ErrorException(GroupExceptionCode.USER_ALREADY_IN_GROUP);
+    }
 
-    //   // 如果已经存在 leader，将其降级为 admin
-    //   if (existingLeader) {
-    //     existingLeader.role = GroupMemberRolesEnum.Member;
-    //     await this.groupMemberRepository.save(existingLeader);
-    //   }
-    // }
-
-    const newGroupMembers = members.map((userId) => {
-      const existingMember = group.members.find(
-        (member) => member.user.id === userId,
-      );
-
-      if (existingMember) {
-        throw new ErrorException(GroupExceptionCode.USER_ALREADY_IN_GROUP);
-      }
-
-      const groupMember = this.groupMemberRepository.create({
+    const newGroupMembers = members.map((userId) =>
+      this.groupMemberRepository.create({
         group,
         user: { id: userId },
         role: GroupMemberRolesEnum.Member,
-      });
+      }),
+    );
 
-      return groupMember;
-    });
-
-    const savedGroupMembers =
-      await this.groupMemberRepository.save(newGroupMembers);
-
-    return savedGroupMembers;
+    return this.groupMemberRepository.save(newGroupMembers);
   }
 
   async updateGroupMember(
@@ -262,24 +245,6 @@ export class GroupsService {
       throw new ErrorException(GroupExceptionCode.GROUP_MEMBER_NOT_FOUND);
     }
 
-    // 如果要更新为 leader 角色，需要检查是否已存在 leader
-    if (
-      role === GroupMemberRolesEnum.Leader &&
-      groupMember.role !== GroupMemberRolesEnum.Leader
-    ) {
-      const existingLeader = await this.groupMemberRepository.findOne({
-        where: {
-          group: { id: groupId },
-          role: GroupMemberRolesEnum.Leader,
-        },
-      });
-
-      if (existingLeader) {
-        existingLeader.role = GroupMemberRolesEnum.Member;
-        await this.groupMemberRepository.save(existingLeader);
-      }
-    }
-
     if (
       isRequestUser(userId) &&
       role === GroupMemberRolesEnum.Member &&
@@ -288,6 +253,39 @@ export class GroupsService {
       throw new ErrorException(
         GroupExceptionCode.CANNOT_UPDATE_SELF_ROLE_TO_MEMBER,
       );
+    }
+
+    // 升级为 Leader 时需要先降级原 Leader：两步写操作必须在同一事务里，
+    // 否则并发场景下会出现「两个 Leader 同时存在」的中间态。
+    if (
+      role === GroupMemberRolesEnum.Leader &&
+      groupMember.role !== GroupMemberRolesEnum.Leader
+    ) {
+      return this.groupMemberRepository.manager.transaction(async (manager) => {
+        // 对组行加悲观写锁，序列化同一组内的角色变更，防止并发晋升产生多个 Leader
+        await manager.getRepository(Group).findOne({
+          where: { id: groupId },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        const memberRepo = manager.getRepository(GroupMember);
+
+        const existingLeader = await memberRepo.findOne({
+          where: {
+            group: { id: groupId },
+            role: GroupMemberRolesEnum.Leader,
+          },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (existingLeader) {
+          existingLeader.role = GroupMemberRolesEnum.Member;
+          await memberRepo.save(existingLeader);
+        }
+
+        groupMember.role = role;
+        return memberRepo.save(groupMember);
+      });
     }
 
     groupMember.role = role;

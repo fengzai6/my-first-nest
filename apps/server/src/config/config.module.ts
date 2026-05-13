@@ -1,4 +1,4 @@
-import { IsProduction } from '@/common/constants';
+import { IsProduction } from '@/common/constants/environment';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { defaultConfig } from './config.default';

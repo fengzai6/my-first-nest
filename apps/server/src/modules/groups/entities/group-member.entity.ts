@@ -1,5 +1,5 @@
 import { GroupMemberRolesEnum } from '@/common/decorators/group-member-roles.decorator';
-import { User } from '@/modules/users/entities';
+import { User } from '@/modules/users/entities/user.entity';
 import { BaseEntity } from '@/shared/entity/base.entity';
 import { Column, Entity, JoinColumn, ManyToOne, Unique } from 'typeorm';
 import { Group } from './group.entity';

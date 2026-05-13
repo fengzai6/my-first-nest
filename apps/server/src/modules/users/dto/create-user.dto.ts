@@ -1,4 +1,4 @@
-import { RoleCode } from '@/common/constants';
+import { RoleCode } from '@/common/constants/roles';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,

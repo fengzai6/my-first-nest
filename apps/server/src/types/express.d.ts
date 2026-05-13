@@ -1,4 +1,4 @@
-import { User } from '@/modules/users/entities';
+import { User } from '@/modules/users/entities/user.entity';
 import { Request as ExpressRequest } from 'express';
 
 declare module 'express' {

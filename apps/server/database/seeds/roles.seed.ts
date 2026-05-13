@@ -1,4 +1,4 @@
-import { DEFAULT_ROLES } from '@/common/constants';
+import { DEFAULT_ROLES } from '@/common/constants/roles';
 import { Permission } from '@/modules/permissions/entities/permission.entity';
 import { Role } from '@/modules/roles/entities/role.entity';
 import { DataSource, In } from 'typeorm';

@@ -1,5 +1,5 @@
-import { RoleCode } from '@/common/constants';
-import { SpecialRolesEnum } from '@/common/decorators';
+import { RoleCode } from '@/common/constants/roles';
+import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
 import { ApiProperty, OmitType, PartialType } from '@nestjs/swagger';
 import { IsArray, IsEnum, IsString } from 'class-validator';
 import { CreateUserDto } from './create-user.dto';

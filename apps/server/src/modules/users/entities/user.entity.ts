@@ -1,6 +1,6 @@
 import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
-import { Cat } from '@/modules/cats/entities';
-import { Role } from '@/modules/roles/entities';
+import { Cat } from '@/modules/cats/entities/cat.entity';
+import { Role } from '@/modules/roles/entities/role.entity';
 import { BaseEntity } from '@/shared/entity/base.entity';
 import { Exclude, Expose } from 'class-transformer';
 import { Column, Entity, JoinTable, ManyToMany, OneToMany } from 'typeorm';

@@ -1,5 +1,5 @@
-import { isRequestUser, useRequestUser } from '@/common/context';
-import { SpecialRolesEnum } from '@/common/decorators';
+import { isRequestUser, useRequestUser } from '@/common/context/user-context';
+import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
 import {
   ErrorException,
   ErrorExceptionCode,
@@ -12,14 +12,16 @@ import { hash, verify } from 'argon2';
 import {
   FindOptionsRelations,
   FindOptionsWhere,
+  ILike,
   In,
   Not,
   Repository,
 } from 'typeorm';
 import { PermissionsService } from '../permissions/permissions.service';
-import { Role } from '../roles/entities';
+import { Role } from '../roles/entities/role.entity';
 import { RolesService } from '../roles/roles.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { FindUsersDto } from './dto/find-users.dto';
 import {
   UpdatePasswordByAdminDto,
   UpdatePasswordDto,
@@ -29,7 +31,7 @@ import {
   UpdateUserRolesDto,
   UpdateUserSpecialRolesDto,
 } from './dto/update-user.dto';
-import { User } from './entities';
+import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
@@ -93,12 +95,25 @@ export class UsersService {
     return permissions;
   }
 
-  findAll(): Promise<User[]> {
-    return this.userRepository.find({
-      relations: {
-        roles: true,
-      },
+  async findAll({ page = 1, pageSize = 20, search }: FindUsersDto = {}) {
+    // 强制分页：避免全表返回造成内存与响应膨胀，pageSize 由 DTO 限制最大 100。
+    const where: FindOptionsWhere<User>[] | undefined = search
+      ? [
+          { username: ILike(`%${search}%`) },
+          { email: ILike(`%${search}%`) },
+          { displayName: ILike(`%${search}%`) },
+        ]
+      : undefined;
+
+    const [list, total] = await this.userRepository.findAndCount({
+      where,
+      relations: { roles: true },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      order: { createdAt: 'DESC' },
     });
+
+    return { list, total, page, pageSize };
   }
 
   async findOne(
@@ -126,24 +141,26 @@ export class UsersService {
   async update(id: string, updateUserDto: UpdateUserDto) {
     const user = await this.findOne({ id });
 
-    // 不可以更改默认管理员的用户名，删去username字段
+    // 默认管理员的用户名不可更改：用浅拷贝避免 mutate 入参 DTO
     const defaultAdminUsername = this.configService.get<string>(
       'DEFAULT_ADMIN_USERNAME',
     );
 
+    const sanitized: UpdateUserDto = { ...updateUserDto };
+
     if (user.username === defaultAdminUsername) {
-      delete updateUserDto.username;
+      delete sanitized.username;
     }
 
     // 检查用户名或邮箱是否存在
-    if (updateUserDto.username || updateUserDto.email) {
+    if (sanitized.username || sanitized.email) {
       const where: FindOptionsWhere<User>[] = [];
 
-      if (updateUserDto.username) {
-        where.push({ username: updateUserDto.username, id: Not(id) });
+      if (sanitized.username) {
+        where.push({ username: sanitized.username, id: Not(id) });
       }
-      if (updateUserDto.email) {
-        where.push({ email: updateUserDto.email, id: Not(id) });
+      if (sanitized.email) {
+        where.push({ email: sanitized.email, id: Not(id) });
       }
 
       if (where.length > 0) {
@@ -155,9 +172,7 @@ export class UsersService {
       }
     }
 
-    const updatedUser = this.userRepository.merge(user, {
-      ...updateUserDto,
-    });
+    const updatedUser = this.userRepository.merge(user, { ...sanitized });
 
     return this.userRepository.save(updatedUser);
   }
@@ -207,11 +222,10 @@ export class UsersService {
       throw new ErrorException(ErrorExceptionCode.INVALID_CREDENTIALS);
     }
 
-    const hashedPassword = await hash(newPassword, {
-      timeCost: 5,
-    });
-
-    const isSameAsOld = await verify(user.password, newPassword);
+    const [hashedPassword, isSameAsOld] = await Promise.all([
+      hash(newPassword, { timeCost: 5 }),
+      verify(user.password, newPassword),
+    ]);
 
     // 纳尼，居然新的密码不能和旧的密码相同
     if (isSameAsOld) {
@@ -229,11 +243,7 @@ export class UsersService {
     id: string,
     { newPassword }: UpdatePasswordByAdminDto,
   ) {
-    const user = await this.findOne({ id });
-
-    if (!user) {
-      throw new ErrorException(ErrorExceptionCode.USER_NOT_FOUND);
-    }
+    await this.findOne({ id });
 
     const hashedPassword = await hash(newPassword, {
       timeCost: 5,

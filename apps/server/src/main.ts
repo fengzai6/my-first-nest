@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { appUse } from './common/use';
 import { getAppConfig } from './config/configuration';
-import { initSnowflake } from './shared/utils';
+import { initSnowflake } from './shared/utils/snowflake';
 import { useSwagger } from './shared/utils/swagger';
 
 async function bootstrap() {

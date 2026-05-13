@@ -13,9 +13,9 @@ import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
-import type { IUpdateUserRolesDto } from "@/services/dtos/user";
+import type { IUpdateUserRolesDto, IUpdateUserSpecialRolesDto } from "@/services/dtos/user";
 import type { IRole } from "@/services/types/role";
-import type { IUser } from "@/services/types/user";
+import type { IUser, SpecialRoles } from "@/services/types/user";
 import { SpecialRoles as SpecialRolesEnum } from "@/services/types/user";
 
 // 表单验证schema
@@ -31,6 +31,7 @@ interface IRoleAssignmentFormProps {
   user?: IUser;
   roles: IRole[];
   onSubmit: (data: IUpdateUserRolesDto) => void;
+  onSubmitSpecialRoles: (data: IUpdateUserSpecialRolesDto) => void;
   onCancel: () => void;
   loading?: boolean;
 }
@@ -40,6 +41,7 @@ export const RoleAssignmentForm: React.FC<IRoleAssignmentFormProps> = ({
   user,
   roles,
   onSubmit,
+  onSubmitSpecialRoles,
   onCancel,
   loading = false,
 }) => {
@@ -73,6 +75,9 @@ export const RoleAssignmentForm: React.FC<IRoleAssignmentFormProps> = ({
   const onFormSubmit = (data: RoleAssignmentFormData) => {
     onSubmit({
       roles: data.roles,
+    });
+    onSubmitSpecialRoles({
+      roles: data.specialRoles as SpecialRoles[],
     });
   };
 

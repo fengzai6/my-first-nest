@@ -9,7 +9,7 @@ import { Repository } from 'typeorm';
 import { UsersService } from '../users/users.service';
 import { CreateCatDto } from './dto/create-cat.dto';
 import { UpdateCatDto } from './dto/update-cat.dto';
-import { Cat } from './entities';
+import { Cat } from './entities/cat.entity';
 
 @Injectable()
 export class CatsService {

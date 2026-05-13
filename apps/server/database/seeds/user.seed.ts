@@ -1,4 +1,4 @@
-import { RoleCode } from '@/common/constants';
+import { RoleCode } from '@/common/constants/roles';
 import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
 import { Role } from '@/modules/roles/entities/role.entity';
 import { User } from '@/modules/users/entities/user.entity';

@@ -1,4 +1,4 @@
-import { IsProduction } from '@/common/constants';
+import { IsProduction } from '@/common/constants/environment';
 import { REFRESH_TOKEN_KEY } from '@/common/constants/auth';
 import { Cookies } from '@/common/decorators/cookies.decorator';
 import { Public } from '@/common/decorators/jwt-auth.decorator';

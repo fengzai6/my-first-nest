@@ -1,4 +1,4 @@
-import { PermissionCodeType } from '@/common/constants';
+import { PermissionCodeType } from '@/common/constants/permissions';
 import {
   ErrorException,
   ErrorExceptionCode,
@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { FindManyOptions, In, Repository } from 'typeorm';
 import { CreatePermissionDto } from './dto/create-permission.dto';
 import { UpdatePermissionDto } from './dto/update-permission.dto';
-import { Permission } from './entities';
+import { Permission } from './entities/permission.entity';
 
 @Injectable()
 export class PermissionsService {
