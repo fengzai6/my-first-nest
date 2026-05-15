@@ -25,12 +25,24 @@ export interface SnowflakeConfig {
   datacenterId: number;
 }
 
+export interface RedisConfig {
+  url?: string;
+  host?: string;
+  port?: number;
+  password?: string;
+  db?: number;
+  defaultTtl?: number;
+  keyPrefix?: string;
+  required?: boolean;
+}
+
 export interface AppConfig {
   server?: ServerConfig;
   swagger?: SwaggerConfig;
   database?: TypeOrmModuleOptions;
   jwt?: JwtConfig;
   snowflake?: SnowflakeConfig;
+  redis?: RedisConfig;
 }
 
 export type AppConfigForced = {

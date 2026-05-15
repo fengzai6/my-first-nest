@@ -13,6 +13,9 @@ services:
       DEFAULT_ADMIN_USERNAME: admin
       DEFAULT_ADMIN_PASSWORD: admin1234
       JWT_SECRET: my-first-nest-jwt-secret
+      # 若同时启动了 docker-compose.cache.yml，会通过 my-nest-network 解析到 redis 服务
+      REDIS_URL: redis://redis:6379
+      REDIS_REQUIRED: 'false'
     networks:
       - my-nest-network
 

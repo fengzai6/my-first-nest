@@ -115,10 +115,10 @@
   - [x] React Hook 封装（useSocket）
 - [ ] 添加客户端来展示项目功能
   - [ ] 使用 React & Vite & TailwindCSS & ShadcnUI & Antd 制作客户端
+- [x] Redis 缓存集成
 
 ### 计划功能 📋
 
-- [ ] Redis 缓存集成
 - [ ] session 管理
 - [ ] 日志系统实现
 - [ ] 文件上传功能
@@ -222,7 +222,14 @@ yarn clean        # 清理所有构建产物
     docker-compose -f docker-compose.db.yml up -d
     ```
 
-2.  **启动应用服务**
+2.  **（可选）启动 Redis 缓存服务**
+    未启动时应用会自动降级为内存 store。
+
+    ```bash
+    docker-compose -f docker-compose.cache.yml up -d
+    ```
+
+3.  **启动应用服务**
     - **方式一：通过 Compose 构建和运行**
       此命令会自动构建前后端，并启动应用容器。
 
@@ -247,6 +254,9 @@ yarn clean        # 清理所有构建产物
 ```bash
 # 停止并移除数据库
 docker-compose -f docker-compose.db.yml down
+
+# 停止并移除 Redis 缓存
+docker-compose -f docker-compose.cache.yml down
 
 # 停止并移除应用
 docker-compose -f docker-compose.app.yml down

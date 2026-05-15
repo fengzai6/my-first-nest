@@ -616,6 +616,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@cacheable/utils@npm:^2.3.3":
+  version: 2.4.1
+  resolution: "@cacheable/utils@npm:2.4.1"
+  dependencies:
+    hashery: "npm:^1.5.1"
+    keyv: "npm:^5.6.0"
+  checksum: 10c0/ca2af47636ed27ab26dfedf12add639f42b90c289ecd5d816fb7a299074d9df463751745a83abfb81f6236a70c8ea40f0902e984869638a5ca3a7274e203f987
+  languageName: node
+  linkType: hard
+
 "@colors/colors@npm:1.5.0":
   version: 1.5.0
   resolution: "@colors/colors@npm:1.5.0"
@@ -1912,6 +1922,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@keyv/redis@npm:^5.1.6":
+  version: 5.1.6
+  resolution: "@keyv/redis@npm:5.1.6"
+  dependencies:
+    "@redis/client": "npm:^5.10.0"
+    cluster-key-slot: "npm:^1.1.2"
+    hookified: "npm:^1.13.0"
+  peerDependencies:
+    keyv: ^5.6.0
+  checksum: 10c0/0c8a0b65b68c08514f7dce8af89a080cedc1acacfa66215f7f2382ce92c350a88a743059a772f8d9b9a53694427bf016a9a8a972ecb07a74d98065f130699d8c
+  languageName: node
+  linkType: hard
+
+"@keyv/serialize@npm:^1.1.1":
+  version: 1.1.1
+  resolution: "@keyv/serialize@npm:1.1.1"
+  checksum: 10c0/b0008cae4a54400c3abf587b8cc2474c6f528ee58969ce6cf9cb07a04006f80c73c85971d6be6544408318a2bc40108236a19a82aea0a6de95aae49533317374
+  languageName: node
+  linkType: hard
+
 "@lukeed/csprng@npm:^1.0.0":
   version: 1.1.0
   resolution: "@lukeed/csprng@npm:1.1.0"
@@ -1946,6 +1976,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@my-first-nest/server@workspace:apps/server"
   dependencies:
+    "@keyv/redis": "npm:^5.1.6"
+    "@nestjs/cache-manager": "npm:^3.1.2"
     "@nestjs/cli": "npm:^11.0.7"
     "@nestjs/common": "npm:11.1.0"
     "@nestjs/config": "npm:^4.0.2"
@@ -1971,6 +2003,7 @@ __metadata:
     "@types/passport-local": "npm:^1.0.38"
     "@types/supertest": "npm:^6.0.2"
     argon2: "npm:^0.43.0"
+    cache-manager: "npm:^7.2.8"
     class-transformer: "npm:^0.5.1"
     class-validator: "npm:^0.14.2"
     cookie-parser: "npm:^1.4.7"
@@ -1983,6 +2016,7 @@ __metadata:
     globals: "npm:^16.5.0"
     jest: "npm:^29.7.0"
     joi: "npm:^17.13.3"
+    keyv: "npm:^5.6.0"
     passport: "npm:^0.7.0"
     passport-jwt: "npm:^4.0.1"
     passport-local: "npm:^1.0.0"
@@ -2255,6 +2289,19 @@ __metadata:
     "@emnapi/core": ^1.7.1
     "@emnapi/runtime": ^1.7.1
   checksum: 10c0/2e88e1955258949ccf2d18c79975821ad38071b465ef126a5e14110977b97868867b016c1ad046e963cccc42c0bd9db6c8ff5fd1ebb61b87bb3487f339041658
+  languageName: node
+  linkType: hard
+
+"@nestjs/cache-manager@npm:^3.1.2":
+  version: 3.1.2
+  resolution: "@nestjs/cache-manager@npm:3.1.2"
+  peerDependencies:
+    "@nestjs/common": ^9.0.0 || ^10.0.0 || ^11.0.0
+    "@nestjs/core": ^9.0.0 || ^10.0.0 || ^11.0.0
+    cache-manager: ">=6"
+    keyv: ">=5"
+    rxjs: ^7.8.1
+  checksum: 10c0/6414f11018960dbbb7387ad405bcd08c0c3522796583d9de8f24aaa1bb9c287c727828501f104f4d627b89a6e1419219ac6d8f28b209483df6204ef1f8e9bad8
   languageName: node
   linkType: hard
 
@@ -3413,6 +3460,23 @@ __metadata:
     react: ">=18.0.0"
     react-dom: ">=18.0.0"
   checksum: 10c0/71ab8c9f321be160cd55aa2f02bacf4a62b2d41b63d297b87dc73af3d7cc7c7716bcaa304cb03f443794411990e3a17aa455aef21d557f52aa5609d985474de5
+  languageName: node
+  linkType: hard
+
+"@redis/client@npm:^5.10.0":
+  version: 5.12.1
+  resolution: "@redis/client@npm:5.12.1"
+  dependencies:
+    cluster-key-slot: "npm:1.1.2"
+  peerDependencies:
+    "@node-rs/xxhash": ^1.1.0
+    "@opentelemetry/api": ">=1 <2"
+  peerDependenciesMeta:
+    "@node-rs/xxhash":
+      optional: true
+    "@opentelemetry/api":
+      optional: true
+  checksum: 10c0/f475aa936b7cf73c3d2166862377d3502f16deaf5423d31f6899f6387440195aa2524c74d1df26da591a61b4ac0122a1e1f8d783b770e7630c5f7444445c41b0
   languageName: node
   linkType: hard
 
@@ -6295,6 +6359,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"cache-manager@npm:^7.2.8":
+  version: 7.2.8
+  resolution: "cache-manager@npm:7.2.8"
+  dependencies:
+    "@cacheable/utils": "npm:^2.3.3"
+    keyv: "npm:^5.5.5"
+  checksum: 10c0/d620f8489cbdd549574c5b42ce27eb5a99841af059b1ed0ffcceaa897e7f5093aff68186e1af306d125685f4e565ae96da2c3e632bb23b45938bdd5a01d5b7f3
+  languageName: node
+  linkType: hard
+
 "cacheable-lookup@npm:^7.0.0":
   version: 7.0.0
   resolution: "cacheable-lookup@npm:7.0.0"
@@ -6584,6 +6658,13 @@ __metadata:
   version: 2.1.1
   resolution: "clsx@npm:2.1.1"
   checksum: 10c0/c4c8eb865f8c82baab07e71bfa8897c73454881c4f99d6bc81585aecd7c441746c1399d08363dc096c550cceaf97bd4ce1e8854e1771e9998d9f94c4fe075839
+  languageName: node
+  linkType: hard
+
+"cluster-key-slot@npm:1.1.2, cluster-key-slot@npm:^1.1.2":
+  version: 1.1.2
+  resolution: "cluster-key-slot@npm:1.1.2"
+  checksum: 10c0/d7d39ca28a8786e9e801eeb8c770e3c3236a566625d7299a47bb71113fb2298ce1039596acb82590e598c52dbc9b1f088c8f587803e697cb58e1867a95ff94d3
   languageName: node
   linkType: hard
 
@@ -8520,6 +8601,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"hashery@npm:^1.5.1":
+  version: 1.5.1
+  resolution: "hashery@npm:1.5.1"
+  dependencies:
+    hookified: "npm:^1.15.0"
+  checksum: 10c0/ab4225b655a7b0d05df99b1a59d5b3a51fe433f82422ca25e6f3f4c4ddd30adb49ebd38e0047ef9bded93319c1e9fc857e16aa382e554929c871cb77d39fc463
+  languageName: node
+  linkType: hard
+
 "hasown@npm:^2.0.2":
   version: 2.0.2
   resolution: "hasown@npm:2.0.2"
@@ -8561,6 +8651,13 @@ __metadata:
   version: 5.5.3
   resolution: "hookable@npm:5.5.3"
   checksum: 10c0/275f4cc84d27f8d48c5a5cd5685b6c0fea9291be9deea5bff0cfa72856ed566abde1dcd8cb1da0f9a70b4da3d7ec0d60dc3554c4edbba647058cc38816eced3d
+  languageName: node
+  linkType: hard
+
+"hookified@npm:^1.13.0, hookified@npm:^1.15.0":
+  version: 1.15.1
+  resolution: "hookified@npm:1.15.1"
+  checksum: 10c0/6b691374fa97ae57169fb29f90e723499fda5e85494654fbe55c4768b3ccbf3e14c0adc8d0f365f32c503b60d7c06f907781f5966c03d41c423575eb5e16860c
   languageName: node
   linkType: hard
 
@@ -9669,6 +9766,15 @@ __metadata:
   dependencies:
     json-buffer: "npm:3.0.1"
   checksum: 10c0/aa52f3c5e18e16bb6324876bb8b59dd02acf782a4b789c7b2ae21107fab95fab3890ed448d4f8dba80ce05391eeac4bfabb4f02a20221342982f806fa2cf271e
+  languageName: node
+  linkType: hard
+
+"keyv@npm:^5.5.5, keyv@npm:^5.6.0":
+  version: 5.6.0
+  resolution: "keyv@npm:5.6.0"
+  dependencies:
+    "@keyv/serialize": "npm:^1.1.1"
+  checksum: 10c0/c3ea795b6e03593ca57c8f70928a69bad14c13389a7fb75649a115ff55615244b04d8902798d841c17f0bb4a8a8866c97133b543b93f151b440170bba09176db
   languageName: node
   linkType: hard
 

@@ -1,0 +1,27 @@
+name: my-first-nest
+# 用于启动 Redis 缓存容器
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: my-first-nest-redis
+    restart: on-failure:5
+    ports:
+      - '6379:6379'
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - my-nest-network
+
+networks:
+  my-nest-network:
+    external: true
+    name: my-nest-network
+
+volumes:
+  redis-data:

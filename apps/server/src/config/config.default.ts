@@ -36,5 +36,17 @@ export const defaultConfig = registerAs(
       workerId: process.env.WORKER_ID || 0,
       datacenterId: process.env.DATACENTER_ID || 0,
     },
+    redis: {
+      url: process.env.REDIS_URL,
+      host: process.env.REDIS_HOST,
+      port: Number(process.env.REDIS_PORT) || 6379,
+      password: process.env.REDIS_PASSWORD,
+      db: Number(process.env.REDIS_DB) || 0,
+      // 缓存默认 TTL，单位：秒（0 表示不过期）
+      defaultTtl: Number(process.env.REDIS_DEFAULT_TTL) || 300,
+      keyPrefix: process.env.REDIS_KEY_PREFIX || 'my-first-nest:',
+      // 未连接成功时是否阻塞启动；false 时降级为内存 store
+      required: process.env.REDIS_REQUIRED === 'true',
+    },
   }),
 );

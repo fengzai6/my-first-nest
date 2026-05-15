@@ -5,6 +5,9 @@ import {
 } from '@/common/exceptions/error.exception';
 import { getConfig } from '@/config/configuration';
 import { User } from '@/modules/users/entities/user.entity';
+import { UsersService } from '@/modules/users/users.service';
+import { CacheKeys } from '@/shared/caching/cache.constants';
+import { CacheService } from '@/shared/caching/cache.service';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -20,10 +23,22 @@ export class RefreshTokenService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly cacheService: CacheService,
+    private readonly usersService: UsersService,
   ) {}
 
   async create(user: User) {
     const tokens = this.generateTokens(user);
+
+    if (this.cacheService.isRedisEnabled()) {
+      const { jwt } = getConfig(this.configService);
+      await this.cacheService.set(
+        CacheKeys.AUTH_REFRESH_TOKEN(tokens.refreshToken),
+        user.id,
+        jwt.refreshExpiresIn,
+      );
+      return tokens;
+    }
 
     const refreshToken = this.refreshTokenRepository.create({
       token: tokens.refreshToken,
@@ -33,10 +48,6 @@ export class RefreshTokenService {
 
     await this.refreshTokenRepository.save(refreshToken);
 
-    // TODO：根据是否启用了 Redis 来决定是否将 refreshToken 存储到 Redis 中
-    // 生成一个 tokenKey, refreshToken 作为 value, 并设置过期时间为 config 中的值
-    // 这样就不需要管理 refreshToken 的数据库，Redis 中存储的 refreshToken 过期后，会自动删除
-
     return tokens;
   }
 
@@ -45,27 +56,10 @@ export class RefreshTokenService {
       throw new ErrorException(ErrorExceptionCode.INVALID_REFRESH_TOKEN);
     }
 
-    const tokenRecord = await this.refreshTokenRepository.findOne({
-      where: { token: refreshToken },
-      relations: ['user'],
-    });
-
-    if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
-      if (tokenRecord) {
-        await this.remove(tokenRecord);
-      }
-
-      throw new ErrorException(ErrorExceptionCode.INVALID_REFRESH_TOKEN);
+    if (this.cacheService.isRedisEnabled()) {
+      return this.refreshTokenViaRedis(refreshToken);
     }
-
-    const tokens = this.generateTokens(tokenRecord.user);
-
-    await this.refreshTokenRepository.update(tokenRecord.id, {
-      token: tokens.refreshToken,
-      expiresAt: tokens.refreshExpiresAt,
-    });
-
-    return tokens;
+    return this.refreshTokenViaDb(refreshToken);
   }
 
   generateTokens(user: User) {
@@ -91,10 +85,13 @@ export class RefreshTokenService {
   }
 
   async remove(token: RefreshToken | string) {
-    // TODO: Redis: 登出时，删除 Redis 中的 refreshToken 和将 accessToken 设置为黑名单（如何拿到 accessToken ）
-    // 同时需要在 JwtAuthGuard 中处理黑名单的 accessToken
-
     if (!token) {
+      return;
+    }
+
+    if (this.cacheService.isRedisEnabled()) {
+      const tokenStr = typeof token === 'string' ? token : token.token;
+      await this.cacheService.del(CacheKeys.AUTH_REFRESH_TOKEN(tokenStr));
       return;
     }
 
@@ -103,5 +100,60 @@ export class RefreshTokenService {
     } else {
       await this.refreshTokenRepository.remove(token);
     }
+  }
+
+  private async refreshTokenViaDb(refreshToken: string) {
+    const tokenRecord = await this.refreshTokenRepository.findOne({
+      where: { token: refreshToken },
+      relations: ['user'],
+    });
+
+    if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
+      if (tokenRecord) {
+        await this.remove(tokenRecord);
+      }
+
+      throw new ErrorException(ErrorExceptionCode.INVALID_REFRESH_TOKEN);
+    }
+
+    const tokens = this.generateTokens(tokenRecord.user);
+
+    await this.refreshTokenRepository.update(tokenRecord.id, {
+      token: tokens.refreshToken,
+      expiresAt: tokens.refreshExpiresAt,
+    });
+
+    return tokens;
+  }
+
+  private async refreshTokenViaRedis(refreshToken: string) {
+    const oldKey = CacheKeys.AUTH_REFRESH_TOKEN(refreshToken);
+    const userId = await this.cacheService.get<string>(oldKey);
+
+    if (!userId) {
+      throw new ErrorException(ErrorExceptionCode.INVALID_REFRESH_TOKEN);
+    }
+
+    let user: User;
+    try {
+      user = await this.usersService.findOne({ id: userId });
+    } catch {
+      // 用户已被删除等情况：清理孤立的 refresh token 并拒绝
+      await this.cacheService.del(oldKey);
+      throw new ErrorException(ErrorExceptionCode.INVALID_REFRESH_TOKEN);
+    }
+
+    const tokens = this.generateTokens(user);
+    const { jwt } = getConfig(this.configService);
+
+    // 旋转：先删旧 key，再写新 key
+    await this.cacheService.del(oldKey);
+    await this.cacheService.set(
+      CacheKeys.AUTH_REFRESH_TOKEN(tokens.refreshToken),
+      user.id,
+      jwt.refreshExpiresIn,
+    );
+
+    return tokens;
   }
 }

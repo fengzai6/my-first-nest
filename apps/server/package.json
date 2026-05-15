@@ -41,6 +41,8 @@
     "url": "https://github.com/fengzai6/my-first-nest/issues"
   },
   "dependencies": {
+    "@keyv/redis": "^5.1.6",
+    "@nestjs/cache-manager": "^3.1.2",
     "@nestjs/common": "11.1.0",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "11.1.0",
@@ -54,12 +56,14 @@
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.19",
     "argon2": "^0.43.0",
+    "cache-manager": "^7.2.8",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.2",
     "es-toolkit": "^1.38.0",
     "joi": "^17.13.3",
+    "keyv": "^5.6.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",

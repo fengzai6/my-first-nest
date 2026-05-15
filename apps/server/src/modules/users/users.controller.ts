@@ -1,5 +1,8 @@
 import { PermissionCode } from '@/common/constants/permissions';
-import { SpecialRoles, SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
+import {
+  SpecialRoles,
+  SpecialRolesEnum,
+} from '@/common/decorators/special-roles.decorator';
 import { Permission } from '@/common/decorators/permission.decorator';
 import {
   Body,
