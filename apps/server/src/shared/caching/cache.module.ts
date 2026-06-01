@@ -1,14 +1,22 @@
-import { getConfig } from '@/config/configuration';
-import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
-import { Global, Logger, Module, OnApplicationBootstrap } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { AppConfigModule } from '@/config/config.module';
+import { getConfig } from '@/config/configuration';
 import KeyvRedis from '@keyv/redis';
-import { Keyv } from 'keyv';
-import { CacheService } from './cache.service';
-import { CacheHealthIndicator } from './cache.health';
-import { Inject } from '@nestjs/common';
+import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
+import {
+  Global,
+  Inject,
+  Logger,
+  Module,
+  OnApplicationBootstrap,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { RedisClientType } from '@redis/client';
 import type { Cache } from 'cache-manager';
+import { Keyv } from 'keyv';
+import { CacheHealthIndicator } from './cache.health';
+import { CacheService } from './cache.service';
+
+export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 
 const buildRedisUrl = (redis: {
   url?: string;
@@ -50,6 +58,7 @@ const buildRedisUrl = (redis: {
           // 默认 true 会在连接失败时抛错；本期降级策略由 OnApplicationBootstrap 处理
           throwOnConnectError: false,
         });
+
         return {
           stores: [new Keyv({ store: keyvRedis, namespace: redis.keyPrefix })],
           ttl,
@@ -57,8 +66,24 @@ const buildRedisUrl = (redis: {
       },
     }),
   ],
-  providers: [CacheService, CacheHealthIndicator],
-  exports: [CacheService, CacheHealthIndicator, CacheModule],
+  providers: [
+    CacheService,
+    CacheHealthIndicator,
+    {
+      provide: REDIS_CLIENT,
+      inject: [CACHE_MANAGER],
+      useFactory: (cache: Cache): RedisClientType | null => {
+        for (const keyv of cache.stores) {
+          const store = (keyv as unknown as { store?: unknown }).store;
+          if (store instanceof KeyvRedis)
+            return store.client as RedisClientType;
+        }
+
+        return null;
+      },
+    },
+  ],
+  exports: [CacheService, CacheHealthIndicator, CacheModule, REDIS_CLIENT],
 })
 export class RedisCacheModule implements OnApplicationBootstrap {
   private readonly logger = new Logger(RedisCacheModule.name);
@@ -84,10 +109,7 @@ export class RedisCacheModule implements OnApplicationBootstrap {
       return;
     }
 
-    if (redis.required) {
-      this.logger.error('Redis 不可达且 REDIS_REQUIRED=true，启动终止');
-      throw new Error('Redis is required but not reachable');
-    }
-    this.logger.warn('Redis 不可达，已降级使用内存 store');
+    this.logger.error('Redis 已配置但不可达，启动终止');
+    throw new Error('Redis is configured but not reachable');
   }
 }

@@ -33,7 +33,13 @@ export interface RedisConfig {
   db?: number;
   defaultTtl?: number;
   keyPrefix?: string;
-  required?: boolean;
+}
+
+export interface ThrottlerConfig {
+  /** 默认时间窗口（毫秒） */
+  ttl: number;
+  /** 窗口内最大请求数 */
+  limit: number;
 }
 
 export interface AppConfig {
@@ -43,6 +49,7 @@ export interface AppConfig {
   jwt?: JwtConfig;
   snowflake?: SnowflakeConfig;
   redis?: RedisConfig;
+  throttler?: ThrottlerConfig;
 }
 
 export type AppConfigForced = {

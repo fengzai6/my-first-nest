@@ -37,7 +37,10 @@ export const validationSchema = Joi.object({
   REDIS_DB: Joi.number().integer().min(0).max(15).default(0),
   REDIS_DEFAULT_TTL: Joi.number().integer().min(0).default(300),
   REDIS_KEY_PREFIX: Joi.string().default('my-first-nest:'),
-  REDIS_REQUIRED: Joi.boolean().default(false),
+
+  // Throttler (限流)
+  THROTTLER_TTL: Joi.number().integer().min(1000).default(60000),
+  THROTTLER_LIMIT: Joi.number().integer().min(1).default(60),
 
   // Node Environment
   NODE_ENV: Joi.string()

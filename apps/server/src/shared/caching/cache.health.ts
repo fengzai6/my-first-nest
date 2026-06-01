@@ -1,4 +1,5 @@
 import KeyvRedis from '@keyv/redis';
+import { withTimeout } from '@/shared/utils/promise';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Cache } from 'cache-manager';
@@ -27,17 +28,19 @@ export class CacheHealthIndicator {
 
     try {
       if (client.isOpen === false && typeof client.connect === 'function') {
-        await client.connect();
+        await withTimeout(
+          client.connect(),
+          PING_TIMEOUT_MS,
+          'Redis CONNECT timeout',
+        );
       }
-      const result = await Promise.race([
+
+      const result = await withTimeout(
         client.ping(),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error('Redis PING timeout')),
-            PING_TIMEOUT_MS,
-          ),
-        ),
-      ]);
+        PING_TIMEOUT_MS,
+        'Redis PING timeout',
+      );
+
       return result === 'PONG';
     } catch (err) {
       this.logger.warn(

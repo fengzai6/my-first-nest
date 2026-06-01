@@ -7,12 +7,14 @@ import { modules } from './modules';
 import { RedisCacheModule } from './shared/caching/cache.module';
 import { DatabaseModule } from './shared/database/database.module';
 import { StaticModule } from './shared/static/static.module';
+import { ThrottlerConfigModule } from './shared/throttler/throttler.module';
 
 @Module({
   imports: [
     AppConfigModule,
     DatabaseModule,
     RedisCacheModule,
+    ThrottlerConfigModule,
     StaticModule,
     ...modules,
   ],

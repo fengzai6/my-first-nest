@@ -268,7 +268,6 @@ export const CacheKeys = {
 | `REDIS_DB` | `0` | DB 索引 (0-15) |
 | `REDIS_DEFAULT_TTL` | `300` | 默认 TTL（秒），0 = 不过期 |
 | `REDIS_KEY_PREFIX` | `my-first-nest:` | Key 前缀（Keyv 命名空间） |
-| `REDIS_REQUIRED` | `false` | true 时连接失败将阻塞启动 |
 
 **不配置任何 Redis 变量时**：自动降级为进程内内存 store，应用正常启动。适合本地开发或单机测试。
 
@@ -277,8 +276,7 @@ export const CacheKeys = {
 `RedisCacheModule.onApplicationBootstrap()` 会做一次 1 秒超时的 PING：
 
 - 成功 → 日志 `Redis 连接正常 (prefix=...)`；
-- 失败 + `REDIS_REQUIRED=false` → 日志 warning，继续运行；
-- 失败 + `REDIS_REQUIRED=true` → 抛 `Redis is required but not reachable`，启动终止。
+- 失败且已配置 Redis → 抛 `Redis is configured but not reachable`，启动终止。
 
 ## 6. 启动 Redis
 

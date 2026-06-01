@@ -45,8 +45,12 @@ export const defaultConfig = registerAs(
       // 缓存默认 TTL，单位：秒（0 表示不过期）
       defaultTtl: Number(process.env.REDIS_DEFAULT_TTL) || 300,
       keyPrefix: process.env.REDIS_KEY_PREFIX || 'my-first-nest:',
-      // 未连接成功时是否阻塞启动；false 时降级为内存 store
-      required: process.env.REDIS_REQUIRED === 'true',
+    },
+    throttler: {
+      // 默认时间窗口：60 秒（毫秒）
+      ttl: Number(process.env.THROTTLER_TTL) || 60_000,
+      // 窗口内最大请求数
+      limit: Number(process.env.THROTTLER_LIMIT) || 60,
     },
   }),
 );
