@@ -34,6 +34,52 @@ export class CacheService {
     return this.cache.del(key);
   }
 
+  async rotateRefreshToken(
+    oldKey: string,
+    newKey: string,
+    expectedValue: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const redisStore = this.getRedisStore();
+    if (!redisStore) return false;
+
+    const client = redisStore.client as unknown as {
+      eval: (
+        script: string,
+        options: {
+          keys: string[];
+          arguments: string[];
+        },
+      ) => Promise<number>;
+    };
+    const namespace = redisStore.namespace;
+    const separator = redisStore.keyPrefixSeparator;
+    const formatKey = (key: string) =>
+      namespace ? `${namespace}${separator}${key}` : key;
+
+    const result = await client.eval(
+      `
+        if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+          return 0
+        end
+
+        redis.call("DEL", KEYS[1])
+        if tonumber(ARGV[2]) > 0 then
+          redis.call("SET", KEYS[2], ARGV[1], "PX", ARGV[2])
+        else
+          redis.call("SET", KEYS[2], ARGV[1])
+        end
+        return 1
+      `,
+      {
+        keys: [formatKey(oldKey), formatKey(newKey)],
+        arguments: [expectedValue, String(ttlSeconds * 1000)],
+      },
+    );
+
+    return result === 1;
+  }
+
   /**
    * 命中直接返回；未命中执行 loader 后写入。
    * 注意：本期不引入分布式锁，存在惊群可能。

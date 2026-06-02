@@ -152,12 +152,12 @@ apps/server/src/shared/caching/
 
 ```ts
 class CacheService {
-  isRedisEnabled(): boolean;                                   // 当前底层是否是 Redis（业务做双模式分支用）
-  get<T>(key): Promise<T | undefined>;                          // 读
-  set<T>(key, value, ttlSeconds?): Promise<T>;                  // 写（TTL 单位：秒）
-  del(key: string | string[]): Promise<boolean>;                // 删
-  wrap<T>(key, loader, ttlSeconds?): Promise<T>;                // 命中返回，未命中执行 loader 并写入
-  invalidatePattern(pattern: string): Promise<number>;          // 按 SCAN 模式批量失效（仅 Redis 支持）
+  isRedisEnabled(): boolean; // 当前底层是否是 Redis（业务做双模式分支用）
+  get<T>(key): Promise<T | undefined>; // 读
+  set<T>(key, value, ttlSeconds?): Promise<T>; // 写（TTL 单位：秒）
+  del(key: string | string[]): Promise<boolean>; // 删
+  wrap<T>(key, loader, ttlSeconds?): Promise<T>; // 命中返回，未命中执行 loader 并写入
+  invalidatePattern(pattern: string): Promise<number>; // 按 SCAN 模式批量失效（仅 Redis 支持）
 }
 ```
 
@@ -225,8 +225,8 @@ import { CacheInterceptor, CacheKey, CacheTTL } from '@nestjs/cache-manager';
 @Controller('cats')
 export class CatsController {
   @Get('list')
-  @CacheKey('cats:list')      // 显式 Key（不写则根据 URL 自动生成）
-  @CacheTTL(60_000)            // ⚠️ 装饰器的 TTL 单位是毫秒
+  @CacheKey('cats:list') // 显式 Key（不写则根据 URL 自动生成）
+  @CacheTTL(60_000) // ⚠️ 装饰器的 TTL 单位是毫秒
   list() {
     return this.catsService.list();
   }
@@ -246,12 +246,12 @@ export class CatsController {
 ```ts
 export const CacheKeys = {
   USER_BY_ID: (id) => `users:${id}`,
-  AUTH_REFRESH_TOKEN: (token) => `auth:refresh:${token}`,
+  AUTH_REFRESH_TOKEN: (token) => `auth:refresh:${hashCacheToken(token)}`,
   // ...
 } as const;
 ```
 
-**不要在调用处用字符串拼接 Key**；新业务域优先扩展 `CacheKeys`。
+**不要在调用处用字符串拼接 Key**；新业务域优先扩展 `CacheKeys`。Refresh Token 这类敏感值必须先派生摘要再进入 Key，避免原文 token 出现在 Redis Key 中。
 
 ## 5. 配置
 
@@ -259,15 +259,15 @@ export const CacheKeys = {
 
 完整配置见 [`apps/server/.env.example`](https://github.com/fengzai6/my-first-nest/blob/main/apps/server/.env.example) 的 Redis 段。
 
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `REDIS_URL` | - | `redis://[:password@]host:port[/db]`；与 `REDIS_HOST` 二选一 |
-| `REDIS_HOST` | - | 主机；与 URL 二选一 |
-| `REDIS_PORT` | `6379` | 端口 |
-| `REDIS_PASSWORD` | - | 密码 |
-| `REDIS_DB` | `0` | DB 索引 (0-15) |
-| `REDIS_DEFAULT_TTL` | `300` | 默认 TTL（秒），0 = 不过期 |
-| `REDIS_KEY_PREFIX` | `my-first-nest:` | Key 前缀（Keyv 命名空间） |
+| 变量                | 默认值           | 说明                                                         |
+| ------------------- | ---------------- | ------------------------------------------------------------ |
+| `REDIS_URL`         | -                | `redis://[:password@]host:port[/db]`；与 `REDIS_HOST` 二选一 |
+| `REDIS_HOST`        | -                | 主机；与 URL 二选一                                          |
+| `REDIS_PORT`        | `6379`           | 端口                                                         |
+| `REDIS_PASSWORD`    | -                | 密码                                                         |
+| `REDIS_DB`          | `0`              | DB 索引 (0-15)                                               |
+| `REDIS_DEFAULT_TTL` | `300`            | 默认 TTL（秒），0 = 不过期                                   |
+| `REDIS_KEY_PREFIX`  | `my-first-nest:` | Key 前缀（Keyv 命名空间）                                    |
 
 **不配置任何 Redis 变量时**：自动降级为进程内内存 store，应用正常启动。适合本地开发或单机测试。
 
@@ -384,14 +384,14 @@ Redis 内存满了之后怎么办：
 
 ### 9.3 常用数据结构与命令
 
-| 类型 | 典型场景 | 关键命令 |
-| --- | --- | --- |
-| String | 普通 KV、计数器 | `GET` / `SET` / `INCR` |
-| Hash | 对象字段级读写 | `HGET` / `HSET` / `HGETALL` |
-| List | 队列、消息流 | `LPUSH` / `RPOP` / `LRANGE` |
-| Set | 去重集合、标签 | `SADD` / `SISMEMBER` / `SINTER` |
-| Sorted Set | 排行榜、延时队列 | `ZADD` / `ZRANGE` / `ZRANGEBYSCORE` |
-| Stream | 消息队列（带消费组） | `XADD` / `XREAD` / `XGROUP` |
+| 类型       | 典型场景             | 关键命令                            |
+| ---------- | -------------------- | ----------------------------------- |
+| String     | 普通 KV、计数器      | `GET` / `SET` / `INCR`              |
+| Hash       | 对象字段级读写       | `HGET` / `HSET` / `HGETALL`         |
+| List       | 队列、消息流         | `LPUSH` / `RPOP` / `LRANGE`         |
+| Set        | 去重集合、标签       | `SADD` / `SISMEMBER` / `SINTER`     |
+| Sorted Set | 排行榜、延时队列     | `ZADD` / `ZRANGE` / `ZRANGEBYSCORE` |
+| Stream     | 消息队列（带消费组） | `XADD` / `XREAD` / `XGROUP`         |
 
 本项目当前只用到 String（通过 Keyv 抽象）。
 

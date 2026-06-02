@@ -1994,6 +1994,7 @@ __metadata:
     "@nestjs/throttler": "npm:^6.5.0"
     "@nestjs/typeorm": "npm:^11.0.0"
     "@nestjs/websockets": "npm:^11.1.19"
+    "@redis/client": "npm:^5.12.1"
     "@swc/cli": "npm:^0.7.8"
     "@swc/core": "npm:^1.12.14"
     "@types/cookie-parser": "npm:^1.4.9"
@@ -3475,7 +3476,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@redis/client@npm:^5.10.0":
+"@redis/client@npm:^5.10.0, @redis/client@npm:^5.12.1":
   version: 5.12.1
   resolution: "@redis/client@npm:5.12.1"
   dependencies:

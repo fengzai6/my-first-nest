@@ -23,6 +23,7 @@ export class HashCacheService {
   }
 
   async hmget(key: string, fields: string[]): Promise<(string | null)[]> {
+    if (fields.length === 0) return [];
     if (!this.redis) return fields.map(() => null);
     return this.redis.hmGet(key, fields);
   }
@@ -33,6 +34,7 @@ export class HashCacheService {
   }
 
   async hdel(key: string, ...fields: string[]): Promise<number> {
+    if (fields.length === 0) return 0;
     if (!this.redis) return 0;
     return this.redis.hDel(key, fields);
   }

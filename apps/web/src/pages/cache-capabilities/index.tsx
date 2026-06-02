@@ -79,6 +79,7 @@ const getHashRows = (hash?: IHashDemoResult): IHashFieldRow[] => {
 
 export const CacheCapabilities = () => {
   const [batchCount, setBatchCount] = useState(100);
+  const [pendingBatchCount, setPendingBatchCount] = useState(100);
   const [hashField, setHashField] = useState("score");
   const [hashValue, setHashValue] = useState("1");
   const [incrementField, setIncrementField] = useState("views");
@@ -284,12 +285,12 @@ export const CacheCapabilities = () => {
                   <InputNumber
                     min={1}
                     max={1000}
-                    value={batchCount}
-                    onChange={(value) => setBatchCount(value ?? 100)}
+                    value={pendingBatchCount}
+                    onChange={(value) => setPendingBatchCount(value ?? 100)}
                   />
                   <Button
                     icon={<ReloadOutlined />}
-                    onClick={() => batchQuery.refetch()}
+                    onClick={() => setBatchCount(pendingBatchCount)}
                     loading={batchQuery.isFetching}
                   >
                     执行

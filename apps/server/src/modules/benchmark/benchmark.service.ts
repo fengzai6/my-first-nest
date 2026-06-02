@@ -39,7 +39,7 @@ export class BenchmarkService {
       userId = user.id;
     }
 
-    const cacheKey = CacheKeys.USER_BY_ID(userId);
+    const cacheKey = CacheKeys.BENCHMARK_USER_BY_ID(userId);
 
     // 清除缓存，确保冷启动
     await this.cacheService.del(cacheKey);
@@ -88,7 +88,7 @@ export class BenchmarkService {
 
     // 清除所有用户缓存
     for (const id of userIds) {
-      await this.cacheService.del(CacheKeys.USER_BY_ID(id));
+      await this.cacheService.del(CacheKeys.BENCHMARK_USER_BY_ID(id));
     }
 
     // 测试数据库批量查询
@@ -108,14 +108,18 @@ export class BenchmarkService {
         where: { id },
         relations: { roles: true },
       });
-      await this.cacheService.set(CacheKeys.USER_BY_ID(id), user, 300);
+      await this.cacheService.set(
+        CacheKeys.BENCHMARK_USER_BY_ID(id),
+        user,
+        300,
+      );
     }
 
     // 测试缓存批量查询
     const cachedStart = performance.now();
     for (let i = 0; i < count; i++) {
       const id = userIds[i % userIds.length];
-      await this.cacheService.get(CacheKeys.USER_BY_ID(id));
+      await this.cacheService.get(CacheKeys.BENCHMARK_USER_BY_ID(id));
     }
     const cachedTime = performance.now() - cachedStart;
 
@@ -148,7 +152,7 @@ export class BenchmarkService {
 
     // 1. 冷启动：清除缓存后查询
     for (const id of userIds) {
-      await this.cacheService.del(CacheKeys.USER_BY_ID(id));
+      await this.cacheService.del(CacheKeys.BENCHMARK_USER_BY_ID(id));
     }
 
     const coldStart = performance.now();
@@ -166,13 +170,17 @@ export class BenchmarkService {
         where: { id },
         relations: { roles: true },
       });
-      await this.cacheService.set(CacheKeys.USER_BY_ID(id), user, 300);
+      await this.cacheService.set(
+        CacheKeys.BENCHMARK_USER_BY_ID(id),
+        user,
+        300,
+      );
     }
 
     // 3. 热缓存：从缓存查询
     const warmStart = performance.now();
     for (const id of userIds) {
-      await this.cacheService.get(CacheKeys.USER_BY_ID(id));
+      await this.cacheService.get(CacheKeys.BENCHMARK_USER_BY_ID(id));
     }
     const warmTime = performance.now() - warmStart;
 

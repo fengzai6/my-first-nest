@@ -11,6 +11,7 @@ import {
 import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { BENCHMARK_THROTTLE_DEMO, BenchmarkService } from './benchmark.service';
+import { BatchQueryDto } from './dto/batch-query.dto';
 import { IncrementHashFieldDto, SetHashFieldDto } from './dto/hash-demo.dto';
 
 @ApiTags('Benchmark - 性能测试')
@@ -45,9 +46,8 @@ export class BenchmarkController {
     example: 100,
   })
   @Get('batch')
-  async batchQuery(@Query('count') count?: string) {
-    const parsedCount = count ? parseInt(count, 10) : 100;
-    return this.benchmarkService.batchQuery(parsedCount);
+  async batchQuery(@Query() query: BatchQueryDto) {
+    return this.benchmarkService.batchQuery(query.count ?? 100);
   }
 
   @Public()

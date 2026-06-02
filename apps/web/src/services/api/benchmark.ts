@@ -69,7 +69,7 @@ export const IncrementHashField = async (data: IIncrementHashFieldDto) => {
 
 export const DeleteHashField = async (field: string) => {
   const res = await http.delete<IHashDemoResult>(
-    `/benchmark/hash/field/${field}`,
+    `/benchmark/hash/field/${encodeURIComponent(field)}`,
   );
 
   return res.data;

@@ -37,7 +37,6 @@ export class RefreshTokenService {
         user.id,
         jwt.refreshExpiresIn,
       );
-      return tokens;
     }
 
     const refreshToken = this.refreshTokenRepository.create({
@@ -92,7 +91,6 @@ export class RefreshTokenService {
     if (this.cacheService.isRedisEnabled()) {
       const tokenStr = typeof token === 'string' ? token : token.token;
       await this.cacheService.del(CacheKeys.AUTH_REFRESH_TOKEN(tokenStr));
-      return;
     }
 
     if (typeof token === 'string') {
@@ -123,6 +121,15 @@ export class RefreshTokenService {
       expiresAt: tokens.refreshExpiresAt,
     });
 
+    if (this.cacheService.isRedisEnabled()) {
+      const { jwt } = getConfig(this.configService);
+      await this.cacheService.set(
+        CacheKeys.AUTH_REFRESH_TOKEN(tokens.refreshToken),
+        tokenRecord.user.id,
+        jwt.refreshExpiresIn,
+      );
+    }
+
     return tokens;
   }
 
@@ -131,7 +138,7 @@ export class RefreshTokenService {
     const userId = await this.cacheService.get<string>(oldKey);
 
     if (!userId) {
-      throw new ErrorException(ErrorExceptionCode.INVALID_REFRESH_TOKEN);
+      return this.refreshTokenViaDb(refreshToken);
     }
 
     let user: User;
@@ -146,12 +153,23 @@ export class RefreshTokenService {
     const tokens = this.generateTokens(user);
     const { jwt } = getConfig(this.configService);
 
-    // 旋转：先删旧 key，再写新 key
-    await this.cacheService.del(oldKey);
-    await this.cacheService.set(
+    const rotated = await this.cacheService.rotateRefreshToken(
+      oldKey,
       CacheKeys.AUTH_REFRESH_TOKEN(tokens.refreshToken),
       user.id,
       jwt.refreshExpiresIn,
+    );
+
+    if (!rotated) {
+      throw new ErrorException(ErrorExceptionCode.INVALID_REFRESH_TOKEN);
+    }
+
+    await this.refreshTokenRepository.update(
+      { token: refreshToken },
+      {
+        token: tokens.refreshToken,
+        expiresAt: tokens.refreshExpiresAt,
+      },
     );
 
     return tokens;
