@@ -15,6 +15,7 @@ import type { Cache } from 'cache-manager';
 import { Keyv } from 'keyv';
 import { CacheHealthIndicator } from './cache.health';
 import { CacheService } from './cache.service';
+import { HashCacheService } from './hash-cache.service';
 
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 
@@ -69,6 +70,7 @@ const buildRedisUrl = (redis: {
   providers: [
     CacheService,
     CacheHealthIndicator,
+    HashCacheService,
     {
       provide: REDIS_CLIENT,
       inject: [CACHE_MANAGER],
@@ -83,7 +85,13 @@ const buildRedisUrl = (redis: {
       },
     },
   ],
-  exports: [CacheService, CacheHealthIndicator, CacheModule, REDIS_CLIENT],
+  exports: [
+    CacheService,
+    CacheHealthIndicator,
+    HashCacheService,
+    CacheModule,
+    REDIS_CLIENT,
+  ],
 })
 export class RedisCacheModule implements OnApplicationBootstrap {
   private readonly logger = new Logger(RedisCacheModule.name);
