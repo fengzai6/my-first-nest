@@ -15,9 +15,8 @@ import type { Cache } from 'cache-manager';
 import { Keyv } from 'keyv';
 import { CacheHealthIndicator } from './cache.health';
 import { CacheService } from './cache.service';
+import { REDIS_CLIENT } from './cache.tokens';
 import { HashCacheService } from './hash-cache.service';
-
-export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
 
 const buildRedisUrl = (redis: {
   url?: string;

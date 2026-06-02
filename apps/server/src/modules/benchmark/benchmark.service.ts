@@ -1,9 +1,19 @@
 import { CacheKeys } from '@/shared/caching/cache.constants';
 import { CacheService } from '@/shared/caching/cache.service';
-import { Injectable, Logger } from '@nestjs/common';
+import { HashCacheService } from '@/shared/caching/hash-cache.service';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { getConfig } from '@/config/configuration';
 import { User } from '../users/entities/user.entity';
+
+const HASH_DEMO_KEY = 'benchmark:hash-demo';
+const HASH_DEMO_TTL_SECONDS = 300;
+export const BENCHMARK_THROTTLE_DEMO = {
+  ttl: 10_000,
+  limit: 3,
+} as const;
 
 @Injectable()
 export class BenchmarkService {
@@ -12,6 +22,8 @@ export class BenchmarkService {
   constructor(
     @InjectRepository(User) private readonly userRepository: Repository<User>,
     private readonly cacheService: CacheService,
+    private readonly hashCacheService: HashCacheService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -179,5 +191,90 @@ export class BenchmarkService {
       improvement: `${((1 - warmTime / coldTime) * 100).toFixed(1)}%`,
       speedup: `${(coldTime / warmTime).toFixed(1)}x`,
     };
+  }
+
+  getThrottleConfig() {
+    const { throttler } = getConfig(this.configService);
+
+    return {
+      default: throttler,
+      demo: BENCHMARK_THROTTLE_DEMO,
+      storage: this.cacheService.isRedisEnabled() ? 'redis' : 'memory',
+    };
+  }
+
+  getThrottleProbe() {
+    return {
+      message: '限流探测成功',
+      timestamp: new Date().toISOString(),
+      limit: BENCHMARK_THROTTLE_DEMO.limit,
+      ttlMs: BENCHMARK_THROTTLE_DEMO.ttl,
+    };
+  }
+
+  async getHashDemo() {
+    await this.seedHashDemo();
+
+    return {
+      key: HASH_DEMO_KEY,
+      ttlSeconds: HASH_DEMO_TTL_SECONDS,
+      redisEnabled: this.cacheService.isRedisEnabled(),
+      fields: await this.hashCacheService.hgetall(HASH_DEMO_KEY),
+    };
+  }
+
+  async setHashField(field: string, value: string) {
+    this.assertHashField(field);
+
+    await this.hashCacheService.hset(HASH_DEMO_KEY, field, value);
+    await this.hashCacheService.expire(HASH_DEMO_KEY, HASH_DEMO_TTL_SECONDS);
+
+    return this.getHashDemo();
+  }
+
+  async incrementHashField(field: string, increment = 1) {
+    this.assertHashField(field);
+
+    const value = await this.hashCacheService.hincrby(
+      HASH_DEMO_KEY,
+      field,
+      increment,
+    );
+    await this.hashCacheService.expire(HASH_DEMO_KEY, HASH_DEMO_TTL_SECONDS);
+
+    return {
+      ...(await this.getHashDemo()),
+      updatedField: field,
+      updatedValue: value,
+    };
+  }
+
+  async deleteHashField(field: string) {
+    this.assertHashField(field);
+
+    const deleted = await this.hashCacheService.hdel(HASH_DEMO_KEY, field);
+
+    return {
+      ...(await this.getHashDemo()),
+      deleted,
+    };
+  }
+
+  private async seedHashDemo() {
+    const fields = await this.hashCacheService.hgetall(HASH_DEMO_KEY);
+    if (Object.keys(fields).length > 0) return;
+
+    await this.hashCacheService.hset(HASH_DEMO_KEY, 'name', 'redis-hash-demo');
+    await this.hashCacheService.hset(HASH_DEMO_KEY, 'views', 0);
+    await this.hashCacheService.hset(HASH_DEMO_KEY, 'status', 'ready');
+    await this.hashCacheService.expire(HASH_DEMO_KEY, HASH_DEMO_TTL_SECONDS);
+  }
+
+  private assertHashField(field: string) {
+    if (!/^[a-zA-Z0-9_-]{1,40}$/.test(field)) {
+      throw new BadRequestException(
+        'Hash 字段名仅支持 1-40 位字母、数字、下划线和短横线',
+      );
+    }
   }
 }

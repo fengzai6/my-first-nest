@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { RedisClientType } from '@redis/client';
-import { REDIS_CLIENT } from './cache.module';
+import { REDIS_CLIENT } from './cache.tokens';
 
 @Injectable()
 export class HashCacheService {
