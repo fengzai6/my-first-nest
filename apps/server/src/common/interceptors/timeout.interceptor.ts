@@ -2,11 +2,11 @@ import { getAppConfig } from '@/config/configuration';
 import {
   CallHandler,
   ExecutionContext,
+  GatewayTimeoutException,
   HttpStatus,
   INestApplication,
   Injectable,
   NestInterceptor,
-  RequestTimeoutException,
 } from '@nestjs/common';
 import { Observable, throwError, TimeoutError } from 'rxjs';
 import { catchError, timeout } from 'rxjs/operators';
@@ -24,9 +24,9 @@ export class TimeoutInterceptor implements NestInterceptor {
         if (err instanceof TimeoutError) {
           return throwError(
             () =>
-              new RequestTimeoutException({
+              new GatewayTimeoutException({
                 message: '请求超时，服务器处理时间过长',
-                statusCode: HttpStatus.LOOP_DETECTED,
+                statusCode: HttpStatus.GATEWAY_TIMEOUT,
               }),
           );
         }

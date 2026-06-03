@@ -37,11 +37,6 @@ export interface ServerToClientEvents {
     senderDisplayName: string;
     timestamp: string;
   }) => void;
-  'direct-message-sent': (data: {
-    targetUserId: string;
-    message: string;
-    timestamp: string;
-  }) => void;
   'broadcast-message': (data: {
     message: string;
     senderId: string;
@@ -49,7 +44,6 @@ export interface ServerToClientEvents {
     senderDisplayName: string;
     timestamp: string;
   }) => void;
-  'broadcast-sent': (data: { message: string; timestamp: string }) => void;
   error: (data: { message: string }) => void;
   exception: (data: { status: number; message: string }) => void;
 }

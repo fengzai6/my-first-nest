@@ -28,7 +28,7 @@ export class CreateRoleDto {
   @IsOptional()
   @IsNotEmpty()
   @IsString()
-  description: string;
+  description?: string;
 
   @ApiProperty({
     description: '角色编码',

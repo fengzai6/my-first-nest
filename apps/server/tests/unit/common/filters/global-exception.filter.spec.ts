@@ -3,7 +3,7 @@ import {
   ErrorException,
   ErrorExceptionCode,
 } from '@/common/exceptions/error.exception';
-import { ArgumentsHost, BadRequestException } from '@nestjs/common';
+import { ArgumentsHost, BadRequestException, Logger } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createHost = () => {
@@ -26,6 +26,7 @@ const createHost = () => {
 describe('GlobalExceptionsFilter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
   });
 
   it('should format custom base exception', () => {
