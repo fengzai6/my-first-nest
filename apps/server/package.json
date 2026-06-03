@@ -8,7 +8,7 @@
     "build": "nest build",
     "clean": "rm -rf dist",
     "dev": "nest start --watch",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"database/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"database/**/*.ts\"",
     "start": "nest start",
     "start:debug": "nest start --debug --watch",
     "start:prod": "cross-env NODE_ENV=production node dist/src/main",
@@ -17,11 +17,11 @@
     "db:init": "ts-node -r tsconfig-paths/register database/manage.ts init",
     "db:migrate": "ts-node -r tsconfig-paths/register database/manage.ts migrate",
     "db:seed": "ts-node -r tsconfig-paths/register database/manage.ts seed",
-    "lint": "eslint \"{src,database,test}/**/*.ts\" --fix",
+    "lint": "eslint \"{src,database,tests}/**/*.ts\" --fix",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage --passWithNoTests",
-    "test:e2e": "vitest run \"test/**/*.e2e-spec.ts\" --passWithNoTests"
+    "test:e2e": "vitest run \"tests/**/*.e2e-spec.ts\" --passWithNoTests"
   },
   "repository": {
     "type": "git",
