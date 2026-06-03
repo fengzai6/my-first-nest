@@ -33,7 +33,7 @@ describe("createHttpClient edge cases", () => {
       http.post("/auth/login", { account: "u", password: "p" }),
     ).rejects.toMatchObject({
       name: "HttpError",
-      message: "Request failed",
+      message: "unauthorized",
       status: 401,
     });
 
@@ -201,7 +201,7 @@ describe("createHttpClient edge cases", () => {
         status: "rejected",
         reason: expect.objectContaining({
           name: "HttpError",
-          message: "refresh server error",
+          message: "server error",
           status: 500,
         }),
       }),
@@ -209,7 +209,7 @@ describe("createHttpClient edge cases", () => {
         status: "rejected",
         reason: expect.objectContaining({
           name: "HttpError",
-          message: "refresh server error",
+          message: "server error",
           status: 500,
         }),
       }),
@@ -459,7 +459,7 @@ describe("createHttpClient edge cases", () => {
     expect(onAuthFailure).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "HttpError",
-        message: "Request failed",
+        message: "unauthorized",
         status: 401,
       }),
     );

@@ -260,7 +260,7 @@ describe("createHttpClient", () => {
 
     await expect(http.get("/profile")).rejects.toMatchObject({
       name: "HttpError",
-      message: "Request failed",
+      message: "unauthorized",
       status: 401,
     });
 
@@ -287,7 +287,7 @@ describe("createHttpClient", () => {
 
     await expect(http.get("/profile")).rejects.toMatchObject({
       name: "HttpError",
-      message: "Request failed",
+      message: "server error",
       status: 500,
       data: { code: 50001, message: "server error" },
     });

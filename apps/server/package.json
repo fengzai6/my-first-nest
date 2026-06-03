@@ -18,11 +18,10 @@
     "db:migrate": "ts-node -r tsconfig-paths/register database/manage.ts migrate",
     "db:seed": "ts-node -r tsconfig-paths/register database/manage.ts seed",
     "lint": "eslint \"{src,database,test}/**/*.ts\" --fix",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:cov": "vitest run --coverage --passWithNoTests",
+    "test:e2e": "vitest run \"test/**/*.e2e-spec.ts\" --passWithNoTests"
   },
   "repository": {
     "type": "git",
@@ -82,46 +81,24 @@
     "@swc/core": "^1.12.14",
     "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.0",
-    "@types/jest": "^29.5.14",
     "@types/node": "^22.19.1",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/supertest": "^6.0.2",
+    "@vitest/coverage-v8": "^4.1.8",
     "cross-env": "^7.0.3",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "globals": "^16.5.0",
-    "jest": "^29.7.0",
     "prettier": "^3.6.2",
-    "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.47.0",
+    "vitest": "^4.1.8",
     "webpack": "^5.98.0"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node",
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/$1"
-    }
   }
 }

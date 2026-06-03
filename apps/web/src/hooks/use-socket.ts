@@ -30,6 +30,21 @@ interface UseSocketReturn {
   leaveRoom: (room: string) => void;
 }
 
+type EmitWithAck = <K extends keyof ClientToServerEvents>(
+  event: K,
+  ...args: Parameters<ClientToServerEvents[K]>
+) => Promise<AckResponse>;
+
+type SocketOn = <K extends keyof ServerToClientEvents>(
+  event: K,
+  listener: ServerToClientEvents[K],
+) => void;
+
+type SocketOff = <K extends keyof ServerToClientEvents>(
+  event: K,
+  listener: ServerToClientEvents[K],
+) => void;
+
 export const useSocket = (): UseSocketReturn => {
   const [isConnected, setIsConnected] = useState(socket.connected);
   const joinedRoomsRef = useRef(new Set<string>());
@@ -61,7 +76,7 @@ export const useSocket = (): UseSocketReturn => {
     ...args: Parameters<ClientToServerEvents[K]>
   ): Promise<AckResponse> => {
     // Socket.IO 的 emit 类型重载与泛型不完全兼容，此处断言是安全的
-    return (socket.emitWithAck as Function)(event, ...args);
+    return (socket.emitWithAck as EmitWithAck)(event, ...args);
   };
 
   const on = <K extends keyof ServerToClientEvents>(
@@ -70,7 +85,7 @@ export const useSocket = (): UseSocketReturn => {
   ) => {
     // Socket.IO 的 on/off 类型重载包含内置事件（connect/disconnect 等），
     // 与自定义事件的泛型约束不完全匹配，此处断言是安全的
-    (socket.on as Function)(event, listener);
+    (socket.on as SocketOn)(event, listener);
   };
 
   const off = <K extends keyof ServerToClientEvents>(
@@ -78,7 +93,7 @@ export const useSocket = (): UseSocketReturn => {
     listener?: ServerToClientEvents[K],
   ) => {
     if (listener) {
-      (socket.off as Function)(event, listener);
+      (socket.off as SocketOff)(event, listener);
     } else {
       socket.off(event);
     }
