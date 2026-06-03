@@ -1,6 +1,16 @@
 import { registerAs } from '@nestjs/config';
 import { AppConfig } from './configuration.interface';
 
+const parseNumberEnv = (
+  value: string | undefined,
+  fallback: number,
+): number => {
+  if (value === undefined) return fallback;
+
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? fallback : parsed;
+};
+
 export const defaultConfig = registerAs(
   'default',
   (): AppConfig => ({
@@ -35,6 +45,22 @@ export const defaultConfig = registerAs(
     snowflake: {
       workerId: process.env.WORKER_ID || 0,
       datacenterId: process.env.DATACENTER_ID || 0,
+    },
+    redis: {
+      url: process.env.REDIS_URL,
+      host: process.env.REDIS_HOST,
+      port: Number(process.env.REDIS_PORT) || 6379,
+      password: process.env.REDIS_PASSWORD,
+      db: Number(process.env.REDIS_DB) || 0,
+      // 缓存默认 TTL，单位：秒（0 表示不过期）
+      defaultTtl: parseNumberEnv(process.env.REDIS_DEFAULT_TTL, 300),
+      keyPrefix: process.env.REDIS_KEY_PREFIX || 'my-first-nest:',
+    },
+    throttler: {
+      // 默认时间窗口：60 秒（毫秒）
+      ttl: Number(process.env.THROTTLER_TTL) || 60_000,
+      // 窗口内最大请求数
+      limit: Number(process.env.THROTTLER_LIMIT) || 60,
     },
   }),
 );

@@ -9,9 +9,7 @@ import {
 import { useRequestUser } from '../context/user-context';
 
 @EventSubscriber()
-export class AuditedSubscriber
-  implements EntitySubscriberInterface<AuditedEntity>
-{
+export class AuditedSubscriber implements EntitySubscriberInterface<AuditedEntity> {
   listenTo() {
     return AuditedEntity;
   }

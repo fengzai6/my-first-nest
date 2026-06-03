@@ -29,6 +29,19 @@ export const validationSchema = Joi.object({
   WORKER_ID: Joi.number().integer().min(0).max(31).default(0),
   DATACENTER_ID: Joi.number().integer().min(0).max(31).default(0),
 
+  // Redis (可选；未配置时缓存模块降级为内存 store)
+  REDIS_URL: Joi.string().uri({ scheme: ['redis', 'rediss'] }),
+  REDIS_HOST: Joi.string(),
+  REDIS_PORT: Joi.number().port().default(6379),
+  REDIS_PASSWORD: Joi.string().allow(''),
+  REDIS_DB: Joi.number().integer().min(0).max(15).default(0),
+  REDIS_DEFAULT_TTL: Joi.number().integer().min(0).default(300),
+  REDIS_KEY_PREFIX: Joi.string().default('my-first-nest:'),
+
+  // Throttler (限流)
+  THROTTLER_TTL: Joi.number().integer().min(1000).default(60000),
+  THROTTLER_LIMIT: Joi.number().integer().min(1).default(60),
+
   // Node Environment
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
@@ -40,4 +53,5 @@ export const validationSchema = Joi.object({
     'DATABASE_USERNAME',
     'DATABASE_PASSWORD',
     'DATABASE_NAME',
-  ]);
+  ])
+  .oxor('REDIS_URL', 'REDIS_HOST'); // Redis 连接二选一，也可都不提供

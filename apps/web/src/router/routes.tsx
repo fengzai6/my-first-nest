@@ -1,3 +1,4 @@
+import { CacheCapabilities } from "@/pages/cache-capabilities";
 import { Cats } from "@/pages/management/cats";
 import { Home } from "@/pages/home";
 import { Login } from "@/pages/login";
@@ -31,6 +32,10 @@ export const routes: RouteObject[] = [
       {
         path: "socket-demo",
         element: <SocketDemo />,
+      },
+      {
+        path: "cache-capabilities",
+        element: <CacheCapabilities />,
       },
       {
         path: "settings",

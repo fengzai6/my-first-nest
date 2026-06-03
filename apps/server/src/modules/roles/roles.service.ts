@@ -100,5 +100,4 @@ export class RolesService {
 
     return this.roleRepository.softDelete(id);
   }
-
 }

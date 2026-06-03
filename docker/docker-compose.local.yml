@@ -6,13 +6,15 @@ services:
     image: my-first-nest:latest
     restart: on-failure:5
     ports:
-      - '3000:80'
+      - "3000:80"
     environment:
       PORT: 3000
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/first-nest
       DEFAULT_ADMIN_USERNAME: admin
       DEFAULT_ADMIN_PASSWORD: admin1234
       JWT_SECRET: my-first-nest-jwt-secret
+      # 若同时启动了 docker-compose.cache.yml，会通过 my-nest-network 解析到 redis 服务
+      REDIS_URL: redis://redis:6379
     networks:
       - my-nest-network
 

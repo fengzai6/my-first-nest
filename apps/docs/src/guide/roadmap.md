@@ -30,10 +30,10 @@
   - [x] React Hook 封装（useSocket）
 - [ ] 添加客户端来展示项目功能
   - [ ] 使用 React & React Router & Vite & TailwindCSS & ShadcnUI & Antd 制作客户端
+- [x] Redis 缓存集成
 
 ## 计划功能 📋
 
-- [ ] Redis 缓存集成
 - [ ] session 管理
 - [ ] 日志系统实现
 - [ ] 文件上传功能

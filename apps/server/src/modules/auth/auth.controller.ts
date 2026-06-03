@@ -1,11 +1,12 @@
+import { AUTH_THROTTLE, REFRESH_TOKEN_KEY } from '@/common/constants/auth';
 import { IsProduction } from '@/common/constants/environment';
-import { REFRESH_TOKEN_KEY } from '@/common/constants/auth';
 import { Cookies } from '@/common/decorators/cookies.decorator';
 import { Public } from '@/common/decorators/jwt-auth.decorator';
 import { getConfig } from '@/config/configuration';
 import { Body, Controller, Post, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -23,6 +24,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Sign up',
   })
+  @Throttle({ default: AUTH_THROTTLE.signup })
   @Public()
   @Post('signup')
   signup(@Body() signupDto: SignupDto) {
@@ -32,6 +34,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Login',
   })
+  @Throttle({ default: AUTH_THROTTLE.login })
   @Public()
   @Post('login')
   async login(
@@ -51,6 +54,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Refresh token',
   })
+  @Throttle({ default: AUTH_THROTTLE.refreshToken })
   @Public()
   @Post('refresh-token')
   async refreshToken(
@@ -71,6 +75,7 @@ export class AuthController {
     summary: 'Logout',
   })
   @ApiBearerAuth()
+  @Throttle({ default: AUTH_THROTTLE.logout })
   @Post('logout')
   logout(
     @Cookies(REFRESH_TOKEN_KEY) refreshToken: string,
