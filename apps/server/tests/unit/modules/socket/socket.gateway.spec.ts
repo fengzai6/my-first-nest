@@ -1,6 +1,6 @@
 import { TokenType } from '@/common/constants/auth';
-import { SocketGateway } from '@/modules/socket/socket.gateway';
 import { AuthSocket } from '@/modules/socket/interface/auth-socket';
+import { SocketGateway } from '@/modules/socket/socket.gateway';
 import { SocketService } from '@/modules/socket/socket.service';
 import { User } from '@/modules/users/entities/user.entity';
 import { UsersService } from '@/modules/users/users.service';
@@ -317,5 +317,137 @@ describe('SocketGateway', () => {
       timestamp: '2026-01-01T00:00:00.000Z',
     });
     expect(result).toEqual({ success: true });
+  });
+
+  it('should reject connection when JWT verification throws', async () => {
+    const { gateway, jwtService } = createGateway();
+    const { client, disconnect, emit } = createSocket();
+
+    jwtService.verify.mockImplementation(() => {
+      throw new Error('jwt malformed');
+    });
+
+    await gateway.handleConnection(client);
+
+    expect(emit).toHaveBeenCalledWith('exception', {
+      status: 401,
+      message: 'Invalid token',
+    });
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('should reject connection when JWT throws non-Error', async () => {
+    const { gateway, jwtService } = createGateway();
+    const { client, disconnect } = createSocket();
+
+    jwtService.verify.mockImplementation(() => {
+      throw new Error('string error');
+    });
+
+    await gateway.handleConnection(client);
+
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('should reject connection when user not found', async () => {
+    const { gateway, usersService } = createGateway();
+    const { client, disconnect, emit } = createSocket();
+
+    usersService.findOne.mockResolvedValue(null as never);
+
+    await gateway.handleConnection(client);
+
+    expect(emit).toHaveBeenCalledWith('exception', {
+      status: 401,
+      message: 'Invalid token',
+    });
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('should leave room for authenticated user', async () => {
+    const { gateway } = createGateway();
+    const user = createUser();
+    const { client, emit, leave, roomEmit } = createSocket({ user });
+
+    const result = await gateway.handleLeaveRoom(client, { room: 'room-a' });
+
+    expect(leave).toHaveBeenCalledWith('room-a');
+    expect(emit).toHaveBeenCalledWith('room-left', { room: 'room-a' });
+    expect(roomEmit).toHaveBeenCalledWith('room-user-left', {
+      room: 'room-a',
+      userId: 'user-id',
+      username: 'fengzai',
+    });
+    expect(result).toEqual({ success: true });
+  });
+
+  it('should reject leave room without authenticated user', async () => {
+    const { gateway } = createGateway();
+    const { client } = createSocket();
+
+    await expect(
+      gateway.handleLeaveRoom(client, { room: 'room-a' }),
+    ).resolves.toEqual({
+      success: false,
+      message: 'Not authenticated',
+    });
+  });
+
+  it('should send message to room for authenticated user', () => {
+    const { gateway } = createGateway();
+    const user = createUser();
+    const { client, roomEmit } = createSocket({ user });
+
+    const result = gateway.handleSendToRoom(client, {
+      room: 'room-a',
+      message: 'hello room',
+    });
+
+    expect(roomEmit).toHaveBeenCalledWith('room-message', {
+      room: 'room-a',
+      message: 'hello room',
+      senderId: 'user-id',
+      senderUsername: 'fengzai',
+      senderDisplayName: 'fengzai',
+      timestamp: '2026-01-01T00:00:00.000Z',
+    });
+    expect(result).toEqual({ success: true });
+  });
+
+  it('should reject send to room without authenticated user', () => {
+    const { gateway } = createGateway();
+    const { client } = createSocket();
+
+    expect(
+      gateway.handleSendToRoom(client, { room: 'room-a', message: 'hi' }),
+    ).toEqual({
+      success: false,
+      message: 'Not authenticated',
+    });
+  });
+
+  it('should reject direct message without authenticated user', () => {
+    const { gateway } = createGateway();
+    const { client } = createSocket();
+
+    expect(
+      gateway.handleSendToUser(client, {
+        targetUserId: 'target',
+        message: 'hi',
+      }),
+    ).toEqual({
+      success: false,
+      message: 'Not authenticated',
+    });
+  });
+
+  it('should reject broadcast without authenticated user', () => {
+    const { gateway } = createGateway();
+    const { client } = createSocket();
+
+    expect(gateway.handleBroadcast(client, { message: 'hi' })).toEqual({
+      success: false,
+      message: 'Not authenticated',
+    });
   });
 });

@@ -1,10 +1,11 @@
-import 'reflect-metadata';
-import { describe, expect, it } from 'vitest';
 import {
   JWT_META_KEY,
   JwtMetaEnum,
   Public,
+  UserInfo,
 } from '@/common/decorators/jwt-auth.decorator';
+import 'reflect-metadata';
+import { describe, expect, it } from 'vitest';
 
 describe('Public', () => {
   it('should mark route as public', () => {
@@ -21,5 +22,14 @@ describe('Public', () => {
     ) as unknown;
 
     expect(metadata).toBe(JwtMetaEnum.PUBLIC);
+  });
+});
+
+describe('UserInfo', () => {
+  it('should be a function that creates decorators', () => {
+    expect(typeof UserInfo).toBe('function');
+
+    const decorator = UserInfo();
+    expect(decorator).toBeDefined();
   });
 });
