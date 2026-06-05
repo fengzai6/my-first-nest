@@ -81,10 +81,10 @@ export class UsersService {
     return user;
   }
 
-  async getPermissions() {
-    const { id: userId } = useRequestUser();
+  async getPermissions(userId?: string) {
+    const id = userId ?? useRequestUser().id;
 
-    const roles = await this.rolesService.findByUser(userId);
+    const roles = await this.rolesService.findByUser(id);
 
     const permissions = await this.permissionsService.findMany({
       where: {
@@ -258,7 +258,7 @@ export class UsersService {
     const user = await this.findOne({ id });
 
     // 如果用户是超级管理员，则不能删除
-    if (user.specialRoles.includes(SpecialRolesEnum.SuperAdmin)) {
+    if (user.specialRoles?.includes(SpecialRolesEnum.SuperAdmin)) {
       throw new ErrorException(ErrorExceptionCode.SUPER_ADMIN_IS_SPECIAL);
     }
 

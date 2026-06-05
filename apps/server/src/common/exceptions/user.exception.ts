@@ -19,7 +19,7 @@ export const UserExceptionMap: Record<UserExceptionCode, ExceptionInfo> = {
   },
   [UserExceptionCode.USER_ALREADY_EXISTS]: {
     message: '用户名或邮箱已存在',
-    status: HttpStatus.BAD_REQUEST,
+    status: HttpStatus.CONFLICT,
     code: UserExceptionCode.USER_ALREADY_EXISTS,
   },
   [UserExceptionCode.NEW_PASSWORD_SAME_AS_OLD]: {
