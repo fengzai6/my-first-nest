@@ -21,7 +21,7 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage --passWithNoTests",
-    "test:e2e": "vitest run \"tests/**/*.e2e-spec.ts\" --passWithNoTests"
+    "test:e2e": "vitest run tests/e2e --passWithNoTests"
   },
   "repository": {
     "type": "git",

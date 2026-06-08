@@ -1,15 +1,16 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { initSnowflake, resetSnowflake } from '@/shared/utils/snowflake';
-import { INestApplication } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import request from 'supertest';
-import { DataSource } from 'typeorm';
 import { AppModule } from '@/app.module';
 import { appUse } from '@/common/use';
+import { initSnowflake, resetSnowflake } from '@/shared/utils/snowflake';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { INestApplication } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { Server } from 'node:http';
+import request from 'supertest';
+import { DataSource } from 'typeorm';
 import seed from '../../../database/seeds';
 
 export class TestHelper {
-  app!: INestApplication;
+  app!: INestApplication<Server>;
   dataSource!: DataSource;
   private initialized = false;
 
@@ -30,15 +31,15 @@ export class TestHelper {
           // 创建一个简单的内存缓存，绕过 Keyv 构造函数的问题
           const store = new Map<string, unknown>();
           return {
-            get: async (key: string) => store.get(key),
-            set: async (key: string, value: unknown) => {
+            get: (key: string) => Promise.resolve(store.get(key)),
+            set: (key: string, value: unknown) => {
               store.set(key, value);
-              return value;
+              return Promise.resolve(value);
             },
-            del: async (key: string) => store.delete(key),
-            mdel: async (keys: string[]) => {
+            del: (key: string) => Promise.resolve(store.delete(key)),
+            mdel: (keys: string[]) => {
               keys.forEach((k) => store.delete(k));
-              return true;
+              return Promise.resolve(true);
             },
             wrap: async (key: string, fn: () => Promise<unknown>) => {
               if (store.has(key)) return store.get(key);
@@ -52,7 +53,7 @@ export class TestHelper {
       })
       .compile();
 
-    this.app = moduleFixture.createNestApplication();
+    this.app = moduleFixture.createNestApplication<INestApplication<Server>>();
     this.app.setGlobalPrefix('api');
     appUse(this.app);
 
@@ -74,7 +75,7 @@ export class TestHelper {
     this.initialized = false;
   }
 
-  getHttpServer() {
+  getHttpServer(): Server {
     return this.app.getHttpServer();
   }
 
@@ -130,7 +131,9 @@ export class TestHelper {
    * 从 Set-Cookie 中提取 refreshToken
    */
   private extractRefreshToken(res: request.Response): string {
-    const cookies = res.headers['set-cookie'] as string[] | undefined;
+    const cookies = res.headers['set-cookie'] as unknown as
+      | string[]
+      | undefined;
     if (!cookies) return '';
 
     const rtCookie = cookies.find((c) => c.startsWith('refreshToken='));
