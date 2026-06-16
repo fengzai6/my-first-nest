@@ -4,7 +4,7 @@ import type {
   InternalAxiosRequestConfig,
 } from "axios";
 import axios, { AxiosError } from "axios";
-import { TokenRefreshManager } from "./token-refresh-manager";
+import { REFRESH_SKIPPED, TokenRefreshManager } from "./token-refresh-manager";
 import type {
   AccessTokenResult,
   HttpClientOptions,
@@ -28,6 +28,7 @@ const HTTP_CLIENT_MESSAGES = {
 };
 
 const DEFAULT_REFRESH_BUFFER_MS = 60_000;
+const DEFAULT_REFRESH_COOLDOWN_MS = 15_000;
 
 const createHttpClientError = <T = unknown>(
   message: string,
@@ -94,9 +95,28 @@ const normalizeTokenResult = (result: AccessTokenResult) => {
     return { token: result ?? "", expiresAt: null };
   }
 
+  // 验证 expiresAt 是否为有效的时间值
+  const expiresAtValue = result.expiresAt;
+
+  // 处理无效值：null、undefined、空字符串、0
+  if (
+    expiresAtValue == null ||
+    expiresAtValue === "" ||
+    expiresAtValue === 0
+  ) {
+    return { token: result.token, expiresAt: null };
+  }
+
+  const expiresAtDate = new Date(expiresAtValue);
+
+  // 检查是否为 Invalid Date
+  if (Number.isNaN(expiresAtDate.getTime())) {
+    return { token: result.token, expiresAt: null };
+  }
+
   return {
     token: result.token,
-    expiresAt: new Date(result.expiresAt),
+    expiresAt: expiresAtDate,
   };
 };
 
@@ -123,9 +143,6 @@ const shouldSkipRefresh = (
 export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult>(
   options: HttpClientOptions<T>,
 ): AxiosInstance => {
-  const refreshManager = new TokenRefreshManager();
-  const refreshEnabled = options.refreshAccessToken !== undefined;
-
   const resolvedOptions: ResolvedHttpClientOptions<T> = {
     authFailureCodes: [],
     accessTokenHeaderName: "Authorization",
@@ -133,6 +150,7 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
     unauthorizedStatusCode: 401,
     skipRefreshUrls: [],
     refreshBufferMs: DEFAULT_REFRESH_BUFFER_MS,
+    refreshCooldownMs: DEFAULT_REFRESH_COOLDOWN_MS,
     isBusinessSuccess: () => true,
     mapBusinessError: (response: AxiosResponse<unknown>) => {
       return createHttpClientError(
@@ -169,6 +187,9 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
     },
     ...options,
   };
+
+  const refreshManager = new TokenRefreshManager(resolvedOptions.refreshCooldownMs);
+  const refreshEnabled = options.refreshAccessToken !== undefined;
   const instance = axios.create({
     timeout: 15 * 1000,
     ...resolvedOptions.axiosConfig,
@@ -178,7 +199,7 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
     await resolvedOptions.onAuthFailure(error);
   };
 
-  const refreshAccessToken = async (): Promise<AccessTokenResult> => {
+  const refreshAccessToken = async (): Promise<AccessTokenResult | typeof REFRESH_SKIPPED> => {
     const requestRefreshAccessToken = resolvedOptions.refreshAccessToken;
 
     if (!refreshEnabled || !requestRefreshAccessToken) {
@@ -214,6 +235,22 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
 
     try {
       const refreshResult = await refreshAccessToken();
+
+      // 如果在冷却期内跳过了刷新，重新获取 token
+      if (refreshResult === REFRESH_SKIPPED) {
+        const tokenResult = await resolvedOptions.getAccessToken();
+        const { token } = normalizeTokenResult(tokenResult);
+
+        config.headers = config.headers ?? {};
+        config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
+          resolvedOptions.accessTokenPrefix,
+          token,
+        );
+
+        return await instance.request(config);
+      }
+
+      // 正常刷新流程
       const { token } = normalizeTokenResult(refreshResult);
 
       config.headers = config.headers ?? {};
