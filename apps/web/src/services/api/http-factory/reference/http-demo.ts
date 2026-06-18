@@ -3,7 +3,7 @@
  * 实际项目中请根据需求调整配置，或创建独立的 client 文件。
  */
 import axios from "axios";
-import { createHttpClient } from "./";
+import { createHttpClient } from "../";
 
 const ACCESS_TOKEN_STORAGE_KEY = "APP_ACCESS_TOKEN";
 const REFRESH_TOKEN_STORAGE_KEY = "APP_REFRESH_TOKEN";
