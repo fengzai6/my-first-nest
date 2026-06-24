@@ -34,4 +34,4 @@ async function bootstrap() {
     `\x1b[34mSwagger is running on: ${serverUrl}/${swagger.path}\x1b[0m`,
   );
 }
-bootstrap();
+void bootstrap();

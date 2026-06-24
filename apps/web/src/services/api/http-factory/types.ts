@@ -66,6 +66,14 @@ export interface HttpClientOptions<T extends AccessTokenResult = AccessTokenResu
   refreshBufferMs?: number;
 
   /**
+   * 刷新 token 后的冷却期（毫秒）。
+   * 在冷却期内收到的 401 请求会跳过刷新，直接使用新 token 重试。
+   * 用于处理刷新完成后，旧请求陆续返回 401 的并发场景。
+   * 默认 15000（15 秒）。
+   */
+  refreshCooldownMs?: number;
+
+  /**
    * 获取当前 access token。
    *
    * 返回 `string` 时仅注入 token，不做主动刷新判断。
@@ -117,6 +125,7 @@ type ResolvedHttpClientOptionKeys =
   | "mapBusinessError"
   | "skipRefreshUrls"
   | "refreshBufferMs"
+  | "refreshCooldownMs"
   | "shouldRefreshByResponseData"
   | "onAuthFailure"
   | "isRefreshFailure";

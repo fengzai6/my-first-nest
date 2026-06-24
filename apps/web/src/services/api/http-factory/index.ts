@@ -4,7 +4,7 @@ import type {
   InternalAxiosRequestConfig,
 } from "axios";
 import axios, { AxiosError } from "axios";
-import { TokenRefreshManager } from "./token-refresh-manager";
+import { REFRESH_SKIPPED, TokenRefreshManager } from "./token-refresh-manager";
 import type {
   AccessTokenResult,
   HttpClientOptions,
@@ -19,6 +19,7 @@ type HttpClientError<T = unknown> = Error & {
 };
 
 const HTTP_CLIENT_MESSAGES = {
+  unknownError: "未知错误",
   requestFailed: "请求失败",
   businessRequestFailed: "业务请求失败",
   refreshDisabled: "未启用 refresh token 逻辑",
@@ -27,6 +28,7 @@ const HTTP_CLIENT_MESSAGES = {
 };
 
 const DEFAULT_REFRESH_BUFFER_MS = 60_000;
+const DEFAULT_REFRESH_COOLDOWN_MS = 15_000;
 
 const createHttpClientError = <T = unknown>(
   message: string,
@@ -64,14 +66,23 @@ const getResponseMessage = (
   return fallbackMessage;
 };
 
-const overrideErrorMessage = <T>(error: T): T => {
-  if (!axios.isAxiosError(error) || !error.response) {
+const normalizeHttpError = <T = unknown>(error: unknown): Error => {
+  if (axios.isAxiosError<T>(error)) {
+    return createHttpClientError(
+      getResponseMessage(error.response, error.message),
+      {
+        status: error.response?.status,
+        data: error.response?.data,
+        response: error.response,
+      },
+    );
+  }
+
+  if (error instanceof Error) {
     return error;
   }
 
-  error.message = getResponseMessage(error.response, error.message);
-
-  return error;
+  return createHttpClientError(HTTP_CLIENT_MESSAGES.unknownError);
 };
 
 const formatAccessToken = (prefix: string, token: string) => {
@@ -84,9 +95,28 @@ const normalizeTokenResult = (result: AccessTokenResult) => {
     return { token: result ?? "", expiresAt: null };
   }
 
+  // 验证 expiresAt 是否为有效的时间值
+  const expiresAtValue = result.expiresAt;
+
+  // 处理无效值：null、undefined、空字符串、0
+  if (
+    expiresAtValue == null ||
+    expiresAtValue === "" ||
+    expiresAtValue === 0
+  ) {
+    return { token: result.token, expiresAt: null };
+  }
+
+  const expiresAtDate = new Date(expiresAtValue);
+
+  // 检查是否为 Invalid Date
+  if (Number.isNaN(expiresAtDate.getTime())) {
+    return { token: result.token, expiresAt: null };
+  }
+
   return {
     token: result.token,
-    expiresAt: new Date(result.expiresAt),
+    expiresAt: expiresAtDate,
   };
 };
 
@@ -113,9 +143,6 @@ const shouldSkipRefresh = (
 export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult>(
   options: HttpClientOptions<T>,
 ): AxiosInstance => {
-  const refreshManager = new TokenRefreshManager();
-  const refreshEnabled = options.refreshAccessToken !== undefined;
-
   const resolvedOptions: ResolvedHttpClientOptions<T> = {
     authFailureCodes: [],
     accessTokenHeaderName: "Authorization",
@@ -123,6 +150,7 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
     unauthorizedStatusCode: 401,
     skipRefreshUrls: [],
     refreshBufferMs: DEFAULT_REFRESH_BUFFER_MS,
+    refreshCooldownMs: DEFAULT_REFRESH_COOLDOWN_MS,
     isBusinessSuccess: () => true,
     mapBusinessError: (response: AxiosResponse<unknown>) => {
       return createHttpClientError(
@@ -159,6 +187,9 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
     },
     ...options,
   };
+
+  const refreshManager = new TokenRefreshManager(resolvedOptions.refreshCooldownMs);
+  const refreshEnabled = options.refreshAccessToken !== undefined;
   const instance = axios.create({
     timeout: 15 * 1000,
     ...resolvedOptions.axiosConfig,
@@ -168,7 +199,7 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
     await resolvedOptions.onAuthFailure(error);
   };
 
-  const refreshAccessToken = async (): Promise<AccessTokenResult> => {
+  const refreshAccessToken = async (): Promise<AccessTokenResult | typeof REFRESH_SKIPPED> => {
     const requestRefreshAccessToken = resolvedOptions.refreshAccessToken;
 
     if (!refreshEnabled || !requestRefreshAccessToken) {
@@ -181,7 +212,7 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
       } catch (error) {
         const authError = resolvedOptions.isRefreshFailure(error)
           ? createHttpClientError(HTTP_CLIENT_MESSAGES.refreshTokenExpired)
-          : overrideErrorMessage(error);
+          : normalizeHttpError(error);
 
         await handleAuthFailure(authError);
         throw authError;
@@ -204,6 +235,22 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
 
     try {
       const refreshResult = await refreshAccessToken();
+
+      // 如果在冷却期内跳过了刷新，重新获取 token
+      if (refreshResult === REFRESH_SKIPPED) {
+        const tokenResult = await resolvedOptions.getAccessToken();
+        const { token } = normalizeTokenResult(tokenResult);
+
+        config.headers = config.headers ?? {};
+        config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
+          resolvedOptions.accessTokenPrefix,
+          token,
+        );
+
+        return await instance.request(config);
+      }
+
+      // 正常刷新流程
       const { token } = normalizeTokenResult(refreshResult);
 
       config.headers = config.headers ?? {};
@@ -214,7 +261,7 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
 
       return await instance.request(config);
     } catch (error) {
-      throw overrideErrorMessage(error);
+      throw normalizeHttpError(error);
     }
   };
 
@@ -281,10 +328,10 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
         | (InternalAxiosRequestConfig & RequestRetryState)
         | undefined;
 
-      overrideErrorMessage(error);
+      const normalizedError = normalizeHttpError(error);
 
       if (!config) {
-        return Promise.reject(error);
+        return Promise.reject(normalizedError);
       }
 
       const status = error.response?.status;
@@ -294,9 +341,9 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
           !refreshEnabled ||
           shouldSkipRefresh(resolvedOptions.skipRefreshUrls, config)
         ) {
-          await handleAuthFailure(error);
+          await handleAuthFailure(normalizedError);
 
-          return Promise.reject(error);
+          return Promise.reject(normalizedError);
         }
 
         try {
@@ -306,7 +353,7 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
         }
       }
 
-      return Promise.reject(error);
+      return Promise.reject(normalizedError);
     },
   );
 

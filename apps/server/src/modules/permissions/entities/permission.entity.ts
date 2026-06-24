@@ -11,6 +11,7 @@ export class Permission extends BaseEntity {
   name: string;
 
   @Column({
+    type: 'varchar',
     unique: true,
   })
   code: PermissionCodeType;
