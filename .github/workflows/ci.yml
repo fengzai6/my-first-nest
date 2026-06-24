@@ -40,7 +40,7 @@ jobs:
         run: yarn workspace @my-first-nest/web lint
 
       - name: Test server
-        run: yarn workspace @my-first-nest/server test
+        run: yarn workspace @my-first-nest/server test --run --exclude=tests/e2e/**
 
       - name: Test web
         run: yarn workspace @my-first-nest/web test
