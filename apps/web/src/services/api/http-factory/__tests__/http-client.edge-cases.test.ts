@@ -32,9 +32,8 @@ describe("createHttpClient edge cases", () => {
     await expect(
       http.post("/auth/login", { account: "u", password: "p" }),
     ).rejects.toMatchObject({
-      name: "HttpError",
-      message: "unauthorized",
-      status: 401,
+      name: "Error",
+      message: "Request failed",
     });
 
     expect(refreshAccessToken).not.toHaveBeenCalled();
@@ -200,17 +199,15 @@ describe("createHttpClient edge cases", () => {
       expect.objectContaining({
         status: "rejected",
         reason: expect.objectContaining({
-          name: "HttpError",
-          message: "server error",
-          status: 500,
+          name: "Error",
+          message: "refresh server error",
         }),
       }),
       expect.objectContaining({
         status: "rejected",
         reason: expect.objectContaining({
-          name: "HttpError",
-          message: "server error",
-          status: 500,
+          name: "Error",
+          message: "refresh server error",
         }),
       }),
     ]);
@@ -256,7 +253,7 @@ describe("createHttpClient edge cases", () => {
     });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      name: "HttpError",
+      name: "Error",
       message: "登录已失效，请重新登录",
     });
 
@@ -406,14 +403,14 @@ describe("createHttpClient edge cases", () => {
     });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      name: "HttpError",
+      name: "Error",
       message: "refreshToken 已失效，登录过期",
     });
 
     expect(onAuthFailure).toHaveBeenCalledTimes(1);
   });
 
-  it("refresh 抛出非 Error 异常时会归一化为未知错误", async () => {
+  it("refresh 抛出非 Error 异常时会归一化为字符串错误", async () => {
     const onAuthFailure = vi.fn(async () => {});
 
     const http = createHttpClient({
@@ -430,7 +427,7 @@ describe("createHttpClient edge cases", () => {
     queueAxiosError({ status: 401, data: { message: "unauthorized" } });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      message: "未知错误",
+      message: '{"reason":"boom"}',
     });
 
     expect(onAuthFailure).toHaveBeenCalledTimes(1);
@@ -458,10 +455,34 @@ describe("createHttpClient edge cases", () => {
     expect(onAuthFailure).toHaveBeenCalledTimes(1);
     expect(onAuthFailure).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: "HttpError",
-        message: "unauthorized",
-        status: 401,
+        name: "Error",
+        message: "Request failed",
       }),
+    );
+  });
+
+  it("onBusinessResponse 抛出的特定消息能在 onError 中正常接收", async () => {
+    const onError = vi.fn();
+
+    const http = createHttpClient({
+      axiosConfig: {
+        baseURL: "/api",
+      },
+      getAccessToken: async () => "old-access",
+      onBusinessResponse: () => new Error("业务错误：余额不足"),
+      onError,
+    });
+
+    queueResponse({ status: 200, data: { ok: true } });
+
+    await expect(http.get("/wallet/balance")).rejects.toMatchObject({
+      message: "业务错误：余额不足",
+    });
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "业务错误：余额不足" }),
+      { type: "request" },
     );
   });
 });

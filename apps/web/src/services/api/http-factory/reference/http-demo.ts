@@ -119,6 +119,16 @@ export const http = createHttpClient({
 
     return response.status === 401 || response.data?.code === 40103;
   },
+  onBusinessResponse: (response) => {
+    const data = response.data as { code?: number; message?: string };
+
+    if (data.code !== undefined && data.code !== 0) {
+      return new Error(data.message ?? "业务请求失败");
+    }
+  },
+  onError: (error, context) => {
+    console.error(`[${context.type}]`, error.message);
+  },
   onAuthFailure: () => {
     browserTokenStore.clearAuth();
 

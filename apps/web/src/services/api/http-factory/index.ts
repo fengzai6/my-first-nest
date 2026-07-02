@@ -1,88 +1,56 @@
-import type {
-  AxiosInstance,
-  AxiosResponse,
-  InternalAxiosRequestConfig,
-} from "axios";
+import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import axios, { AxiosError } from "axios";
 import { REFRESH_SKIPPED, TokenRefreshManager } from "./token-refresh-manager";
 import type {
   AccessTokenResult,
+  ErrorContext,
   HttpClientOptions,
   RequestRetryState,
   ResolvedHttpClientOptions,
 } from "./types";
 
-type HttpClientError<T = unknown> = Error & {
-  status?: number;
-  data?: T;
-  response?: AxiosResponse<T>;
-};
-
-const HTTP_CLIENT_MESSAGES = {
-  unknownError: "未知错误",
-  requestFailed: "请求失败",
-  businessRequestFailed: "业务请求失败",
-  refreshDisabled: "未启用 refresh token 逻辑",
+const DEFAULT_MESSAGES = {
   refreshTokenExpired: "refreshToken 已失效，登录过期",
   loginExpired: "登录已失效，请重新登录",
+  refreshDisabled: "未启用 refresh token 逻辑",
 };
 
-const DEFAULT_REFRESH_BUFFER_MS = 60_000;
-const DEFAULT_REFRESH_COOLDOWN_MS = 15_000;
+const DEFAULT_REFRESH_BUFFER_MS = 0;
 
-const createHttpClientError = <T = unknown>(
-  message: string,
-  options?: {
-    status?: number;
-    data?: T;
-    response?: AxiosResponse<T>;
-  },
-): HttpClientError<T> => {
-  const error = new Error(message) as HttpClientError<T>;
-
-  error.name = "HttpError";
-  error.status = options?.status;
-  error.data = options?.data;
-  error.response = options?.response;
-
-  return error;
-};
-
-const getResponseMessage = (
-  response?: AxiosResponse<unknown>,
-  fallbackMessage = HTTP_CLIENT_MESSAGES.requestFailed,
-) => {
-  const responseMessage =
-    response?.data &&
-    typeof response.data === "object" &&
-    "message" in response.data
-      ? response.data.message
-      : undefined;
-
-  if (typeof responseMessage === "string" && responseMessage.trim()) {
-    return responseMessage;
-  }
-
-  return fallbackMessage;
-};
-
-const normalizeHttpError = <T = unknown>(error: unknown): Error => {
-  if (axios.isAxiosError<T>(error)) {
-    return createHttpClientError(
-      getResponseMessage(error.response, error.message),
-      {
-        status: error.response?.status,
-        data: error.response?.data,
-        response: error.response,
-      },
-    );
-  }
-
+const normalizeError = (error: unknown): Error => {
   if (error instanceof Error) {
     return error;
   }
 
-  return createHttpClientError(HTTP_CLIENT_MESSAGES.unknownError);
+  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
+    return new Error(error.message);
+  }
+
+  try {
+    return new Error(JSON.stringify(error));
+  } catch {
+    return new Error(String(error));
+  }
+};
+
+const invokeOnError = async (
+  error: Error,
+  context: ErrorContext,
+  onError?: (
+    error: Error,
+    context: ErrorContext,
+  ) => Error | void | Promise<Error | void>,
+): Promise<Error> => {
+  if (!onError) {
+    return error;
+  }
+
+  try {
+    const result = await onError(error, context);
+    return result ?? error;
+  } catch {
+    return error;
+  }
 };
 
 const formatAccessToken = (prefix: string, token: string) => {
@@ -99,11 +67,7 @@ const normalizeTokenResult = (result: AccessTokenResult) => {
   const expiresAtValue = result.expiresAt;
 
   // 处理无效值：null、undefined、空字符串、0
-  if (
-    expiresAtValue == null ||
-    expiresAtValue === "" ||
-    expiresAtValue === 0
-  ) {
+  if (expiresAtValue == null || expiresAtValue === "" || expiresAtValue === 0) {
     return { token: result.token, expiresAt: null };
   }
 
@@ -140,55 +104,52 @@ const shouldSkipRefresh = (
   return skipRefreshUrls.some((url) => requestUrl.includes(url));
 };
 
-export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult>(
+const defaultIsRefreshFailure = (
+  error: unknown,
+  options: { unauthorizedStatusCode: number; authFailureCodes: number[] },
+): boolean => {
+  if (!axios.isAxiosError(error) || !error.response) {
+    return false;
+  }
+
+  const status = error.response.status;
+  const data = error.response.data as { code?: number } | undefined;
+
+  if (status && status >= 500) {
+    return false;
+  }
+
+  return (
+    status === options.unauthorizedStatusCode ||
+    (data?.code !== undefined && options.authFailureCodes.includes(data.code))
+  );
+};
+
+export const createHttpClient = <
+  T extends AccessTokenResult = AccessTokenResult,
+>(
   options: HttpClientOptions<T>,
 ): AxiosInstance => {
   const resolvedOptions: ResolvedHttpClientOptions<T> = {
-    authFailureCodes: [],
     accessTokenHeaderName: "Authorization",
     accessTokenPrefix: "Bearer",
+    authFailureCodes: [],
     unauthorizedStatusCode: 401,
+    errorMessages: {},
+    isRefreshFailure: (error: unknown) =>
+      defaultIsRefreshFailure(error, {
+        unauthorizedStatusCode: resolvedOptions.unauthorizedStatusCode,
+        authFailureCodes: resolvedOptions.authFailureCodes,
+      }),
     skipRefreshUrls: [],
     refreshBufferMs: DEFAULT_REFRESH_BUFFER_MS,
-    refreshCooldownMs: DEFAULT_REFRESH_COOLDOWN_MS,
-    isBusinessSuccess: () => true,
-    mapBusinessError: (response: AxiosResponse<unknown>) => {
-      return createHttpClientError(
-        getResponseMessage(
-          response,
-          HTTP_CLIENT_MESSAGES.businessRequestFailed,
-        ),
-        {
-          status: response.status,
-          data: response.data,
-          response,
-        },
-      );
-    },
     shouldRefreshByResponseData: () => false,
-    onAuthFailure: () => {},
-    isRefreshFailure: (error: unknown) => {
-      if (!axios.isAxiosError(error) || !error.response) {
-        return false;
-      }
-
-      const status = error.response.status;
-      const data = error.response.data as { code?: number } | undefined;
-
-      if (status && status >= 500) {
-        return false;
-      }
-
-      return (
-        status === resolvedOptions.unauthorizedStatusCode ||
-        (data?.code !== undefined &&
-          resolvedOptions.authFailureCodes.includes(data.code))
-      );
-    },
     ...options,
   };
 
-  const refreshManager = new TokenRefreshManager(resolvedOptions.refreshCooldownMs);
+  const refreshManager =
+    options.refreshManager ??
+    new TokenRefreshManager(options.refreshCooldownMs);
   const refreshEnabled = options.refreshAccessToken !== undefined;
   const instance = axios.create({
     timeout: 15 * 1000,
@@ -196,26 +157,36 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
   });
 
   const handleAuthFailure = async (error?: unknown) => {
-    await resolvedOptions.onAuthFailure(error);
+    await resolvedOptions.onAuthFailure?.(error);
   };
 
-  const refreshAccessToken = async (): Promise<AccessTokenResult | typeof REFRESH_SKIPPED> => {
+  const refreshAccessToken = async (): Promise<
+    AccessTokenResult | typeof REFRESH_SKIPPED
+  > => {
     const requestRefreshAccessToken = resolvedOptions.refreshAccessToken;
 
     if (!refreshEnabled || !requestRefreshAccessToken) {
-      throw new Error(HTTP_CLIENT_MESSAGES.refreshDisabled);
+      throw new Error(DEFAULT_MESSAGES.refreshDisabled);
     }
 
     return refreshManager.runRefresh(async () => {
       try {
         return await requestRefreshAccessToken();
       } catch (error) {
+        const normalizedError = normalizeError(error);
         const authError = resolvedOptions.isRefreshFailure(error)
-          ? createHttpClientError(HTTP_CLIENT_MESSAGES.refreshTokenExpired)
-          : normalizeHttpError(error);
+          ? new Error(
+              resolvedOptions.errorMessages?.refreshTokenExpired ??
+                DEFAULT_MESSAGES.refreshTokenExpired,
+            )
+          : normalizedError;
 
         await handleAuthFailure(authError);
-        throw authError;
+        throw await invokeOnError(
+          authError,
+          { type: "refresh" },
+          resolvedOptions.onError,
+        );
       }
     });
   };
@@ -224,11 +195,15 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
     config: InternalAxiosRequestConfig & RequestRetryState,
   ) => {
     if (config._retry) {
-      const authError = createHttpClientError(
-        HTTP_CLIENT_MESSAGES.loginExpired,
+      const authError = new Error(
+        resolvedOptions.errorMessages?.loginExpired ?? DEFAULT_MESSAGES.loginExpired,
       );
       await handleAuthFailure(authError);
-      throw authError;
+      throw await invokeOnError(
+        authError,
+        { type: "refresh" },
+        resolvedOptions.onError,
+      );
     }
 
     config._retry = true;
@@ -236,22 +211,12 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
     try {
       const refreshResult = await refreshAccessToken();
 
-      // 如果在冷却期内跳过了刷新，重新获取 token
-      if (refreshResult === REFRESH_SKIPPED) {
-        const tokenResult = await resolvedOptions.getAccessToken();
-        const { token } = normalizeTokenResult(tokenResult);
-
-        config.headers = config.headers ?? {};
-        config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
-          resolvedOptions.accessTokenPrefix,
-          token,
-        );
-
-        return await instance.request(config);
-      }
-
-      // 正常刷新流程
-      const { token } = normalizeTokenResult(refreshResult);
+      // 冷却期内跳过刷新时重新获取 token，否则使用刷新结果
+      const tokenSource =
+        refreshResult === REFRESH_SKIPPED
+          ? await resolvedOptions.getAccessToken()
+          : refreshResult;
+      const { token } = normalizeTokenResult(tokenSource);
 
       config.headers = config.headers ?? {};
       config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
@@ -261,7 +226,11 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
 
       return await instance.request(config);
     } catch (error) {
-      throw normalizeHttpError(error);
+      throw await invokeOnError(
+        normalizeError(error),
+        { type: "refresh" },
+        resolvedOptions.onError,
+      );
     }
   };
 
@@ -275,8 +244,7 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
       }
 
       const tokenResult = await resolvedOptions.getAccessToken();
-      const { token, expiresAt } =
-        normalizeTokenResult(tokenResult);
+      const { token, expiresAt } = normalizeTokenResult(tokenResult);
 
       if (!token) return config;
 
@@ -317,8 +285,13 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
         return retryAfterRefresh(config);
       }
 
-      if (!resolvedOptions.isBusinessSuccess(response)) {
-        throw resolvedOptions.mapBusinessError(response);
+      if (resolvedOptions.onBusinessResponse) {
+        const businessError =
+          await resolvedOptions.onBusinessResponse(response);
+
+        if (businessError) {
+          throw businessError;
+        }
       }
 
       return response;
@@ -328,10 +301,15 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
         | (InternalAxiosRequestConfig & RequestRetryState)
         | undefined;
 
-      const normalizedError = normalizeHttpError(error);
+      const normalizedError = normalizeError(error);
 
       if (!config) {
-        return Promise.reject(normalizedError);
+        const finalError = await invokeOnError(
+          normalizedError,
+          { type: "request" },
+          resolvedOptions.onError,
+        );
+        return Promise.reject(finalError);
       }
 
       const status = error.response?.status;
@@ -342,8 +320,12 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
           shouldSkipRefresh(resolvedOptions.skipRefreshUrls, config)
         ) {
           await handleAuthFailure(normalizedError);
-
-          return Promise.reject(normalizedError);
+          const finalError = await invokeOnError(
+            normalizedError,
+            { type: "request" },
+            resolvedOptions.onError,
+          );
+          return Promise.reject(finalError);
         }
 
         try {
@@ -353,7 +335,12 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
         }
       }
 
-      return Promise.reject(normalizedError);
+      const finalError = await invokeOnError(
+        normalizedError,
+        { type: "request" },
+        resolvedOptions.onError,
+      );
+      return Promise.reject(finalError);
     },
   );
 

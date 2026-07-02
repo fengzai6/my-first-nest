@@ -160,7 +160,7 @@ describe("createHttpClient", () => {
     queueAxiosError({ status: 401, data: { message: "refresh expired" } });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      name: "HttpError",
+      name: "Error",
       message: "refreshToken 已失效，登录过期",
     });
 
@@ -259,16 +259,15 @@ describe("createHttpClient", () => {
     queueAxiosError({ status: 401, data: { message: "unauthorized" } });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      name: "HttpError",
-      message: "unauthorized",
-      status: 401,
+      name: "Error",
+      message: "Request failed",
     });
 
     expect(onAuthFailure).toHaveBeenCalledTimes(1);
     expect(tokenStore.getRefreshToken).not.toHaveBeenCalled();
   });
 
-  it("非 401 的 axios 错误会被归一化为 HttpError", async () => {
+  it("非 401 的 axios 错误会透传原始错误", async () => {
     const tokenStore = createTokenStore("old-access", "old-refresh");
 
     const http = createHttpClient({
@@ -286,10 +285,8 @@ describe("createHttpClient", () => {
     });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      name: "HttpError",
-      message: "server error",
-      status: 500,
-      data: { code: 50001, message: "server error" },
+      name: "Error",
+      message: "Request failed",
     });
 
     expect(tokenStore.clearAuth).not.toHaveBeenCalled();
@@ -320,11 +317,59 @@ describe("createHttpClient", () => {
     queueAxiosError({ status: 401, data: { message: "still unauthorized" } });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      name: "HttpError",
+      name: "Error",
       message: "登录已失效，请重新登录",
     });
 
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
     expect(onAuthFailure).toHaveBeenCalledTimes(1);
+  });
+
+  it("多个客户端共享 TokenRefreshManager 时只刷新一次", async () => {
+    const tokenStore = createTokenStore("old-access", "old-refresh");
+    const refreshAccessToken = vi.fn(createRefreshAccessToken(tokenStore));
+    const { TokenRefreshManager } = await import("../token-refresh-manager");
+    const sharedManager = new TokenRefreshManager(15000);
+
+    const http1 = createHttpClient({
+      axiosConfig: { baseURL: "/api1" },
+      getAccessToken: tokenStore.getAccessToken,
+      refreshAccessToken,
+      refreshManager: sharedManager,
+    });
+
+    const http2 = createHttpClient({
+      axiosConfig: { baseURL: "/api2" },
+      getAccessToken: tokenStore.getAccessToken,
+      refreshAccessToken,
+      refreshManager: sharedManager,
+    });
+
+    queueAxiosError({ status: 401, data: { message: "unauthorized" } });
+    queueAxiosError({ status: 401, data: { message: "unauthorized" } });
+    queueResponse({
+      status: 200,
+      data: { accessToken: "new-access", refreshToken: "new-refresh" },
+    });
+    queueCustomHandler(async (config) => ({
+      status: 200,
+      data: { ok: true },
+      config,
+    }));
+    queueCustomHandler(async (config) => ({
+      status: 200,
+      data: { ok: true },
+      config,
+    }));
+
+    const [result1, result2] = await Promise.all([
+      http1.get("/profile"),
+      http2.get("/users"),
+    ]);
+
+    expect(result1.data).toEqual({ ok: true });
+    expect(result2.data).toEqual({ ok: true });
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(tokenStore.setAccessToken).toHaveBeenCalledTimes(1);
   });
 });
