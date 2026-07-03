@@ -372,4 +372,125 @@ describe("createHttpClient", () => {
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
     expect(tokenStore.setAccessToken).toHaveBeenCalledTimes(1);
   });
+
+  describe("headersProvider", () => {
+    it("同步 headersProvider 注入的 headers 会合并到请求中", async () => {
+      const tokenStore = createTokenStore("test-token", "test-refresh");
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: tokenStore.getAccessToken,
+        headersProvider: () => ({
+          "x-trace-id": "trace-123",
+          "x-request-id": "req-456",
+        }),
+      });
+
+      let receivedHeaders: Record<string, string> = {};
+
+      queueCustomHandler(async (config) => {
+        receivedHeaders = {
+          "x-trace-id": config.headers?.["x-trace-id"],
+          "x-request-id": config.headers?.["x-request-id"],
+          Authorization: config.headers?.Authorization,
+        };
+        return { status: 200, data: { ok: true }, config };
+      });
+
+      await http.get("/profile");
+
+      expect(receivedHeaders).toEqual({
+        "x-trace-id": "trace-123",
+        "x-request-id": "req-456",
+        Authorization: "Bearer test-token",
+      });
+    });
+
+    it("异步 headersProvider 注入的 headers 会合并到请求中", async () => {
+      const tokenStore = createTokenStore("test-token", "test-refresh");
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: tokenStore.getAccessToken,
+        headersProvider: async () => {
+          // 模拟异步获取（如从 store 读取）
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          return {
+            "x-tenant-id": "tenant-789",
+            "x-region": "cn-east",
+          };
+        },
+      });
+
+      let receivedHeaders: Record<string, string> = {};
+
+      queueCustomHandler(async (config) => {
+        receivedHeaders = {
+          "x-tenant-id": config.headers?.["x-tenant-id"],
+          "x-region": config.headers?.["x-region"],
+          Authorization: config.headers?.Authorization,
+        };
+        return { status: 200, data: { ok: true }, config };
+      });
+
+      await http.get("/profile");
+
+      expect(receivedHeaders).toEqual({
+        "x-tenant-id": "tenant-789",
+        "x-region": "cn-east",
+        Authorization: "Bearer test-token",
+      });
+    });
+
+    it("headersProvider 返回的 Authorization 会覆盖默认注入的 token", async () => {
+      const tokenStore = createTokenStore("default-token", "test-refresh");
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: tokenStore.getAccessToken,
+        headersProvider: () => ({
+          Authorization: "Bearer custom-token",
+        }),
+      });
+
+      let receivedAuthorization = "";
+
+      queueCustomHandler(async (config) => {
+        receivedAuthorization = config.headers?.Authorization;
+        return { status: 200, data: { ok: true }, config };
+      });
+
+      await http.get("/profile");
+
+      expect(receivedAuthorization).toBe("Bearer custom-token");
+      // headersProvider 覆盖后，token 注入仍会执行，但最终结果以 headersProvider 为准
+      expect(tokenStore.getAccessToken).toHaveBeenCalledTimes(1);
+    });
+
+    it("未配置 headersProvider 时行为不变", async () => {
+      const tokenStore = createTokenStore("test-token", "test-refresh");
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: tokenStore.getAccessToken,
+      });
+
+      let receivedHeaders: Record<string, string> = {};
+
+      queueCustomHandler(async (config) => {
+        receivedHeaders = {
+          Authorization: config.headers?.Authorization,
+          "x-trace-id": config.headers?.["x-trace-id"],
+        };
+        return { status: 200, data: { ok: true }, config };
+      });
+
+      await http.get("/profile");
+
+      expect(receivedHeaders).toEqual({
+        Authorization: "Bearer test-token",
+        "x-trace-id": undefined,
+      });
+    });
+  });
 });

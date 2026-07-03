@@ -22,7 +22,12 @@ const normalizeError = (error: unknown): Error => {
     return error;
   }
 
-  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
     return new Error(error.message);
   }
 
@@ -196,7 +201,8 @@ export const createHttpClient = <
   ) => {
     if (config._retry) {
       const authError = new Error(
-        resolvedOptions.errorMessages?.loginExpired ?? DEFAULT_MESSAGES.loginExpired,
+        resolvedOptions.errorMessages?.loginExpired ??
+          DEFAULT_MESSAGES.loginExpired,
       );
       await handleAuthFailure(authError);
       throw await invokeOnError(
@@ -267,6 +273,12 @@ export const createHttpClient = <
         token,
       );
 
+      // 合并运行时动态 headers
+      if (resolvedOptions.headersProvider) {
+        const runtimeHeaders = await resolvedOptions.headersProvider();
+        Object.assign(config.headers, runtimeHeaders);
+      }
+
       return config;
     },
     (error) => Promise.reject(error),
@@ -286,11 +298,16 @@ export const createHttpClient = <
       }
 
       if (resolvedOptions.onBusinessResponse) {
-        const businessError =
+        const businessResult =
           await resolvedOptions.onBusinessResponse(response);
 
-        if (businessError) {
-          throw businessError;
+        if (businessResult instanceof Error) {
+          throw businessResult;
+        }
+
+        // 返回了新响应
+        if (businessResult && "request" in businessResult) {
+          return businessResult;
         }
       }
 

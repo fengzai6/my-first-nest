@@ -22,6 +22,14 @@ export interface RequestRetryState {
 }
 
 /**
+ * onBusinessResponse 的返回值类型。
+ * - void：继续正常流程（表示成功）
+ * - Error：抛出错误（表示业务失败）
+ * - AxiosResponse：用新响应替换原响应，不会二次触发 onBusinessResponse
+ */
+export type BusinessResponseResult = void | Error | AxiosResponse;
+
+/**
  * 错误上下文，传递给 onError 钩子。
  */
 export interface ErrorContext {
@@ -79,6 +87,20 @@ export interface HttpClientOptions<T extends AccessTokenResult = AccessTokenResu
    * 业务状态码中，用于识别鉴权失败的 code 列表。
    */
   authFailureCodes?: number[];
+
+  /**
+   * 运行时动态 headers 提供者。
+   *
+   * 每次请求时调用，返回的 headers 会合并到请求中。
+   * 支持同步或异步返回。
+   *
+   * 典型场景：
+   * - 请求追踪：`{ 'x-trace-id': crypto.randomUUID() }`
+   * - 业务标识：从 store 读取 `{ 'x-tenant-id': tenantId }`
+   *
+   * 注意：返回的 headers 会覆盖默认注入的 headers（如 Authorization）。
+   */
+  headersProvider?: () => Record<string, string> | Promise<Record<string, string>>;
 
   /**
    * 触发刷新流程的 HTTP 状态码。
@@ -152,9 +174,10 @@ export interface HttpClientOptions<T extends AccessTokenResult = AccessTokenResu
    * 业务响应拦截器。
    * - 返回 void：继续正常流程（表示成功）
    * - 返回 Error：抛出错误（表示业务失败）
+   * - 返回 AxiosResponse：用新响应替换原响应，不会二次触发 onBusinessResponse
    * - 可以是 async
    */
-  onBusinessResponse?: (response: AxiosResponse<unknown>) => Error | void | Promise<Error | void>;
+  onBusinessResponse?: (response: AxiosResponse<unknown>) => BusinessResponseResult | Promise<BusinessResponseResult>;
 
   /**
    * 全局错误钩子。
