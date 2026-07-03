@@ -1,51 +1,7 @@
 import type { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
-import type { TokenRefreshManager } from "./token-refresh-manager";
-
-/**
- * token 详细信息，用于主动刷新判断。
- */
-export interface AccessTokenDetail {
-  token: string;
-  expiresAt: Date | string | number;
-}
-
-/**
- * getAccessToken 的返回值类型，兼容旧版纯字符串返回。
- */
-export type AccessTokenResult = string | AccessTokenDetail | null;
-
-/**
- * 请求内部状态。
- */
-export interface RequestRetryState {
-  _retry?: boolean;
-}
-
-/**
- * onBusinessResponse 的返回值类型。
- * - void：继续正常流程（表示成功）
- * - Error：抛出错误（表示业务失败）
- * - AxiosResponse：用新响应替换原响应，不会二次触发 onBusinessResponse
- */
-export type BusinessResponseResult = void | Error | AxiosResponse;
-
-/**
- * 错误上下文，传递给 onError 钩子。
- */
-export interface ErrorContext {
-  /**
-   * 错误来源类型。
-   */
-  type: "request" | "refresh";
-}
-
-/**
- * 自定义错误消息。
- */
-export interface ErrorMessages {
-  refreshTokenExpired?: string;
-  loginExpired?: string;
-}
+import type { TokenRefreshManager } from "../token-refresh-manager";
+import type { AccessTokenResult } from "./token";
+import type { BusinessResponseResult, ErrorContext, ErrorMessages } from "./common";
 
 /**
  * 创建 HTTP 客户端时可传入的配置。
@@ -186,7 +142,7 @@ export interface HttpClientOptions<T extends AccessTokenResult = AccessTokenResu
    * - 可以是 async
    *
    * error 类型为 AxiosError | Error：
-   * - 请求失败时为 AxiosError，可通过 axios.isAxiosError(error) 收窄访问 response/config
+   * - 请求失败时为 AxiosError，可通过 axios.isAxiosError(error) 收敛访问 response/config
    * - 刷新失败时可能为 AxiosError 或业务侧抛出的任意 Error
    * - 登录过期等内部构造的错误为普通 Error
    */

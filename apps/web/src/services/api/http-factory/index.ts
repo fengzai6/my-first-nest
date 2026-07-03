@@ -3,132 +3,21 @@ import axios, { AxiosError } from "axios";
 import { REFRESH_SKIPPED, TokenRefreshManager } from "./token-refresh-manager";
 import type {
   AccessTokenResult,
-  ErrorContext,
   HttpClientOptions,
   RequestRetryState,
   ResolvedHttpClientOptions,
 } from "./types";
-
-const DEFAULT_MESSAGES = {
-  refreshTokenExpired: "refreshToken 已失效，登录过期",
-  loginExpired: "登录已失效，请重新登录",
-  refreshDisabled: "未启用 refresh token 逻辑",
-};
-
-const DEFAULT_REFRESH_BUFFER_MS = 0;
-
-const normalizeError = (error: unknown): Error => {
-  if (error instanceof Error) {
-    return error;
-  }
-
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof error.message === "string"
-  ) {
-    return new Error(error.message);
-  }
-
-  try {
-    return new Error(JSON.stringify(error));
-  } catch {
-    return new Error(String(error));
-  }
-};
-
-const invokeOnError = async (
-  error: Error,
-  context: ErrorContext,
-  onError?: (
-    error: Error,
-    context: ErrorContext,
-  ) => Error | void | Promise<Error | void>,
-): Promise<Error> => {
-  if (!onError) {
-    return error;
-  }
-
-  try {
-    const result = await onError(error, context);
-    return result ?? error;
-  } catch {
-    return error;
-  }
-};
-
-const formatAccessToken = (prefix: string, token: string) => {
-  const normalizedPrefix = prefix.trim();
-  return normalizedPrefix ? `${normalizedPrefix} ${token}` : token;
-};
-
-const normalizeTokenResult = (result: AccessTokenResult) => {
-  if (!result || typeof result === "string") {
-    return { token: result ?? "", expiresAt: null };
-  }
-
-  // 验证 expiresAt 是否为有效的时间值
-  const expiresAtValue = result.expiresAt;
-
-  // 处理无效值：null、undefined、空字符串、0
-  if (expiresAtValue == null || expiresAtValue === "" || expiresAtValue === 0) {
-    return { token: result.token, expiresAt: null };
-  }
-
-  const expiresAtDate = new Date(expiresAtValue);
-
-  // 检查是否为 Invalid Date
-  if (Number.isNaN(expiresAtDate.getTime())) {
-    return { token: result.token, expiresAt: null };
-  }
-
-  return {
-    token: result.token,
-    expiresAt: expiresAtDate,
-  };
-};
-
-const isTokenExpiringSoon = (
-  expiresAt: Date,
-  refreshBufferMs: number,
-): boolean => {
-  return Date.now() >= expiresAt.getTime() - refreshBufferMs;
-};
-
-const shouldSkipRefresh = (
-  skipRefreshUrls: string[],
-  config?: InternalAxiosRequestConfig & RequestRetryState,
-) => {
-  const requestUrl = config?.url;
-
-  if (!requestUrl) {
-    return false;
-  }
-
-  return skipRefreshUrls.some((url) => requestUrl.includes(url));
-};
-
-const defaultIsRefreshFailure = (
-  error: unknown,
-  options: { unauthorizedStatusCode: number; authFailureCodes: number[] },
-): boolean => {
-  if (!axios.isAxiosError(error) || !error.response) {
-    return false;
-  }
-
-  const status = error.response.status;
-  const data = error.response.data as { code?: number } | undefined;
-
-  if (status && status >= 500) {
-    return false;
-  }
-
-  return (
-    status === options.unauthorizedStatusCode ||
-    (data?.code !== undefined && options.authFailureCodes.includes(data.code))
-  );
-};
+import {
+  DEFAULT_MESSAGES,
+  DEFAULT_REFRESH_BUFFER_MS,
+  formatAccessToken,
+  normalizeError,
+  normalizeTokenResult,
+  isTokenExpiringSoon,
+  invokeOnError,
+  shouldSkipRefresh,
+  defaultIsRefreshFailure,
+} from "./utils";
 
 export const createHttpClient = <
   T extends AccessTokenResult = AccessTokenResult,
