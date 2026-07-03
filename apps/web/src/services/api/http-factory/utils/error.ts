@@ -1,4 +1,4 @@
-import type { ErrorContext } from "../types";
+import type { ErrorContext } from "../types/common";
 
 /**
  * 将任意值标准化为 Error 实例。

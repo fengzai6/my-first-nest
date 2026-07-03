@@ -1,4 +1,4 @@
-import type { AccessTokenResult } from "../types";
+import type { AccessTokenResult } from "../types/token";
 
 /**
  * 格式化 token（添加前缀）。

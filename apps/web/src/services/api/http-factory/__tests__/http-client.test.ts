@@ -493,4 +493,294 @@ describe("createHttpClient", () => {
       });
     });
   });
+
+  describe("retryPolicy", () => {
+    it("5xx 错误时会重试指定次数", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        retryPolicy: {
+          maxRetries: 2,
+          retryDelay: () => 0, // 测试时不延迟
+        },
+      });
+
+      // 前 2 次失败，第 3 次成功（初始 + 2 次重试）
+      queueAxiosError({ status: 500, data: { message: "server error" } });
+      queueAxiosError({ status: 500, data: { message: "server error" } });
+      queueResponse({ status: 200, data: { ok: true } });
+
+      const response = await http.get("/profile");
+
+      expect(response.data).toEqual({ ok: true });
+    });
+
+    it("503 错误时会重试", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        retryPolicy: {
+          maxRetries: 1,
+          retryDelay: () => 0,
+        },
+      });
+
+      queueAxiosError({ status: 503, data: { message: "service unavailable" } });
+      queueResponse({ status: 200, data: { ok: true } });
+
+      const response = await http.get("/profile");
+
+      expect(response.data).toEqual({ ok: true });
+    });
+
+    it("超过最大重试次数后会抛出错误", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        retryPolicy: {
+          maxRetries: 1,
+          retryDelay: () => 0,
+        },
+      });
+
+      // 2 次失败（初始 + 1 次重试）
+      queueAxiosError({ status: 500, data: { message: "server error" } });
+      queueAxiosError({ status: 500, data: { message: "server error" } });
+
+      await expect(http.get("/profile")).rejects.toMatchObject({
+        message: "Request failed",
+      });
+    });
+
+    it("4xx 错误（非 401）不会重试", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        retryPolicy: {
+          maxRetries: 2,
+          retryDelay: () => 0,
+        },
+      });
+
+      queueAxiosError({ status: 400, data: { message: "bad request" } });
+
+      await expect(http.get("/profile")).rejects.toMatchObject({
+        message: "Request failed",
+      });
+    });
+
+    it("未配置 retryPolicy 时不会重试", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+      });
+
+      queueAxiosError({ status: 500, data: { message: "server error" } });
+
+      await expect(http.get("/profile")).rejects.toMatchObject({
+        message: "Request failed",
+      });
+    });
+
+    it("自定义 shouldRetry 可以控制重试条件", async () => {
+      const shouldRetry = vi.fn((_error, retryCount) => retryCount < 1);
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        retryPolicy: {
+          maxRetries: 3,
+          shouldRetry,
+          retryDelay: () => 0,
+        },
+      });
+
+      queueAxiosError({ status: 500, data: { message: "server error" } });
+      queueResponse({ status: 200, data: { ok: true } });
+
+      const response = await http.get("/profile");
+
+      expect(response.data).toEqual({ ok: true });
+      expect(shouldRetry).toHaveBeenCalled();
+    });
+  });
+
+  describe("dedupePolicy", () => {
+    it("相同 GET 请求在时间窗口内会复用同一个 Promise", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        dedupePolicy: {
+          enabled: true,
+          windowMs: 100,
+        },
+      });
+
+      // 只队列一个响应，第二个请求应该复用第一个
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile"),
+        http.get("/profile"),
+      ]);
+
+      // 两个请求复用同一个响应
+      expect(first.data).toEqual({ count: 1 });
+      expect(second.data).toEqual({ count: 1 });
+      expect(requestCount).toBe(1);
+    });
+
+    it("不同 URL 的请求不会合并", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        dedupePolicy: {
+          enabled: true,
+          windowMs: 100,
+        },
+      });
+
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { url: config.url }, config };
+      });
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { url: config.url }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile"),
+        http.get("/settings"),
+      ]);
+
+      expect(first.data).toEqual({ url: "/profile" });
+      expect(second.data).toEqual({ url: "/settings" });
+      expect(requestCount).toBe(2);
+    });
+
+    it("请求级 dedupePolicy.enabled=false 可以禁用合并", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        dedupePolicy: {
+          enabled: true,
+          windowMs: 100,
+        },
+      });
+
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile"),
+        http.get("/profile", { dedupePolicy: { enabled: false } }),
+      ]);
+
+      expect(first.data).toEqual({ count: 1 });
+      expect(second.data).toEqual({ count: 2 });
+      expect(requestCount).toBe(2);
+    });
+
+    it("未配置 dedupePolicy 时不会合并请求", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+      });
+
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile"),
+        http.get("/profile"),
+      ]);
+
+      expect(first.data).toEqual({ count: 1 });
+      expect(second.data).toEqual({ count: 2 });
+      expect(requestCount).toBe(2);
+    });
+
+    it("合并后的请求会传递相同的响应数据", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        dedupePolicy: {
+          enabled: true,
+          windowMs: 100,
+        },
+      });
+
+      queueCustomHandler(async (config) => {
+        return {
+          status: 200,
+          data: { id: 1, name: "test" },
+          config,
+        };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile"),
+        http.get("/profile"),
+      ]);
+
+      expect(first.data).toEqual({ id: 1, name: "test" });
+      expect(second.data).toEqual({ id: 1, name: "test" });
+      expect(first.data).toBe(second.data);
+    });
+
+    it("POST 请求不会被合并", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        dedupePolicy: {
+          enabled: true,
+          windowMs: 100,
+        },
+      });
+
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.post("/users", { name: "test1" }),
+        http.post("/users", { name: "test2" }),
+      ]);
+
+      expect(first.data).toEqual({ count: 1 });
+      expect(second.data).toEqual({ count: 2 });
+      expect(requestCount).toBe(2);
+    });
+  });
 });

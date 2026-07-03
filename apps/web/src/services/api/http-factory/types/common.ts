@@ -4,7 +4,10 @@ import type { AxiosResponse } from "axios";
  * 请求内部状态。
  */
 export interface RequestRetryState {
+  /** token 刷新重试标记 */
   _retry?: boolean;
+  /** 通用重试计数 */
+  __retryCount?: number;
 }
 
 /**

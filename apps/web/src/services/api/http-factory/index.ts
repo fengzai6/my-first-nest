@@ -1,23 +1,25 @@
 import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import axios, { AxiosError } from "axios";
+import { DedupeManager } from "./dedupe-manager";
 import { REFRESH_SKIPPED, TokenRefreshManager } from "./token-refresh-manager";
+import type { AccessTokenResult } from "./types/token";
+import type { RequestRetryState } from "./types/common";
 import type {
-  AccessTokenResult,
   HttpClientOptions,
-  RequestRetryState,
   ResolvedHttpClientOptions,
-} from "./types";
+} from "./types/http-client-options";
+import { DEFAULT_MESSAGES, DEFAULT_REFRESH_BUFFER_MS } from "./constants";
+import { normalizeError, invokeOnError } from "./utils/error";
 import {
-  DEFAULT_MESSAGES,
-  DEFAULT_REFRESH_BUFFER_MS,
   formatAccessToken,
-  normalizeError,
   normalizeTokenResult,
   isTokenExpiringSoon,
-  invokeOnError,
+} from "./utils/token";
+import {
   shouldSkipRefresh,
   defaultIsRefreshFailure,
-} from "./utils";
+  resolveRetryPolicy,
+} from "./utils/refresh";
 
 export const createHttpClient = <
   T extends AccessTokenResult = AccessTokenResult,
@@ -45,10 +47,49 @@ export const createHttpClient = <
     options.refreshManager ??
     new TokenRefreshManager(options.refreshCooldownMs);
   const refreshEnabled = options.refreshAccessToken !== undefined;
+  const resolvedRetryPolicy = resolveRetryPolicy(options.retryPolicy);
+
+  // 请求合并
+  const dedupePolicy = options.dedupePolicy;
+  const dedupeManager = dedupePolicy?.enabled
+    ? new DedupeManager(dedupePolicy.windowMs, dedupePolicy.generateKey)
+    : null;
+
   const instance = axios.create({
     timeout: 15 * 1000,
     ...resolvedOptions.axiosConfig,
   });
+
+  // 包装 request 方法，实现请求合并
+  if (dedupeManager) {
+    const originalRequest = instance.request.bind(instance);
+    instance.request = ((config: InternalAxiosRequestConfig) => {
+      // 只对 GET 请求进行合并
+      const method = (config.method ?? "get").toLowerCase();
+      if (method !== "get") {
+        return originalRequest(config);
+      }
+
+      // 请求级配置覆盖客户端级配置
+      const requestDedupePolicy = config.dedupePolicy;
+      const shouldDedupe = requestDedupePolicy?.enabled ?? true;
+
+      if (!shouldDedupe) {
+        return originalRequest(config);
+      }
+
+      const key = dedupeManager.getKey(config);
+      const pendingPromise = dedupeManager.getPending(key);
+
+      if (pendingPromise) {
+        return pendingPromise as ReturnType<typeof originalRequest>;
+      }
+
+      const promise = originalRequest(config);
+      dedupeManager.setPending(key, promise);
+      return promise;
+    }) as typeof instance.request;
+  }
 
   const handleAuthFailure = async (error?: unknown) => {
     await resolvedOptions.onAuthFailure?.(error);
@@ -68,16 +109,24 @@ export const createHttpClient = <
         return await requestRefreshAccessToken();
       } catch (error) {
         const normalizedError = normalizeError(error);
-        const authError = resolvedOptions.isRefreshFailure(error)
-          ? new Error(
-              resolvedOptions.errorMessages?.refreshTokenExpired ??
-                DEFAULT_MESSAGES.refreshTokenExpired,
-            )
-          : normalizedError;
+        const isAuthFailure = resolvedOptions.isRefreshFailure(error);
 
-        await handleAuthFailure(authError);
+        if (isAuthFailure) {
+          const authError = new Error(
+            resolvedOptions.errorMessages?.refreshTokenExpired ??
+              DEFAULT_MESSAGES.refreshTokenExpired,
+          );
+          await handleAuthFailure(authError);
+          throw await invokeOnError(
+            authError,
+            { type: "refresh" },
+            resolvedOptions.onError,
+          );
+        }
+
+        // 非鉴权失败（如网络错误），不调用 handleAuthFailure
         throw await invokeOnError(
-          authError,
+          normalizedError,
           { type: "refresh" },
           resolvedOptions.onError,
         );
@@ -194,8 +243,13 @@ export const createHttpClient = <
           throw businessResult;
         }
 
-        // 返回了新响应
-        if (businessResult && "request" in businessResult) {
+        // 返回了新响应（通过检查 AxiosResponse 核心属性判断）
+        if (
+          businessResult &&
+          typeof businessResult === "object" &&
+          "status" in businessResult &&
+          "data" in businessResult
+        ) {
           return businessResult;
         }
       }
@@ -216,6 +270,22 @@ export const createHttpClient = <
           resolvedOptions.onError,
         );
         return Promise.reject(finalError);
+      }
+
+      // 通用重试逻辑（在 token 刷新之前判断）
+      if (resolvedRetryPolicy) {
+        const retryCount = config.__retryCount ?? 0;
+
+        if (
+          retryCount < resolvedRetryPolicy.maxRetries &&
+          resolvedRetryPolicy.shouldRetry(error, retryCount)
+        ) {
+          const delay = resolvedRetryPolicy.retryDelay(retryCount);
+          config.__retryCount = retryCount + 1;
+
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return instance.request(config);
+        }
       }
 
       const status = error.response?.status;

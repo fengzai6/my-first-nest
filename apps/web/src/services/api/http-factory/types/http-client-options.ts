@@ -1,7 +1,60 @@
 import type { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 import type { TokenRefreshManager } from "../token-refresh-manager";
+import type {
+  BusinessResponseResult,
+  ErrorContext,
+  ErrorMessages,
+} from "./common";
 import type { AccessTokenResult } from "./token";
-import type { BusinessResponseResult, ErrorContext, ErrorMessages } from "./common";
+
+/**
+ * 请求合并配置。
+ */
+export interface DedupePolicy {
+  /** 是否启用请求合并。默认 false。 */
+  enabled?: boolean;
+
+  /**
+   * 合并时间窗口（毫秒）。
+   * 在此时间窗口内的相同请求会复用同一个 Promise。
+   * 默认 100ms。
+   */
+  windowMs?: number;
+
+  /**
+   * 自定义合并 key 生成器。
+   * 默认：`method:url:sortedParams`
+   */
+  generateKey?: (config: AxiosRequestConfig) => string;
+}
+
+// 扩展 AxiosRequestConfig，支持请求级 dedupePolicy
+declare module "axios" {
+  interface AxiosRequestConfig {
+    /** 请求合并策略。覆盖客户端级配置。 */
+    dedupePolicy?: DedupePolicy;
+  }
+}
+
+/**
+ * 重试策略配置。
+ */
+export interface RetryPolicy {
+  /** 最大重试次数（不含首次请求）。默认 0（不重试）。 */
+  maxRetries?: number;
+
+  /**
+   * 判断是否需要重试。
+   * 默认：网络错误（无 response）或 5xx 状态码时重试。
+   */
+  shouldRetry?: (error: unknown, retryCount: number) => boolean;
+
+  /**
+   * 计算重试延迟（毫秒）。
+   * 默认：指数退避，公式 `1000 * 2^retryCount`，上限 30 秒。
+   */
+  retryDelay?: (retryCount: number) => number;
+}
 
 /**
  * 创建 HTTP 客户端时可传入的配置。
@@ -9,7 +62,9 @@ import type { BusinessResponseResult, ErrorContext, ErrorMessages } from "./comm
  * @typeParam T - getAccessToken / refreshAccessToken 的统一返回类型，
  *   默认为 `AccessTokenResult`。当 T 为 `AccessTokenDetail` 时启用主动刷新。
  */
-export interface HttpClientOptions<T extends AccessTokenResult = AccessTokenResult> {
+export interface HttpClientOptions<
+  T extends AccessTokenResult = AccessTokenResult,
+> {
   /**
    * 透传给 axios.create 的初始化配置。
    */
@@ -45,6 +100,18 @@ export interface HttpClientOptions<T extends AccessTokenResult = AccessTokenResu
   authFailureCodes?: number[];
 
   /**
+   * 通用重试策略。
+   * 默认不重试（maxRetries: 0）。
+   */
+  retryPolicy?: RetryPolicy;
+
+  /**
+   * 请求合并策略。
+   * 默认关闭（enabled: false）。
+   */
+  dedupePolicy?: DedupePolicy;
+
+  /**
    * 运行时动态 headers 提供者。
    *
    * 每次请求时调用，返回的 headers 会合并到请求中。
@@ -56,7 +123,9 @@ export interface HttpClientOptions<T extends AccessTokenResult = AccessTokenResu
    *
    * 注意：返回的 headers 会覆盖默认注入的 headers（如 Authorization）。
    */
-  headersProvider?: () => Record<string, string> | Promise<Record<string, string>>;
+  headersProvider?: () =>
+    | Record<string, string>
+    | Promise<Record<string, string>>;
 
   /**
    * 触发刷新流程的 HTTP 状态码。
@@ -133,7 +202,9 @@ export interface HttpClientOptions<T extends AccessTokenResult = AccessTokenResu
    * - 返回 AxiosResponse：用新响应替换原响应，不会二次触发 onBusinessResponse
    * - 可以是 async
    */
-  onBusinessResponse?: (response: AxiosResponse<unknown>) => BusinessResponseResult | Promise<BusinessResponseResult>;
+  onBusinessResponse?: (
+    response: AxiosResponse<unknown>,
+  ) => BusinessResponseResult | Promise<BusinessResponseResult>;
 
   /**
    * 全局错误钩子。
@@ -146,7 +217,10 @@ export interface HttpClientOptions<T extends AccessTokenResult = AccessTokenResu
    * - 刷新失败时可能为 AxiosError 或业务侧抛出的任意 Error
    * - 登录过期等内部构造的错误为普通 Error
    */
-  onError?: (error: AxiosError | Error, context: ErrorContext) => AxiosError | Error | void | Promise<AxiosError | Error | void>;
+  onError?: (
+    error: AxiosError | Error,
+    context: ErrorContext,
+  ) => AxiosError | Error | void | Promise<AxiosError | Error | void>;
 }
 
 /**
@@ -167,8 +241,7 @@ type ResolvedHttpClientOptionOverrides<T extends AccessTokenResult> = {
   [K in ResolvedHttpClientOptionKeys]-?: NonNullable<HttpClientOptions<T>[K]>;
 };
 
-export type ResolvedHttpClientOptions<T extends AccessTokenResult = AccessTokenResult> = Omit<
-  HttpClientOptions<T>,
-  ResolvedHttpClientOptionKeys
-> &
+export type ResolvedHttpClientOptions<
+  T extends AccessTokenResult = AccessTokenResult,
+> = Omit<HttpClientOptions<T>, ResolvedHttpClientOptionKeys> &
   ResolvedHttpClientOptionOverrides<T>;

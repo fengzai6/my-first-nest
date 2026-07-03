@@ -1,4 +1,4 @@
-import type { AccessTokenResult } from "./types";
+import type { AccessTokenResult } from "./types/token";
 
 export const REFRESH_SKIPPED = Symbol("REFRESH_SKIPPED");
 
