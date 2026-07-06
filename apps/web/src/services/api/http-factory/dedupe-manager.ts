@@ -1,6 +1,6 @@
 import type { AxiosRequestConfig } from "axios";
 
-interface PendingRequest {
+interface IPendingRequest {
   promise: Promise<unknown>;
   timestamp: number;
 }
@@ -10,7 +10,7 @@ interface PendingRequest {
  * 在时间窗口内的相同请求会复用同一个 Promise。
  */
 export class DedupeManager {
-  private pending = new Map<string, PendingRequest>();
+  private pending = new Map<string, IPendingRequest>();
   private windowMs: number;
   private generateKey: (config: AxiosRequestConfig) => string;
 
@@ -72,13 +72,13 @@ export class DedupeManager {
       timestamp: Date.now(),
     });
 
-    // 请求完成后自动清理
-    promise.finally(() => {
-      // 只清理当前注册的条目，避免清理后续相同 key 的新请求
+    // 请求完成后自动清理（使用 then 替代 finally，避免派生 Promise 未消费导致 unhandledrejection）
+    const cleanup = () => {
       const current = this.pending.get(key);
       if (current && current.promise === promise) {
         this.pending.delete(key);
       }
-    });
+    };
+    void promise.then(cleanup, cleanup);
   }
 }

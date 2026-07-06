@@ -142,8 +142,8 @@ export interface HttpClientOptions<
    * 判断刷新 token 请求本身是否已经失败到需要退出登录。
    *
    * 默认行为：
-   * - 仅处理 axios 错误（有 response 属性）
-   * - 状态码 >= 500 时不视为刷新失败（服务端错误，可能是临时问题）
+   * - 非 AxiosError（如 refreshAccessToken 函数内部抛出的业务错误）视为刷新失败
+   * - AxiosError 无 response（网络错误）或状态码 >= 500 时不视为刷新失败
    * - 状态码 === unauthorizedStatusCode 时视为刷新失败
    * - 响应 data.code 在 authFailureCodes 列表中时视为刷新失败
    */
