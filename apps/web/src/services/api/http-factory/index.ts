@@ -1,221 +1,135 @@
-import type {
-  AxiosInstance,
-  AxiosResponse,
-  InternalAxiosRequestConfig,
-} from "axios";
+import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
 import axios, { AxiosError } from "axios";
+import { DedupeManager } from "./dedupe-manager";
 import { REFRESH_SKIPPED, TokenRefreshManager } from "./token-refresh-manager";
+import type { AccessTokenResult } from "./types/token";
+import type { RequestRetryState } from "./types/common";
 import type {
-  AccessTokenResult,
   HttpClientOptions,
-  RequestRetryState,
   ResolvedHttpClientOptions,
-} from "./types";
+} from "./types/http-client-options";
+import { DEFAULT_MESSAGES, DEFAULT_REFRESH_BUFFER_MS } from "./constants";
+import { normalizeError, invokeOnError } from "./utils/error";
+import {
+  formatAccessToken,
+  normalizeTokenResult,
+  isTokenExpiringSoon,
+} from "./utils/token";
+import {
+  shouldSkipRefresh,
+  defaultIsRefreshFailure,
+  resolveRetryPolicy,
+} from "./utils/refresh";
 
-type HttpClientError<T = unknown> = Error & {
-  status?: number;
-  data?: T;
-  response?: AxiosResponse<T>;
-};
-
-const HTTP_CLIENT_MESSAGES = {
-  unknownError: "未知错误",
-  requestFailed: "请求失败",
-  businessRequestFailed: "业务请求失败",
-  refreshDisabled: "未启用 refresh token 逻辑",
-  refreshTokenExpired: "refreshToken 已失效，登录过期",
-  loginExpired: "登录已失效，请重新登录",
-};
-
-const DEFAULT_REFRESH_BUFFER_MS = 60_000;
-const DEFAULT_REFRESH_COOLDOWN_MS = 15_000;
-
-const createHttpClientError = <T = unknown>(
-  message: string,
-  options?: {
-    status?: number;
-    data?: T;
-    response?: AxiosResponse<T>;
-  },
-): HttpClientError<T> => {
-  const error = new Error(message) as HttpClientError<T>;
-
-  error.name = "HttpError";
-  error.status = options?.status;
-  error.data = options?.data;
-  error.response = options?.response;
-
-  return error;
-};
-
-const getResponseMessage = (
-  response?: AxiosResponse<unknown>,
-  fallbackMessage = HTTP_CLIENT_MESSAGES.requestFailed,
-) => {
-  const responseMessage =
-    response?.data &&
-    typeof response.data === "object" &&
-    "message" in response.data
-      ? response.data.message
-      : undefined;
-
-  if (typeof responseMessage === "string" && responseMessage.trim()) {
-    return responseMessage;
-  }
-
-  return fallbackMessage;
-};
-
-const normalizeHttpError = <T = unknown>(error: unknown): Error => {
-  if (axios.isAxiosError<T>(error)) {
-    return createHttpClientError(
-      getResponseMessage(error.response, error.message),
-      {
-        status: error.response?.status,
-        data: error.response?.data,
-        response: error.response,
-      },
-    );
-  }
-
-  if (error instanceof Error) {
-    return error;
-  }
-
-  return createHttpClientError(HTTP_CLIENT_MESSAGES.unknownError);
-};
-
-const formatAccessToken = (prefix: string, token: string) => {
-  const normalizedPrefix = prefix.trim();
-  return normalizedPrefix ? `${normalizedPrefix} ${token}` : token;
-};
-
-const normalizeTokenResult = (result: AccessTokenResult) => {
-  if (!result || typeof result === "string") {
-    return { token: result ?? "", expiresAt: null };
-  }
-
-  // 验证 expiresAt 是否为有效的时间值
-  const expiresAtValue = result.expiresAt;
-
-  // 处理无效值：null、undefined、空字符串、0
-  if (
-    expiresAtValue == null ||
-    expiresAtValue === "" ||
-    expiresAtValue === 0
-  ) {
-    return { token: result.token, expiresAt: null };
-  }
-
-  const expiresAtDate = new Date(expiresAtValue);
-
-  // 检查是否为 Invalid Date
-  if (Number.isNaN(expiresAtDate.getTime())) {
-    return { token: result.token, expiresAt: null };
-  }
-
-  return {
-    token: result.token,
-    expiresAt: expiresAtDate,
-  };
-};
-
-const isTokenExpiringSoon = (
-  expiresAt: Date,
-  refreshBufferMs: number,
-): boolean => {
-  return Date.now() >= expiresAt.getTime() - refreshBufferMs;
-};
-
-const shouldSkipRefresh = (
-  skipRefreshUrls: string[],
-  config?: InternalAxiosRequestConfig & RequestRetryState,
-) => {
-  const requestUrl = config?.url;
-
-  if (!requestUrl) {
-    return false;
-  }
-
-  return skipRefreshUrls.some((url) => requestUrl.includes(url));
-};
-
-export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult>(
+export const createHttpClient = <
+  T extends AccessTokenResult = AccessTokenResult,
+>(
   options: HttpClientOptions<T>,
 ): AxiosInstance => {
   const resolvedOptions: ResolvedHttpClientOptions<T> = {
-    authFailureCodes: [],
     accessTokenHeaderName: "Authorization",
     accessTokenPrefix: "Bearer",
+    authFailureCodes: [],
     unauthorizedStatusCode: 401,
+    errorMessages: {},
+    isRefreshFailure: (error: unknown) =>
+      defaultIsRefreshFailure(error, {
+        unauthorizedStatusCode: resolvedOptions.unauthorizedStatusCode,
+        authFailureCodes: resolvedOptions.authFailureCodes,
+      }),
     skipRefreshUrls: [],
     refreshBufferMs: DEFAULT_REFRESH_BUFFER_MS,
-    refreshCooldownMs: DEFAULT_REFRESH_COOLDOWN_MS,
-    isBusinessSuccess: () => true,
-    mapBusinessError: (response: AxiosResponse<unknown>) => {
-      return createHttpClientError(
-        getResponseMessage(
-          response,
-          HTTP_CLIENT_MESSAGES.businessRequestFailed,
-        ),
-        {
-          status: response.status,
-          data: response.data,
-          response,
-        },
-      );
-    },
     shouldRefreshByResponseData: () => false,
-    onAuthFailure: () => {},
-    isRefreshFailure: (error: unknown) => {
-      if (!axios.isAxiosError(error) || !error.response) {
-        return false;
-      }
-
-      const status = error.response.status;
-      const data = error.response.data as { code?: number } | undefined;
-
-      if (status && status >= 500) {
-        return false;
-      }
-
-      return (
-        status === resolvedOptions.unauthorizedStatusCode ||
-        (data?.code !== undefined &&
-          resolvedOptions.authFailureCodes.includes(data.code))
-      );
-    },
     ...options,
   };
 
-  const refreshManager = new TokenRefreshManager(resolvedOptions.refreshCooldownMs);
+  const refreshManager =
+    options.refreshManager ??
+    new TokenRefreshManager(options.refreshCooldownMs);
   const refreshEnabled = options.refreshAccessToken !== undefined;
+  const resolvedRetryPolicy = resolveRetryPolicy(options.retryPolicy);
+
+  // 请求合并
+  const dedupePolicy = options.dedupePolicy;
+  const dedupeManager = dedupePolicy?.enabled
+    ? new DedupeManager(dedupePolicy.windowMs, dedupePolicy.generateKey)
+    : null;
+
   const instance = axios.create({
     timeout: 15 * 1000,
     ...resolvedOptions.axiosConfig,
   });
 
+  // 包装 request 方法，实现请求合并
+  if (dedupeManager) {
+    const originalRequest = instance.request.bind(instance);
+    instance.request = ((config: InternalAxiosRequestConfig) => {
+      // 只对 GET 请求进行合并
+      const method = (config.method ?? "get").toLowerCase();
+      if (method !== "get") {
+        return originalRequest(config);
+      }
+
+      // 请求级配置覆盖客户端级配置
+      const requestDedupePolicy = config.dedupePolicy;
+      const shouldDedupe = requestDedupePolicy?.enabled ?? true;
+
+      if (!shouldDedupe) {
+        return originalRequest(config);
+      }
+
+      const key = dedupeManager.getKey(config);
+      const pendingPromise = dedupeManager.getPending(key);
+
+      if (pendingPromise) {
+        return pendingPromise as ReturnType<typeof originalRequest>;
+      }
+
+      const promise = originalRequest(config);
+      dedupeManager.setPending(key, promise);
+      return promise;
+    }) as typeof instance.request;
+  }
+
   const handleAuthFailure = async (error?: unknown) => {
-    await resolvedOptions.onAuthFailure(error);
+    await resolvedOptions.onAuthFailure?.(error);
   };
 
-  const refreshAccessToken = async (): Promise<AccessTokenResult | typeof REFRESH_SKIPPED> => {
+  const refreshAccessToken = async (): Promise<
+    AccessTokenResult | typeof REFRESH_SKIPPED
+  > => {
     const requestRefreshAccessToken = resolvedOptions.refreshAccessToken;
 
     if (!refreshEnabled || !requestRefreshAccessToken) {
-      throw new Error(HTTP_CLIENT_MESSAGES.refreshDisabled);
+      throw new Error(DEFAULT_MESSAGES.refreshDisabled);
     }
 
     return refreshManager.runRefresh(async () => {
       try {
         return await requestRefreshAccessToken();
       } catch (error) {
-        const authError = resolvedOptions.isRefreshFailure(error)
-          ? createHttpClientError(HTTP_CLIENT_MESSAGES.refreshTokenExpired)
-          : normalizeHttpError(error);
+        const normalizedError = normalizeError(error);
+        const isAuthFailure = resolvedOptions.isRefreshFailure(error);
 
-        await handleAuthFailure(authError);
-        throw authError;
+        if (isAuthFailure) {
+          const authError = new Error(
+            resolvedOptions.errorMessages?.refreshTokenExpired ??
+              DEFAULT_MESSAGES.refreshTokenExpired,
+          );
+          await handleAuthFailure(authError);
+          throw await invokeOnError(
+            authError,
+            { type: "refresh" },
+            resolvedOptions.onError,
+          );
+        }
+
+        // 非鉴权失败（如网络错误），不调用 handleAuthFailure
+        throw await invokeOnError(
+          normalizedError,
+          { type: "refresh" },
+          resolvedOptions.onError,
+        );
       }
     });
   };
@@ -224,11 +138,16 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
     config: InternalAxiosRequestConfig & RequestRetryState,
   ) => {
     if (config._retry) {
-      const authError = createHttpClientError(
-        HTTP_CLIENT_MESSAGES.loginExpired,
+      const authError = new Error(
+        resolvedOptions.errorMessages?.loginExpired ??
+          DEFAULT_MESSAGES.loginExpired,
       );
       await handleAuthFailure(authError);
-      throw authError;
+      throw await invokeOnError(
+        authError,
+        { type: "refresh" },
+        resolvedOptions.onError,
+      );
     }
 
     config._retry = true;
@@ -236,22 +155,12 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
     try {
       const refreshResult = await refreshAccessToken();
 
-      // 如果在冷却期内跳过了刷新，重新获取 token
-      if (refreshResult === REFRESH_SKIPPED) {
-        const tokenResult = await resolvedOptions.getAccessToken();
-        const { token } = normalizeTokenResult(tokenResult);
-
-        config.headers = config.headers ?? {};
-        config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
-          resolvedOptions.accessTokenPrefix,
-          token,
-        );
-
-        return await instance.request(config);
-      }
-
-      // 正常刷新流程
-      const { token } = normalizeTokenResult(refreshResult);
+      // 冷却期内跳过刷新时重新获取 token，否则使用刷新结果
+      const tokenSource =
+        refreshResult === REFRESH_SKIPPED
+          ? await resolvedOptions.getAccessToken()
+          : refreshResult;
+      const { token } = normalizeTokenResult(tokenSource);
 
       config.headers = config.headers ?? {};
       config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
@@ -261,7 +170,11 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
 
       return await instance.request(config);
     } catch (error) {
-      throw normalizeHttpError(error);
+      throw await invokeOnError(
+        normalizeError(error),
+        { type: "refresh" },
+        resolvedOptions.onError,
+      );
     }
   };
 
@@ -275,8 +188,7 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
       }
 
       const tokenResult = await resolvedOptions.getAccessToken();
-      const { token, expiresAt } =
-        normalizeTokenResult(tokenResult);
+      const { token, expiresAt } = normalizeTokenResult(tokenResult);
 
       if (!token) return config;
 
@@ -299,6 +211,12 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
         token,
       );
 
+      // 合并运行时动态 headers
+      if (resolvedOptions.headersProvider) {
+        const runtimeHeaders = await resolvedOptions.headersProvider();
+        Object.assign(config.headers, runtimeHeaders);
+      }
+
       return config;
     },
     (error) => Promise.reject(error),
@@ -317,8 +235,23 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
         return retryAfterRefresh(config);
       }
 
-      if (!resolvedOptions.isBusinessSuccess(response)) {
-        throw resolvedOptions.mapBusinessError(response);
+      if (resolvedOptions.onBusinessResponse) {
+        const businessResult =
+          await resolvedOptions.onBusinessResponse(response);
+
+        if (businessResult instanceof Error) {
+          throw businessResult;
+        }
+
+        // 返回了新响应
+        if (
+          businessResult &&
+          typeof businessResult === "object" &&
+          "status" in businessResult &&
+          "data" in businessResult
+        ) {
+          return businessResult;
+        }
       }
 
       return response;
@@ -328,10 +261,31 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
         | (InternalAxiosRequestConfig & RequestRetryState)
         | undefined;
 
-      const normalizedError = normalizeHttpError(error);
+      const normalizedError = normalizeError(error);
 
       if (!config) {
-        return Promise.reject(normalizedError);
+        const finalError = await invokeOnError(
+          normalizedError,
+          { type: "request" },
+          resolvedOptions.onError,
+        );
+        return Promise.reject(finalError);
+      }
+
+      // 通用重试逻辑（在 token 刷新之前判断）
+      if (resolvedRetryPolicy) {
+        const retryCount = config.__retryCount ?? 0;
+
+        if (
+          retryCount < resolvedRetryPolicy.maxRetries &&
+          resolvedRetryPolicy.shouldRetry(error, retryCount)
+        ) {
+          const delay = resolvedRetryPolicy.retryDelay(retryCount);
+          config.__retryCount = retryCount + 1;
+
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return instance.request(config);
+        }
       }
 
       const status = error.response?.status;
@@ -342,8 +296,12 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
           shouldSkipRefresh(resolvedOptions.skipRefreshUrls, config)
         ) {
           await handleAuthFailure(normalizedError);
-
-          return Promise.reject(normalizedError);
+          const finalError = await invokeOnError(
+            normalizedError,
+            { type: "request" },
+            resolvedOptions.onError,
+          );
+          return Promise.reject(finalError);
         }
 
         try {
@@ -353,7 +311,12 @@ export const createHttpClient = <T extends AccessTokenResult = AccessTokenResult
         }
       }
 
-      return Promise.reject(normalizedError);
+      const finalError = await invokeOnError(
+        normalizedError,
+        { type: "request" },
+        resolvedOptions.onError,
+      );
+      return Promise.reject(finalError);
     },
   );
 

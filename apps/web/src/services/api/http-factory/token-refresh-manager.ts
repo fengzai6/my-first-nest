@@ -1,4 +1,4 @@
-import type { AccessTokenResult } from "./types";
+import type { AccessTokenResult } from "./types/token";
 
 export const REFRESH_SKIPPED = Symbol("REFRESH_SKIPPED");
 
@@ -7,7 +7,7 @@ export class TokenRefreshManager {
   private lastRefreshTime: number | null = null;
   private readonly cooldownMs: number;
 
-  constructor(cooldownMs: number) {
+  constructor(cooldownMs = 15_000) {
     this.cooldownMs = cooldownMs;
   }
 

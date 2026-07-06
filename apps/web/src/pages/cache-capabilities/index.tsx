@@ -57,12 +57,25 @@ const getErrorMessage = (error: unknown) => {
 };
 
 const getErrorStatus = (error: unknown) => {
-  if (typeof error !== "object" || error === null || !("status" in error)) {
+  if (typeof error !== "object" || error === null) {
     return undefined;
   }
 
-  const status = error.status;
-  return typeof status === "number" ? status : undefined;
+  if ("status" in error && typeof error.status === "number") {
+    return error.status;
+  }
+
+  if (
+    "response" in error &&
+    typeof error.response === "object" &&
+    error.response !== null &&
+    "status" in error.response &&
+    typeof error.response.status === "number"
+  ) {
+    return error.response.status;
+  }
+
+  return undefined;
 };
 
 const formatMs = (value?: number) => {

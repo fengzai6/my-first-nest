@@ -8,6 +8,7 @@ import {
   createTokenStore,
   queueAxiosError,
   queueCustomHandler,
+  queueMatchedHandler,
   queueResponse,
 } from "./test-utils/mock-axios";
 
@@ -160,7 +161,7 @@ describe("createHttpClient", () => {
     queueAxiosError({ status: 401, data: { message: "refresh expired" } });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      name: "HttpError",
+      name: "Error",
       message: "refreshToken 已失效，登录过期",
     });
 
@@ -259,16 +260,15 @@ describe("createHttpClient", () => {
     queueAxiosError({ status: 401, data: { message: "unauthorized" } });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      name: "HttpError",
-      message: "unauthorized",
-      status: 401,
+      name: "Error",
+      message: "Request failed",
     });
 
     expect(onAuthFailure).toHaveBeenCalledTimes(1);
     expect(tokenStore.getRefreshToken).not.toHaveBeenCalled();
   });
 
-  it("非 401 的 axios 错误会被归一化为 HttpError", async () => {
+  it("非 401 的 axios 错误会透传原始错误", async () => {
     const tokenStore = createTokenStore("old-access", "old-refresh");
 
     const http = createHttpClient({
@@ -286,10 +286,8 @@ describe("createHttpClient", () => {
     });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      name: "HttpError",
-      message: "server error",
-      status: 500,
-      data: { code: 50001, message: "server error" },
+      name: "Error",
+      message: "Request failed",
     });
 
     expect(tokenStore.clearAuth).not.toHaveBeenCalled();
@@ -320,11 +318,560 @@ describe("createHttpClient", () => {
     queueAxiosError({ status: 401, data: { message: "still unauthorized" } });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      name: "HttpError",
+      name: "Error",
       message: "登录已失效，请重新登录",
     });
 
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
     expect(onAuthFailure).toHaveBeenCalledTimes(1);
+  });
+
+  it("多个客户端共享 TokenRefreshManager 时只刷新一次", async () => {
+    const tokenStore = createTokenStore("old-access", "old-refresh");
+    const refreshAccessToken = vi.fn(createRefreshAccessToken(tokenStore));
+    const { TokenRefreshManager } = await import("../token-refresh-manager");
+    const sharedManager = new TokenRefreshManager(15000);
+
+    const http1 = createHttpClient({
+      axiosConfig: { baseURL: "/api1" },
+      getAccessToken: tokenStore.getAccessToken,
+      refreshAccessToken,
+      refreshManager: sharedManager,
+    });
+
+    const http2 = createHttpClient({
+      axiosConfig: { baseURL: "/api2" },
+      getAccessToken: tokenStore.getAccessToken,
+      refreshAccessToken,
+      refreshManager: sharedManager,
+    });
+
+    queueAxiosError({ status: 401, data: { message: "unauthorized" } });
+    queueAxiosError({ status: 401, data: { message: "unauthorized" } });
+    queueResponse({
+      status: 200,
+      data: { accessToken: "new-access", refreshToken: "new-refresh" },
+    });
+    queueCustomHandler(async (config) => ({
+      status: 200,
+      data: { ok: true },
+      config,
+    }));
+    queueCustomHandler(async (config) => ({
+      status: 200,
+      data: { ok: true },
+      config,
+    }));
+
+    const [result1, result2] = await Promise.all([
+      http1.get("/profile"),
+      http2.get("/users"),
+    ]);
+
+    expect(result1.data).toEqual({ ok: true });
+    expect(result2.data).toEqual({ ok: true });
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(tokenStore.setAccessToken).toHaveBeenCalledTimes(1);
+  });
+
+  describe("headersProvider", () => {
+    it("同步 headersProvider 注入的 headers 会合并到请求中", async () => {
+      const tokenStore = createTokenStore("test-token", "test-refresh");
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: tokenStore.getAccessToken,
+        headersProvider: () => ({
+          "x-trace-id": "trace-123",
+          "x-request-id": "req-456",
+        }),
+      });
+
+      let receivedHeaders: Record<string, string> = {};
+
+      queueCustomHandler(async (config) => {
+        receivedHeaders = {
+          "x-trace-id": config.headers?.["x-trace-id"],
+          "x-request-id": config.headers?.["x-request-id"],
+          Authorization: config.headers?.Authorization,
+        };
+        return { status: 200, data: { ok: true }, config };
+      });
+
+      await http.get("/profile");
+
+      expect(receivedHeaders).toEqual({
+        "x-trace-id": "trace-123",
+        "x-request-id": "req-456",
+        Authorization: "Bearer test-token",
+      });
+    });
+
+    it("异步 headersProvider 注入的 headers 会合并到请求中", async () => {
+      const tokenStore = createTokenStore("test-token", "test-refresh");
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: tokenStore.getAccessToken,
+        headersProvider: async () => {
+          // 模拟异步获取（如从 store 读取）
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          return {
+            "x-tenant-id": "tenant-789",
+            "x-region": "cn-east",
+          };
+        },
+      });
+
+      let receivedHeaders: Record<string, string> = {};
+
+      queueCustomHandler(async (config) => {
+        receivedHeaders = {
+          "x-tenant-id": config.headers?.["x-tenant-id"],
+          "x-region": config.headers?.["x-region"],
+          Authorization: config.headers?.Authorization,
+        };
+        return { status: 200, data: { ok: true }, config };
+      });
+
+      await http.get("/profile");
+
+      expect(receivedHeaders).toEqual({
+        "x-tenant-id": "tenant-789",
+        "x-region": "cn-east",
+        Authorization: "Bearer test-token",
+      });
+    });
+
+    it("headersProvider 返回的 Authorization 会覆盖默认注入的 token", async () => {
+      const tokenStore = createTokenStore("default-token", "test-refresh");
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: tokenStore.getAccessToken,
+        headersProvider: () => ({
+          Authorization: "Bearer custom-token",
+        }),
+      });
+
+      let receivedAuthorization = "";
+
+      queueCustomHandler(async (config) => {
+        receivedAuthorization = config.headers?.Authorization;
+        return { status: 200, data: { ok: true }, config };
+      });
+
+      await http.get("/profile");
+
+      expect(receivedAuthorization).toBe("Bearer custom-token");
+      // headersProvider 覆盖后，token 注入仍会执行，但最终结果以 headersProvider 为准
+      expect(tokenStore.getAccessToken).toHaveBeenCalledTimes(1);
+    });
+
+    it("未配置 headersProvider 时行为不变", async () => {
+      const tokenStore = createTokenStore("test-token", "test-refresh");
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: tokenStore.getAccessToken,
+      });
+
+      let receivedHeaders: Record<string, string> = {};
+
+      queueCustomHandler(async (config) => {
+        receivedHeaders = {
+          Authorization: config.headers?.Authorization,
+          "x-trace-id": config.headers?.["x-trace-id"],
+        };
+        return { status: 200, data: { ok: true }, config };
+      });
+
+      await http.get("/profile");
+
+      expect(receivedHeaders).toEqual({
+        Authorization: "Bearer test-token",
+        "x-trace-id": undefined,
+      });
+    });
+  });
+
+  describe("retryPolicy", () => {
+    it("5xx 错误时会重试指定次数", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        retryPolicy: {
+          maxRetries: 2,
+          retryDelay: () => 0, // 测试时不延迟
+        },
+      });
+
+      // 前 2 次失败，第 3 次成功（初始 + 2 次重试）
+      queueAxiosError({ status: 500, data: { message: "server error" } });
+      queueAxiosError({ status: 500, data: { message: "server error" } });
+      queueResponse({ status: 200, data: { ok: true } });
+
+      const response = await http.get("/profile");
+
+      expect(response.data).toEqual({ ok: true });
+    });
+
+    it("503 错误时会重试", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        retryPolicy: {
+          maxRetries: 1,
+          retryDelay: () => 0,
+        },
+      });
+
+      queueAxiosError({ status: 503, data: { message: "service unavailable" } });
+      queueResponse({ status: 200, data: { ok: true } });
+
+      const response = await http.get("/profile");
+
+      expect(response.data).toEqual({ ok: true });
+    });
+
+    it("超过最大重试次数后会抛出错误", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        retryPolicy: {
+          maxRetries: 1,
+          retryDelay: () => 0,
+        },
+      });
+
+      // 2 次失败（初始 + 1 次重试）
+      queueAxiosError({ status: 500, data: { message: "server error" } });
+      queueAxiosError({ status: 500, data: { message: "server error" } });
+
+      await expect(http.get("/profile")).rejects.toMatchObject({
+        message: "Request failed",
+      });
+    });
+
+    it("4xx 错误（非 401）不会重试", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        retryPolicy: {
+          maxRetries: 2,
+          retryDelay: () => 0,
+        },
+      });
+
+      queueAxiosError({ status: 400, data: { message: "bad request" } });
+
+      await expect(http.get("/profile")).rejects.toMatchObject({
+        message: "Request failed",
+      });
+    });
+
+    it("未配置 retryPolicy 时不会重试", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+      });
+
+      queueAxiosError({ status: 500, data: { message: "server error" } });
+
+      await expect(http.get("/profile")).rejects.toMatchObject({
+        message: "Request failed",
+      });
+    });
+
+    it("自定义 shouldRetry 可以控制重试条件", async () => {
+      const shouldRetry = vi.fn((_error, retryCount) => retryCount < 1);
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        retryPolicy: {
+          maxRetries: 3,
+          shouldRetry,
+          retryDelay: () => 0,
+        },
+      });
+
+      queueAxiosError({ status: 500, data: { message: "server error" } });
+      queueResponse({ status: 200, data: { ok: true } });
+
+      const response = await http.get("/profile");
+
+      expect(response.data).toEqual({ ok: true });
+      expect(shouldRetry).toHaveBeenCalled();
+    });
+
+    it("网络错误（无 response）时默认会重试", async () => {
+      vi.useFakeTimers();
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        retryPolicy: {
+          maxRetries: 1,
+        },
+      });
+
+      queueMatchedHandler(
+        (config) => config.url === "/profile" && !config.__retryCount,
+        async (config) => {
+          const error = Object.assign(new Error("Network Error"), {
+            config,
+            isAxiosError: true,
+          });
+          throw error;
+        },
+      );
+
+      queueMatchedHandler(
+        (config) => config.url === "/profile" && config.__retryCount === 1,
+        async (config) => ({
+          status: 200,
+          data: { ok: true },
+          config,
+        }),
+      );
+
+      const responsePromise = http.get("/profile");
+      await vi.advanceTimersByTimeAsync(2000);
+      const response = await responsePromise;
+
+      expect(response.data).toEqual({ ok: true });
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe("dedupePolicy", () => {
+    it("相同 GET 请求在时间窗口内会复用同一个 Promise", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        dedupePolicy: {
+          enabled: true,
+          windowMs: 100,
+        },
+      });
+
+      // 只队列一个响应，第二个请求应该复用第一个
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile"),
+        http.get("/profile"),
+      ]);
+
+      // 两个请求复用同一个响应
+      expect(first.data).toEqual({ count: 1 });
+      expect(second.data).toEqual({ count: 1 });
+      expect(requestCount).toBe(1);
+    });
+
+    it("不同 URL 的请求不会合并", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        dedupePolicy: {
+          enabled: true,
+          windowMs: 100,
+        },
+      });
+
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { url: config.url }, config };
+      });
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { url: config.url }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile"),
+        http.get("/settings"),
+      ]);
+
+      expect(first.data).toEqual({ url: "/profile" });
+      expect(second.data).toEqual({ url: "/settings" });
+      expect(requestCount).toBe(2);
+    });
+
+    it("请求级 dedupePolicy.enabled=false 可以禁用合并", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        dedupePolicy: {
+          enabled: true,
+          windowMs: 100,
+        },
+      });
+
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile"),
+        http.get("/profile", { dedupePolicy: { enabled: false } }),
+      ]);
+
+      expect(first.data).toEqual({ count: 1 });
+      expect(second.data).toEqual({ count: 2 });
+      expect(requestCount).toBe(2);
+    });
+
+    it("未配置 dedupePolicy 时不会合并请求", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+      });
+
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile"),
+        http.get("/profile"),
+      ]);
+
+      expect(first.data).toEqual({ count: 1 });
+      expect(second.data).toEqual({ count: 2 });
+      expect(requestCount).toBe(2);
+    });
+
+    it("合并后的请求会传递相同的响应数据", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        dedupePolicy: {
+          enabled: true,
+          windowMs: 100,
+        },
+      });
+
+      queueCustomHandler(async (config) => {
+        return {
+          status: 200,
+          data: { id: 1, name: "test" },
+          config,
+        };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile"),
+        http.get("/profile"),
+      ]);
+
+      expect(first.data).toEqual({ id: 1, name: "test" });
+      expect(second.data).toEqual({ id: 1, name: "test" });
+      expect(first.data).toBe(second.data);
+    });
+
+    it("POST 请求不会被合并", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        dedupePolicy: {
+          enabled: true,
+          windowMs: 100,
+        },
+      });
+
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.post("/users", { name: "test1" }),
+        http.post("/users", { name: "test2" }),
+      ]);
+
+      expect(first.data).toEqual({ count: 1 });
+      expect(second.data).toEqual({ count: 2 });
+      expect(requestCount).toBe(2);
+    });
+
+    it("自定义 generateKey 可以控制合并 key 的生成逻辑", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        dedupePolicy: {
+          enabled: true,
+          windowMs: 100,
+          generateKey: () => "fixed-key",
+        },
+      });
+
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile"),
+        http.get("/settings"),
+      ]);
+
+      expect(first.data).toEqual({ count: 1 });
+      expect(second.data).toEqual({ count: 1 });
+      expect(requestCount).toBe(1);
+    });
+  });
+
+  describe("onBusinessResponse", () => {
+    it("返回 AxiosResponse 对象时会替换原响应", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        onBusinessResponse: () => ({
+          status: 200,
+          data: { replaced: true },
+          statusText: "OK",
+          headers: {},
+          config: {} as any,
+        }),
+      });
+
+      queueResponse({ status: 200, data: { original: true } });
+
+      const response = await http.get("/profile");
+
+      expect(response.data).toEqual({ replaced: true });
+    });
   });
 });

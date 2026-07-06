@@ -1,7 +1,7 @@
 import "./test-utils/mock-axios";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AccessTokenResult } from "../types";
+import type { AccessTokenResult } from "../types/token";
 import { createHttpClient } from "../";
 import {
   queueCustomHandler,
