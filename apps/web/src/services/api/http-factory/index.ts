@@ -243,7 +243,7 @@ export const createHttpClient = <
           throw businessResult;
         }
 
-        // 返回了新响应（通过检查 AxiosResponse 核心属性判断）
+        // 返回了新响应
         if (
           businessResult &&
           typeof businessResult === "object" &&

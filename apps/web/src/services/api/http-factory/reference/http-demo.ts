@@ -61,9 +61,19 @@ export const http = createHttpClient({
     baseURL: "/api",
     timeout: 15 * 1000,
   },
-  authFailureCodes: [40103, 1001002],
+
+  // ---- Token ----
+
   // 返回 AccessTokenDetail 时，会在 token 即将过期前主动触发刷新
   getAccessToken: () => browserTokenStore.getAccessTokenDetail(),
+
+  // ---- Auth failure ----
+
+  // 业务状态码中用于识别鉴权失败的 code 列表
+  authFailureCodes: [40103, 1001002],
+
+  // ---- Refresh ----
+
   refreshAccessToken: async () => {
     const refreshToken = browserTokenStore.getRefreshToken();
 
@@ -100,25 +110,44 @@ export const http = createHttpClient({
       expiresAt,
     };
   },
+
+  // 通过业务响应内容判断是否需要刷新 token（如 code=40101 表示 token 过期）
   shouldRefreshByResponseData: (response) => {
     const data = response.data as { code?: number };
     return data.code === 40101 || data.code === 1001001;
   },
-  isRefreshFailure: (error) => {
-    if (!(error instanceof Error) || !("response" in error)) {
-      return false;
-    }
 
-    const response = error.response as
-      | { status?: number; data?: { code?: number } }
-      | undefined;
+  // 刷新 token 后的冷却期（毫秒）。
+  // 在冷却期内收到的 401 请求会跳过刷新，直接用新 token 重试。
+  // 处理刷新完成后旧请求陆续返回 401 的并发场景。
+  refreshCooldownMs: 15_000,
 
-    if (!response || (response.status && response.status >= 500)) {
-      return false;
-    }
+  // ---- Retry ----
 
-    return response.status === 401 || response.data?.code === 40103;
+  // 通用重试策略：5xx 或网络错误时重试，指数退避
+  retryPolicy: {
+    maxRetries: 2,
+    // shouldRetry / retryDelay 可自定义，默认行为见 resolveRetryPolicy
   },
+
+  // ---- Dedupe ----
+
+  // 请求合并：相同 GET 请求在时间窗口内复用同一个 Promise
+  dedupePolicy: {
+    enabled: true,
+    windowMs: 100,
+  },
+
+  // ---- Runtime headers ----
+
+  // 运行时动态 headers，每次请求时调用
+  headersProvider: () => ({
+    "x-request-id": crypto.randomUUID(),
+  }),
+
+  // ---- Callbacks ----
+
+  // 业务响应拦截器：code !== 0 时视为业务失败
   onBusinessResponse: (response) => {
     const data = response.data as { code?: number; message?: string };
 
@@ -126,9 +155,13 @@ export const http = createHttpClient({
       return new Error(data.message ?? "业务请求失败");
     }
   },
+
+  // 全局错误钩子
   onError: (error, context) => {
     console.error(`[${context.type}]`, error.message);
   },
+
+  // 登录失效后的收尾回调
   onAuthFailure: () => {
     browserTokenStore.clearAuth();
 

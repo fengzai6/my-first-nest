@@ -156,7 +156,7 @@ describe("createHttpClient edge cases", () => {
     });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      message: "missing accessToken",
+      message: "refreshToken 已失效，登录过期",
     });
 
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
@@ -166,7 +166,7 @@ describe("createHttpClient edge cases", () => {
     expect(tokenStore.setRefreshToken).not.toHaveBeenCalled();
   });
 
-  it("并发 401 请求在 refresh 返回 500 时只触发一次 onAuthFailure", async () => {
+  it("并发 401 请求在 refresh 返回 500 时不会触发 onAuthFailure（服务端错误不代表 token 失效）", async () => {
     const tokenStore = createTokenStore("old-access", "old-refresh");
     const onAuthFailure = vi.fn(async () => {
       tokenStore.clearAuth();
@@ -213,8 +213,7 @@ describe("createHttpClient edge cases", () => {
     ]);
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
     expect(tokenStore.getRefreshToken).toHaveBeenCalledTimes(1);
-    expect(onAuthFailure).toHaveBeenCalledTimes(1);
-    expect(tokenStore.clearAuth).toHaveBeenCalledTimes(1);
+    expect(onAuthFailure).not.toHaveBeenCalled();
     expect(tokenStore.setAccessToken).not.toHaveBeenCalled();
   });
 
@@ -410,7 +409,7 @@ describe("createHttpClient edge cases", () => {
     expect(onAuthFailure).toHaveBeenCalledTimes(1);
   });
 
-  it("refresh 抛出非 Error 异常时会归一化为字符串错误", async () => {
+  it("refresh 抛出非 Error 异常时会触发鉴权失败（归一化后作为 refreshToken 失效处理）", async () => {
     const onAuthFailure = vi.fn(async () => {});
 
     const http = createHttpClient({
@@ -427,7 +426,7 @@ describe("createHttpClient edge cases", () => {
     queueAxiosError({ status: 401, data: { message: "unauthorized" } });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      message: '{"reason":"boom"}',
+      message: "refreshToken 已失效，登录过期",
     });
 
     expect(onAuthFailure).toHaveBeenCalledTimes(1);

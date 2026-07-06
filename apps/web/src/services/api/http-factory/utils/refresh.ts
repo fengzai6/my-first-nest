@@ -80,16 +80,19 @@ export const defaultIsRefreshFailure = (
   error: unknown,
   options: { unauthorizedStatusCode: number; authFailureCodes: number[] },
 ): boolean => {
-  if (!axios.isAxiosError(error) || !error.response) {
+  // 非 AxiosError（如 refreshAccessToken 函数内部抛出的业务错误）
+  // 说明刷新逻辑本身失败，应视为鉴权失败
+  if (!axios.isAxiosError(error)) {
+    return true;
+  }
+
+  // 无 response（网络错误）或 5xx 服务端错误：不代表 token 失效
+  if (!error.response || error.response.status >= 500) {
     return false;
   }
 
   const status = error.response.status;
   const data = error.response.data as { code?: number } | undefined;
-
-  if (status && status >= 500) {
-    return false;
-  }
 
   return (
     status === options.unauthorizedStatusCode ||

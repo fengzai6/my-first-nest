@@ -8,6 +8,7 @@ import {
   createTokenStore,
   queueAxiosError,
   queueCustomHandler,
+  queueMatchedHandler,
   queueResponse,
 } from "./test-utils/mock-axios";
 
@@ -603,6 +604,46 @@ describe("createHttpClient", () => {
       expect(response.data).toEqual({ ok: true });
       expect(shouldRetry).toHaveBeenCalled();
     });
+
+    it("网络错误（无 response）时默认会重试", async () => {
+      vi.useFakeTimers();
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        retryPolicy: {
+          maxRetries: 1,
+        },
+      });
+
+      queueMatchedHandler(
+        (config) => config.url === "/profile" && !config.__retryCount,
+        async (config) => {
+          const error = Object.assign(new Error("Network Error"), {
+            config,
+            isAxiosError: true,
+          });
+          throw error;
+        },
+      );
+
+      queueMatchedHandler(
+        (config) => config.url === "/profile" && config.__retryCount === 1,
+        async (config) => ({
+          status: 200,
+          data: { ok: true },
+          config,
+        }),
+      );
+
+      const responsePromise = http.get("/profile");
+      await vi.advanceTimersByTimeAsync(2000);
+      const response = await responsePromise;
+
+      expect(response.data).toEqual({ ok: true });
+
+      vi.useRealTimers();
+    });
   });
 
   describe("dedupePolicy", () => {
@@ -781,6 +822,56 @@ describe("createHttpClient", () => {
       expect(first.data).toEqual({ count: 1 });
       expect(second.data).toEqual({ count: 2 });
       expect(requestCount).toBe(2);
+    });
+
+    it("自定义 generateKey 可以控制合并 key 的生成逻辑", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        dedupePolicy: {
+          enabled: true,
+          windowMs: 100,
+          generateKey: () => "fixed-key",
+        },
+      });
+
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile"),
+        http.get("/settings"),
+      ]);
+
+      expect(first.data).toEqual({ count: 1 });
+      expect(second.data).toEqual({ count: 1 });
+      expect(requestCount).toBe(1);
+    });
+  });
+
+  describe("onBusinessResponse", () => {
+    it("返回 AxiosResponse 对象时会替换原响应", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        onBusinessResponse: () => ({
+          status: 200,
+          data: { replaced: true },
+          statusText: "OK",
+          headers: {},
+          config: {} as any,
+        }),
+      });
+
+      queueResponse({ status: 200, data: { original: true } });
+
+      const response = await http.get("/profile");
+
+      expect(response.data).toEqual({ replaced: true });
     });
   });
 });

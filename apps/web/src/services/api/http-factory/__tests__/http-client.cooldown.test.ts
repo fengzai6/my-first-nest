@@ -148,9 +148,11 @@ describe("Token 刷新冷却期机制", () => {
     const refreshAccessToken = vi.fn(async () => {
       refreshAttempts++;
 
-      // 第一次刷新失败
+      // 第一次刷新失败（模拟网络错误：AxiosError 无 response）
       if (refreshAttempts === 1) {
-        throw new Error("Network error");
+        const error = new axios.AxiosError("Network error");
+        error.isAxiosError = true;
+        throw error;
       }
 
       // 第二次刷新成功
