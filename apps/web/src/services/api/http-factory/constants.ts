@@ -7,3 +7,6 @@ export const DEFAULT_MESSAGES = {
 
 /** 默认 token 刷新缓冲时间（毫秒） */
 export const DEFAULT_REFRESH_BUFFER_MS = 0;
+
+/** 默认重试延迟上限（毫秒） */
+export const DEFAULT_RETRY_DELAY_CAP = 30000;

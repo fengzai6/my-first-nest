@@ -1,10 +1,8 @@
 import type { InternalAxiosRequestConfig } from "axios";
 import axios from "axios";
+import { DEFAULT_RETRY_DELAY_CAP } from "../constants";
 import type { RequestRetryState } from "../types/common";
 import type { RetryPolicy } from "../types/http-client-options";
-
-/** 默认重试延迟上限（毫秒） */
-const DEFAULT_RETRY_DELAY_CAP = 30000;
 
 /**
  * 默认的重试判断逻辑。
