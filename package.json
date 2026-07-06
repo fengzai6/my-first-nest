@@ -66,9 +66,7 @@
     "typescript-eslint": "^8.47.0"
   },
   "lint-staged": {
-    "apps/server/**/*.ts": "cd apps/server && eslint --fix",
-    "apps/web/**/*.{ts,tsx}": "cd apps/web && eslint --fix",
-    "apps/docs/**/*.{ts,vue}": "cd apps/docs && prettier --write"
+    "*.{ts,tsx,vue}": "yarn lint"
   },
   "engines": {
     "node": ">=20.19.5"

@@ -53,7 +53,7 @@ describe("normalizeTokenResult", () => {
   });
 
   it("对象无 expiresAt → { token, expiresAt: null }", () => {
-    expect(normalizeTokenResult({ token: "abc" })).toEqual({
+    expect(normalizeTokenResult({ token: "abc" } as any)).toEqual({
       token: "abc",
       expiresAt: null,
     });

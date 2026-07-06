@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import axios, { AxiosError } from "axios";
+import { AxiosError } from "axios";
 import {
   defaultShouldRetry,
   defaultRetryDelay,
