@@ -3,7 +3,7 @@ import axios, { AxiosError } from "axios";
 import { DedupeManager } from "./dedupe-manager";
 import { REFRESH_SKIPPED, TokenRefreshManager } from "./token-refresh-manager";
 import type { AccessTokenResult } from "./types/token";
-import type { RequestRetryState } from "./types/common";
+import type { ErrorContext, RequestRetryState } from "./types/common";
 import type {
   HttpClientOptions,
   ResolvedHttpClientOptions,
@@ -100,6 +100,19 @@ export const createHttpClient = <
 
   const handleAuthFailure = async (error?: unknown) => {
     await resolvedOptions.onAuthFailure?.(error);
+  };
+
+  const rejectWithError = async (
+    error: unknown,
+    type: ErrorContext["type"],
+  ) => {
+    const normalized = normalizeError(error);
+    const finalError = await invokeOnError(
+      normalized,
+      { type },
+      resolvedOptions.onError,
+    );
+    return Promise.reject(finalError);
   };
 
   const refreshAccessToken = async (): Promise<
@@ -214,9 +227,23 @@ export const createHttpClient = <
 
       // 仅在调用方未显式提供 header（undefined/null）时注入 token
       // 空字符串也视为显式控制，不覆盖
-      if (currentAuthorization == null) {
-        const tokenResult = await resolvedOptions.getAccessToken();
-        const { token, expiresAt } = normalizeTokenResult(tokenResult);
+      const needToken = currentAuthorization == null;
+      const headersProvider = resolvedOptions.headersProvider;
+
+      // token 与 runtime headers 无依赖，可并行；headersProvider 仍后合并以允许覆盖 Authorization
+      const [tokenResult, runtimeHeaders] = await Promise.all([
+        needToken
+          ? Promise.resolve(resolvedOptions.getAccessToken())
+          : Promise.resolve(undefined),
+        headersProvider
+          ? Promise.resolve(headersProvider())
+          : Promise.resolve(undefined),
+      ]);
+
+      if (needToken) {
+        const { token, expiresAt } = normalizeTokenResult(
+          tokenResult as AccessTokenResult,
+        );
 
         if (token !== "") {
           // 主动刷新：token 即将过期时异步触发刷新，不阻塞当前请求
@@ -240,10 +267,8 @@ export const createHttpClient = <
         }
       }
 
-      // 合并运行时动态 headers（即使已有 Authorization 也要执行）
-      if (resolvedOptions.headersProvider) {
+      if (runtimeHeaders) {
         config.headers = config.headers ?? {};
-        const runtimeHeaders = await resolvedOptions.headersProvider();
         Object.assign(config.headers, runtimeHeaders);
       }
 
@@ -297,12 +322,7 @@ export const createHttpClient = <
       const normalizedError = normalizeError(error);
 
       if (!config) {
-        const finalError = await invokeOnError(
-          normalizedError,
-          { type: "request" },
-          resolvedOptions.onError,
-        );
-        return Promise.reject(finalError);
+        return rejectWithError(normalizedError, "request");
       }
 
       const status = error.response?.status;
@@ -314,12 +334,7 @@ export const createHttpClient = <
           shouldSkipRefresh(resolvedOptions.skipRefreshUrls, config)
         ) {
           await handleAuthFailure(normalizedError);
-          const finalError = await invokeOnError(
-            normalizedError,
-            { type: "request" },
-            resolvedOptions.onError,
-          );
-          return Promise.reject(finalError);
+          return rejectWithError(normalizedError, "request");
         }
 
         try {
@@ -346,12 +361,7 @@ export const createHttpClient = <
         }
       }
 
-      const finalError = await invokeOnError(
-        normalizedError,
-        { type: "request" },
-        resolvedOptions.onError,
-      );
-      return Promise.reject(finalError);
+      return rejectWithError(normalizedError, "request");
     },
   );
 

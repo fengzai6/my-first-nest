@@ -88,6 +88,19 @@ const profileData = profile.data;
 
 ## 配置项
 
+### 最小可用
+
+- `axiosConfig`
+- `getAccessToken`
+- 可选：`refreshAccessToken` + `onAuthFailure` + `skipRefreshUrls`
+
+### 高级能力
+
+- Token：`accessTokenHeaderName` / `accessTokenPrefix` / `headersProvider` / `refreshBufferMs`
+- 刷新：`refreshCooldownMs` / `refreshManager` / `shouldRefreshByResponseData` / `isRefreshFailure` / `refreshFailureCodes`
+- 稳定性：`retryPolicy` / `dedupePolicy`
+- 业务钩子：`onBusinessResponse` / `onError` / `errorMessages`
+
 ### Token 注入
 
 - **`getAccessToken`** — 获取当前 access token。返回 `string` 时仅注入 token；返回 `AccessTokenDetail` 时会在 token 即将过期前主动触发刷新
@@ -225,10 +238,7 @@ const http = createHttpClient({
 });
 
 // 两个并发请求只会发出一次 HTTP 请求
-const [a, b] = await Promise.all([
-  http.get("/config"),
-  http.get("/config"),
-]);
+const [a, b] = await Promise.all([http.get("/config"), http.get("/config")]);
 ```
 
 ## 请求约定
