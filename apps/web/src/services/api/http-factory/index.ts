@@ -49,10 +49,10 @@ export const createHttpClient = <
   const refreshEnabled = options.refreshAccessToken !== undefined;
   const resolvedRetryPolicy = resolveRetryPolicy(options.retryPolicy);
 
-  // 请求合并
+  // 请求合并（in-flight coalesce）
   const dedupePolicy = options.dedupePolicy;
   const dedupeManager = dedupePolicy?.enabled
-    ? new DedupeManager(dedupePolicy.windowMs, dedupePolicy.generateKey)
+    ? new DedupeManager(dedupePolicy.generateKey)
     : null;
 
   const instance = axios.create({
@@ -63,10 +63,13 @@ export const createHttpClient = <
   // 包装 request 方法，实现请求合并
   if (dedupeManager) {
     const originalRequest = instance.request.bind(instance);
+    const dedupeMethods = new Set(
+      (dedupePolicy?.methods ?? ["get"]).map((method) => method.toLowerCase()),
+    );
+
     instance.request = ((config: InternalAxiosRequestConfig) => {
-      // 只对 GET 请求进行合并
       const method = (config.method ?? "get").toLowerCase();
-      if (method !== "get") {
+      if (!dedupeMethods.has(method)) {
         return originalRequest(config);
       }
 
@@ -152,30 +155,22 @@ export const createHttpClient = <
 
     config._retry = true;
 
-    try {
-      const refreshResult = await refreshAccessToken();
+    const refreshResult = await refreshAccessToken();
 
-      // 冷却期内跳过刷新时重新获取 token，否则使用刷新结果
-      const tokenSource =
-        refreshResult === REFRESH_SKIPPED
-          ? await resolvedOptions.getAccessToken()
-          : refreshResult;
-      const { token } = normalizeTokenResult(tokenSource);
+    // 冷却期内跳过刷新时重新获取 token，否则使用刷新结果
+    const tokenSource =
+      refreshResult === REFRESH_SKIPPED
+        ? await resolvedOptions.getAccessToken()
+        : refreshResult;
+    const { token } = normalizeTokenResult(tokenSource);
 
-      config.headers = config.headers ?? {};
-      config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
-        resolvedOptions.accessTokenPrefix,
-        token,
-      );
+    config.headers = config.headers ?? {};
+    config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
+      resolvedOptions.accessTokenPrefix,
+      token,
+    );
 
-      return await instance.request(config);
-    } catch (error) {
-      throw await invokeOnError(
-        normalizeError(error),
-        { type: "refresh" },
-        resolvedOptions.onError,
-      );
-    }
+    return instance.request(config);
   };
 
   instance.interceptors.request.use(
@@ -183,36 +178,34 @@ export const createHttpClient = <
       const currentAuthorization =
         config.headers?.[resolvedOptions.accessTokenHeaderName];
 
-      if (currentAuthorization) {
-        return config;
-      }
+      // 仅在没有显式 Authorization 时注入 token，并判断是否主动刷新
+      if (!currentAuthorization) {
+        const tokenResult = await resolvedOptions.getAccessToken();
+        const { token, expiresAt } = normalizeTokenResult(tokenResult);
 
-      const tokenResult = await resolvedOptions.getAccessToken();
-      const { token, expiresAt } = normalizeTokenResult(tokenResult);
+        if (token) {
+          // 主动刷新：token 即将过期时异步触发刷新，不阻塞当前请求
+          if (
+            refreshEnabled &&
+            expiresAt &&
+            !shouldSkipRefresh(resolvedOptions.skipRefreshUrls, config)
+          ) {
+            const bufferMs = resolvedOptions.refreshBufferMs;
 
-      if (!token) return config;
+            if (bufferMs > 0 && isTokenExpiringSoon(expiresAt, bufferMs)) {
+              refreshAccessToken().catch(() => {});
+            }
+          }
 
-      // 主动刷新：token 即将过期时异步触发刷新，不阻塞当前请求
-      if (
-        refreshEnabled &&
-        expiresAt &&
-        !shouldSkipRefresh(resolvedOptions.skipRefreshUrls, config)
-      ) {
-        const bufferMs = resolvedOptions.refreshBufferMs;
-
-        if (bufferMs > 0 && isTokenExpiringSoon(expiresAt, bufferMs)) {
-          refreshAccessToken().catch(() => {});
+          config.headers = config.headers ?? {};
+          config.headers[resolvedOptions.accessTokenHeaderName] =
+            formatAccessToken(resolvedOptions.accessTokenPrefix, token);
         }
       }
 
-      config.headers = config.headers ?? {};
-      config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
-        resolvedOptions.accessTokenPrefix,
-        token,
-      );
-
-      // 合并运行时动态 headers
+      // 合并运行时动态 headers（即使已有 Authorization 也要执行）
       if (resolvedOptions.headersProvider) {
+        config.headers = config.headers ?? {};
         const runtimeHeaders = await resolvedOptions.headersProvider();
         Object.assign(config.headers, runtimeHeaders);
       }
@@ -272,24 +265,9 @@ export const createHttpClient = <
         return Promise.reject(finalError);
       }
 
-      // 通用重试逻辑（在 token 刷新之前判断）
-      if (resolvedRetryPolicy) {
-        const retryCount = config.__retryCount ?? 0;
-
-        if (
-          retryCount < resolvedRetryPolicy.maxRetries &&
-          resolvedRetryPolicy.shouldRetry(error, retryCount)
-        ) {
-          const delay = resolvedRetryPolicy.retryDelay(retryCount);
-          config.__retryCount = retryCount + 1;
-
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          return instance.request(config);
-        }
-      }
-
       const status = error.response?.status;
 
+      // 鉴权失败优先于通用重试，避免 401 被 shouldRetry 空耗重试次数
       if (status === resolvedOptions.unauthorizedStatusCode) {
         if (
           !refreshEnabled ||
@@ -308,6 +286,22 @@ export const createHttpClient = <
           return await retryAfterRefresh(config);
         } catch (refreshError) {
           return Promise.reject(refreshError);
+        }
+      }
+
+      // 通用重试逻辑（仅处理非鉴权失败）
+      if (resolvedRetryPolicy) {
+        const retryCount = config.__retryCount ?? 0;
+
+        if (
+          retryCount < resolvedRetryPolicy.maxRetries &&
+          resolvedRetryPolicy.shouldRetry(error, retryCount)
+        ) {
+          const delay = resolvedRetryPolicy.retryDelay(retryCount);
+          config.__retryCount = retryCount + 1;
+
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return instance.request(config);
         }
       }
 

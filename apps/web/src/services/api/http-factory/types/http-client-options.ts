@@ -15,15 +15,20 @@ export interface DedupePolicy {
   enabled?: boolean;
 
   /**
-   * 合并时间窗口（毫秒）。
-   * 在此时间窗口内的相同请求会复用同一个 Promise。
-   * 默认 100ms。
+   * 允许合并的 HTTP method 列表。
+   * 默认 `["get"]`，比较时忽略大小写。
+   */
+  methods?: string[];
+
+  /**
+   * @deprecated 已不再使用。当前仅合并仍在进行中的相同请求。
+   * 保留字段仅为兼容旧配置，传入后会被忽略。
    */
   windowMs?: number;
 
   /**
    * 自定义合并 key 生成器。
-   * 默认：`method:url:sortedParams`
+   * 默认：`method:baseURL:url:stableParams`
    */
   generateKey?: (config: AxiosRequestConfig) => string;
 }

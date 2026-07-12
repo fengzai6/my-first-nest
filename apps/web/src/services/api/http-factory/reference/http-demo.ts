@@ -132,10 +132,9 @@ export const http = createHttpClient({
 
   // ---- Dedupe ----
 
-  // 请求合并：相同 GET 请求在时间窗口内复用同一个 Promise
+  // 请求合并：相同 in-flight GET 请求复用同一个 Promise
   dedupePolicy: {
     enabled: true,
-    windowMs: 100,
   },
 
   // ---- Runtime headers ----

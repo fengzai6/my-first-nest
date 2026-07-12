@@ -14,7 +14,7 @@
 - 刷新失败或重试失败后统一执行 `onAuthFailure`
 - 错误直接透传 axios 原始错误，不额外包装
 - 支持通用重试策略（`retryPolicy`）：5xx 或网络错误时自动重试，指数退避
-- 支持请求合并（`dedupePolicy`）：相同 GET 请求在时间窗口内复用同一个 Promise
+- 支持请求合并（`dedupePolicy`）：相同 in-flight 请求复用同一个 Promise（默认仅 GET）
 - 支持运行时动态 headers（`headersProvider`）：每次请求时注入自定义 headers
 
 ## 目录说明
@@ -195,10 +195,13 @@ const http = createHttpClient({
 
 - **`dedupePolicy`** — 请求合并策略，默认关闭
   - `enabled` — 是否启用
-  - `windowMs` — 合并时间窗口（毫秒），默认 `100ms`
-  - `generateKey` — 自定义合并 key 生成器，默认 `method:url:sortedParams`
+  - `methods` — 允许合并的 method 列表，默认 `["get"]`
+  - `generateKey` — 自定义合并 key 生成器，默认 `method:baseURL:url:stableParams`
+  - `windowMs` — 已废弃，保留仅为兼容旧配置，会被忽略
 
-只对 GET 请求生效。请求级 `dedupePolicy.enabled = false` 可覆盖客户端级配置，禁止单个请求的合并。
+默认只对 GET 请求生效；可通过 `methods` 扩展。请求级 `dedupePolicy.enabled = false` 可覆盖客户端级配置，禁止单个请求的合并。
+
+鉴权失败（命中 `unauthorizedStatusCode`）会优先于通用 `retryPolicy` 处理，避免 401 被自定义 `shouldRetry` 空耗重试次数。
 
 ```ts
 const http = createHttpClient({
@@ -206,7 +209,6 @@ const http = createHttpClient({
   getAccessToken: async () => "",
   dedupePolicy: {
     enabled: true,
-    windowMs: 100,
   },
 });
 
