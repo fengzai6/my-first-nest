@@ -231,7 +231,11 @@ describe("Token 规范化边界情况", () => {
     }));
 
     const refreshAccessToken = vi.fn(async () => {
-      throw new Error("refresh rejected");
+      // 空 token 由工厂按鉴权失败处理；返回形态需与 getAccessToken 的 T 一致
+      return {
+        token: "",
+        expiresAt: futureTime,
+      };
     });
 
     const http = createHttpClient({

@@ -106,33 +106,48 @@ export const createHttpClient = <
       throw new Error(DEFAULT_MESSAGES.refreshDisabled);
     }
 
+    const rejectRefreshAuthFailure = async (): Promise<never> => {
+      const authError = new Error(
+        resolvedOptions.errorMessages?.refreshTokenExpired ??
+          DEFAULT_MESSAGES.refreshTokenExpired,
+      );
+      await handleAuthFailure(authError);
+      throw await invokeOnError(
+        authError,
+        { type: "refresh" },
+        resolvedOptions.onError,
+      );
+    };
+
     return refreshManager.runRefresh(async () => {
+      let result: AccessTokenResult;
+
       try {
-        return await requestRefreshAccessToken();
+        result = await requestRefreshAccessToken();
       } catch (error) {
         const normalizedError = normalizeError(error);
         const isAuthFailure = resolvedOptions.isRefreshFailure(error);
 
         if (isAuthFailure) {
-          const authError = new Error(
-            resolvedOptions.errorMessages?.refreshTokenExpired ??
-              DEFAULT_MESSAGES.refreshTokenExpired,
-          );
-          await handleAuthFailure(authError);
-          throw await invokeOnError(
-            authError,
-            { type: "refresh" },
-            resolvedOptions.onError,
-          );
+          await rejectRefreshAuthFailure();
         }
 
-        // 非鉴权失败（如网络错误），不调用 handleAuthFailure
+        // 非鉴权失败（如网络错误 / 编程错误），不调用 handleAuthFailure
         throw await invokeOnError(
           normalizedError,
           { type: "refresh" },
           resolvedOptions.onError,
         );
       }
+
+      const { token } = normalizeTokenResult(result);
+
+      // 空 token 视为刷新鉴权失败：不写冷却，不重试业务请求
+      if (!token) {
+        await rejectRefreshAuthFailure();
+      }
+
+      return result;
     });
   };
 
@@ -162,6 +177,20 @@ export const createHttpClient = <
         ? await resolvedOptions.getAccessToken()
         : refreshResult;
     const { token } = normalizeTokenResult(tokenSource);
+
+    // 冷却跳过或刷新结果为空 token 时，不再重试原请求
+    if (!token) {
+      const authError = new Error(
+        resolvedOptions.errorMessages?.loginExpired ??
+          DEFAULT_MESSAGES.loginExpired,
+      );
+      await handleAuthFailure(authError);
+      throw await invokeOnError(
+        authError,
+        { type: "refresh" },
+        resolvedOptions.onError,
+      );
+    }
 
     config.headers = config.headers ?? {};
     config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
@@ -239,12 +268,15 @@ export const createHttpClient = <
           throw businessResult;
         }
 
-        // 返回了新响应
+        // 仅接受完整 AxiosResponse 形态，避免 {status,data} 业务对象被误替换
         if (
           businessResult &&
           typeof businessResult === "object" &&
           "status" in businessResult &&
-          "data" in businessResult
+          "data" in businessResult &&
+          "config" in businessResult &&
+          "headers" in businessResult &&
+          "statusText" in businessResult
         ) {
           return businessResult;
         }

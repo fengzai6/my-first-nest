@@ -732,7 +732,8 @@ describe("createHttpClient", () => {
       const onError = vi.fn();
       const onAuthFailure = vi.fn();
       const refreshAccessToken = vi.fn(async () => {
-        throw new Error("refresh token expired");
+        // 空 token 由工厂按鉴权失败处理
+        return "";
       });
 
       const http = createHttpClient({
@@ -1272,7 +1273,7 @@ describe("createHttpClient", () => {
   });
 
   describe("onBusinessResponse", () => {
-    it("返回 AxiosResponse 对象时会替换原响应", async () => {
+    it("返回完整 AxiosResponse 形态对象时会替换原响应", async () => {
       const http = createHttpClient({
         axiosConfig: { baseURL: "/api" },
         getAccessToken: async () => "",
@@ -1290,6 +1291,24 @@ describe("createHttpClient", () => {
       const response = await http.get("/profile");
 
       expect(response.data).toEqual({ replaced: true });
+    });
+
+    it("仅含 status/data 的业务对象不会被当成响应替换", async () => {
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+        onBusinessResponse: () =>
+          ({
+            status: 0,
+            data: { business: true },
+          }) as any,
+      });
+
+      queueResponse({ status: 200, data: { original: true } });
+
+      const response = await http.get("/profile");
+
+      expect(response.data).toEqual({ original: true });
     });
   });
 });

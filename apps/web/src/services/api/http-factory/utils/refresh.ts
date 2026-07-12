@@ -132,10 +132,10 @@ export const defaultIsRefreshFailure = (
   error: unknown,
   options: { unauthorizedStatusCode: number; refreshFailureCodes: number[] },
 ): boolean => {
-  // 非 AxiosError（如 refreshAccessToken 函数内部抛出的业务错误）
-  // 说明刷新逻辑本身失败，应视为鉴权失败
+  // 非 AxiosError（编程错误 / 业务自定义 Error）默认不视为鉴权失败。
+  // 若业务需要“抛 Error 即登出”，请自定义 isRefreshFailure。
   if (!axios.isAxiosError(error)) {
-    return true;
+    return false;
   }
 
   // 无 response（网络错误）或 5xx 服务端错误：不代表 token 失效

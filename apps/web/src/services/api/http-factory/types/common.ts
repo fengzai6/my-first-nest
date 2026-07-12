@@ -16,7 +16,7 @@ export interface RequestRetryState {
  * onBusinessResponse 的返回值类型。
  * - void：继续正常流程（表示成功）
  * - Error：抛出错误（表示业务失败）
- * - AxiosResponse：用新响应替换原响应，不会二次触发 onBusinessResponse
+ * - AxiosResponse：用完整响应形态（status/data/headers/config/statusText）替换原响应，不会二次触发 onBusinessResponse
  */
 export type BusinessResponseResult = void | Error | AxiosResponse;
 

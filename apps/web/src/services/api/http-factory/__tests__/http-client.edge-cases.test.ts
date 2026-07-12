@@ -133,9 +133,10 @@ describe("createHttpClient edge cases", () => {
     expect(onAuthFailure).not.toHaveBeenCalled();
   });
 
-  it("refresh 成功响应缺少 accessToken 时会触发鉴权失败且不重试原请求", async () => {
+  it("refresh 成功响应缺少 accessToken 时默认不鉴权失败（业务 Error 需自定义 isRefreshFailure）", async () => {
     const tokenStore = createTokenStore("old-access", "old-refresh");
     const onAuthFailure = vi.fn(async () => {});
+    const onError = vi.fn();
     const refreshAccessToken = vi.fn(createRefreshAccessToken(tokenStore));
 
     const http = createHttpClient({
@@ -144,6 +145,7 @@ describe("createHttpClient edge cases", () => {
       },
       getAccessToken: tokenStore.getAccessToken,
       onAuthFailure,
+      onError,
       refreshAccessToken,
     });
 
@@ -156,12 +158,13 @@ describe("createHttpClient edge cases", () => {
     });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      message: "Refresh token is invalid or expired",
+      message: "missing accessToken",
     });
 
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
     expect(tokenStore.getRefreshToken).toHaveBeenCalledTimes(1);
-    expect(onAuthFailure).toHaveBeenCalledTimes(1);
+    expect(onAuthFailure).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
     expect(tokenStore.setAccessToken).not.toHaveBeenCalled();
     expect(tokenStore.setRefreshToken).not.toHaveBeenCalled();
   });
@@ -409,7 +412,37 @@ describe("createHttpClient edge cases", () => {
     expect(onAuthFailure).toHaveBeenCalledTimes(1);
   });
 
-  it("refresh 抛出非 Error 异常时会触发鉴权失败（归一化后作为 refreshToken 失效处理）", async () => {
+  it("refresh 抛出非 AxiosError 时默认不触发 onAuthFailure", async () => {
+    const onAuthFailure = vi.fn(async () => {});
+    const onError = vi.fn();
+
+    const http = createHttpClient({
+      axiosConfig: {
+        baseURL: "/api",
+      },
+      getAccessToken: async () => "old-access",
+      onAuthFailure,
+      onError,
+      refreshAccessToken: async () => {
+        throw new TypeError("refresh broken");
+      },
+    });
+
+    queueAxiosError({ status: 401, data: { message: "unauthorized" } });
+
+    await expect(http.get("/profile")).rejects.toMatchObject({
+      message: "refresh broken",
+    });
+
+    expect(onAuthFailure).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "refresh broken" }),
+      { type: "refresh" },
+    );
+  });
+
+  it("自定义 isRefreshFailure 仍可把非 AxiosError 判为鉴权失败", async () => {
     const onAuthFailure = vi.fn(async () => {});
 
     const http = createHttpClient({
@@ -418,8 +451,9 @@ describe("createHttpClient edge cases", () => {
       },
       getAccessToken: async () => "old-access",
       onAuthFailure,
+      isRefreshFailure: () => true,
       refreshAccessToken: async () => {
-        throw { reason: "boom" };
+        throw new Error("business refresh failed");
       },
     });
 
@@ -429,6 +463,86 @@ describe("createHttpClient edge cases", () => {
       message: "Refresh token is invalid or expired",
     });
 
+    expect(onAuthFailure).toHaveBeenCalledTimes(1);
+  });
+
+  it("refresh 返回空 token 时触发鉴权失败且不进入冷却", async () => {
+    const onAuthFailure = vi.fn(async () => {});
+    const refreshAccessToken = vi
+      .fn()
+      .mockResolvedValueOnce("")
+      .mockResolvedValueOnce("new-access");
+
+    const http = createHttpClient({
+      axiosConfig: {
+        baseURL: "/api",
+      },
+      getAccessToken: async () => "old-access",
+      onAuthFailure,
+      refreshAccessToken,
+      refreshCooldownMs: 15000,
+    });
+
+    queueAxiosError({ status: 401, data: { message: "unauthorized" } });
+
+    await expect(http.get("/profile")).rejects.toMatchObject({
+      message: "Refresh token is invalid or expired",
+    });
+    expect(onAuthFailure).toHaveBeenCalledTimes(1);
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+
+    // 空 token 刷新失败不应进入冷却，下一次 401 仍可再次 refresh
+    queueAxiosError({ status: 401, data: { message: "unauthorized" } });
+    queueCustomHandler(async (config) => ({
+      status: 200,
+      data: { ok: true, auth: config.headers?.Authorization },
+      config,
+    }));
+
+    const response = await http.get("/profile");
+    expect(response.data).toEqual({ ok: true, auth: "Bearer new-access" });
+    expect(refreshAccessToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("冷却期内 getAccessToken 为空时不重试原请求，直接鉴权失败", async () => {
+    const tokenStore = createTokenStore("old-access", "old-refresh");
+    const onAuthFailure = vi.fn(async () => {});
+    const refreshAccessToken = vi.fn(async () => {
+      tokenStore.setAccessToken("new-access");
+      tokenStore.setRefreshToken("new-refresh");
+      return "new-access";
+    });
+
+    const http = createHttpClient({
+      axiosConfig: {
+        baseURL: "/api",
+      },
+      getAccessToken: tokenStore.getAccessToken,
+      onAuthFailure,
+      refreshAccessToken,
+      refreshCooldownMs: 15000,
+    });
+
+    queueAxiosError({ status: 401, data: { message: "unauthorized" } });
+    queueCustomHandler(async (config) => ({
+      status: 200,
+      data: { ok: true },
+      config,
+    }));
+
+    await http.get("/profile");
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+
+    // 模拟 logout：清空 token，但仍处于冷却期
+    tokenStore.clearAuth();
+
+    queueAxiosError({ status: 401, data: { message: "unauthorized" } });
+
+    await expect(http.get("/me")).rejects.toMatchObject({
+      message: "Login session has expired",
+    });
+
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1); // 冷却内未再次 refresh
     expect(onAuthFailure).toHaveBeenCalledTimes(1);
   });
 

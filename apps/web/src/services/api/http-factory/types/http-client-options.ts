@@ -141,10 +141,12 @@ export interface HttpClientOptions<
    * 判断刷新 token 请求本身是否已经失败到需要退出登录。
    *
    * 默认行为：
-   * - 非 AxiosError（如 refreshAccessToken 函数内部抛出的业务错误）视为刷新失败
+   * - 非 AxiosError（编程错误 / 业务自定义 Error）不视为刷新鉴权失败
    * - AxiosError 无 response（网络错误）或状态码 >= 500 时不视为刷新失败
    * - 状态码 === unauthorizedStatusCode 时视为刷新失败
    * - 响应 data.code 在 refreshFailureCodes 列表中时视为刷新鉴权失败
+   *
+   * 若业务需要“refresh 抛 Error 即登出”，请自定义该函数。
    */
   isRefreshFailure?: (error: unknown) => boolean;
 
@@ -202,7 +204,7 @@ export interface HttpClientOptions<
    * 业务响应拦截器。
    * - 返回 void：继续正常流程（表示成功）
    * - 返回 Error：抛出错误（表示业务失败）
-   * - 返回 AxiosResponse：用新响应替换原响应，不会二次触发 onBusinessResponse
+   * - 返回完整 AxiosResponse 形态：用新响应替换原响应，不会二次触发 onBusinessResponse
    * - 可以是 async
    */
   onBusinessResponse?: (

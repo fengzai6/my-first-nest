@@ -174,9 +174,11 @@ const http2 = createHttpClient({
   - 普通请求鉴权失败请用 `shouldRefreshByResponseData` / `onBusinessResponse` / 自定义 `isRefreshFailure`
 - **`unauthorizedStatusCode`** — 触发刷新流程的 HTTP 状态码，默认 `401`
 - **`isRefreshFailure`** — 判断刷新请求是否已经失败到需要退出登录，默认行为：
-  - 非 AxiosError（如业务代码抛出的 Error）→ 视为鉴权失败
+  - 非 AxiosError（编程错误 / 业务自定义 Error）→ 不视为鉴权失败
   - AxiosError 无 response（网络错误）或 status >= 500 → 不视为鉴权失败（token 可能仍有效）
   - 命中 `unauthorizedStatusCode` 或 `refreshFailureCodes` → 视为鉴权失败
+  - 若业务需要“refresh 抛 Error 即登出”，请自定义该函数
+  - `refreshAccessToken` 返回空 token 时，工厂会按鉴权失败处理（不进入冷却、不重试原请求）
 
 ### 重试策略
 

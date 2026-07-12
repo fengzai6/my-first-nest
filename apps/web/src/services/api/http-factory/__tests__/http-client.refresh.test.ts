@@ -76,8 +76,10 @@ describe("shouldSkipRefresh", () => {
 describe("defaultIsRefreshFailure", () => {
   const baseOptions = { unauthorizedStatusCode: 401, refreshFailureCodes: [1001002] };
 
-  it("非 AxiosError → true（业务错误视为鉴权失败）", () => {
-    expect(defaultIsRefreshFailure(new Error("something"), baseOptions)).toBe(true);
+  it("非 AxiosError → false（编程/业务 Error 默认不视为鉴权失败）", () => {
+    expect(defaultIsRefreshFailure(new Error("something"), baseOptions)).toBe(false);
+    expect(defaultIsRefreshFailure(new TypeError("boom"), baseOptions)).toBe(false);
+    expect(defaultIsRefreshFailure({ reason: "boom" }, baseOptions)).toBe(false);
   });
 
   it("AxiosError 无 response → false", () => {
