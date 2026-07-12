@@ -60,16 +60,15 @@ export const createHttpClient = <
     ...resolvedOptions.axiosConfig,
   });
 
-  // 包装 request 方法，实现请求合并
+  // 包装 request 方法，实现请求合并（仅 GET）
+  // 内部 refresh / retry 通过 originalRequest 旁路 dedupe，避免 pending 自引用死锁
+  const originalRequest = instance.request.bind(instance);
   if (dedupeManager) {
-    const originalRequest = instance.request.bind(instance);
-    const dedupeMethods = new Set(
-      (dedupePolicy?.methods ?? ["get"]).map((method) => method.toLowerCase()),
-    );
-
-    instance.request = ((config: InternalAxiosRequestConfig) => {
+    instance.request = ((
+      config: InternalAxiosRequestConfig & RequestRetryState,
+    ) => {
       const method = (config.method ?? "get").toLowerCase();
-      if (!dedupeMethods.has(method)) {
+      if (method !== "get" || config.__skipDedupe) {
         return originalRequest(config);
       }
 
@@ -170,7 +169,9 @@ export const createHttpClient = <
       token,
     );
 
-    return instance.request(config);
+    // 内部重试旁路 dedupe：当前请求 Promise 仍在 pending map 中
+    config.__skipDedupe = true;
+    return originalRequest(config);
   };
 
   instance.interceptors.request.use(
@@ -303,7 +304,9 @@ export const createHttpClient = <
           config.__retryCount = retryCount + 1;
 
           await new Promise((resolve) => setTimeout(resolve, delay));
-          return instance.request(config);
+          // 内部重试旁路 dedupe：当前请求 Promise 仍在 pending map 中
+          config.__skipDedupe = true;
+          return originalRequest(config);
         }
       }
 

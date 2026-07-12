@@ -860,7 +860,6 @@ describe("createHttpClient", () => {
         getAccessToken: async () => "",
         dedupePolicy: {
           enabled: true,
-          windowMs: 100,
         },
       });
 
@@ -881,7 +880,7 @@ describe("createHttpClient", () => {
       expect(requestCount).toBe(1);
     });
 
-    it("请求仍在进行中时，即使超过 windowMs 也会继续合并", async () => {
+    it("请求仍在进行中时，后续相同 GET 会继续合并", async () => {
       let requestCount = 0;
       let release: (() => void) | undefined;
       const gate = new Promise<void>((resolve) => {
@@ -893,7 +892,6 @@ describe("createHttpClient", () => {
         getAccessToken: async () => "",
         dedupePolicy: {
           enabled: true,
-          windowMs: 20,
         },
       });
 
@@ -925,7 +923,6 @@ describe("createHttpClient", () => {
         getAccessToken: async () => "",
         dedupePolicy: {
           enabled: true,
-          windowMs: 1000,
         },
       });
 
@@ -954,7 +951,6 @@ describe("createHttpClient", () => {
         getAccessToken: async () => "",
         dedupePolicy: {
           enabled: true,
-          windowMs: 100,
         },
       });
 
@@ -985,7 +981,6 @@ describe("createHttpClient", () => {
         getAccessToken: async () => "",
         dedupePolicy: {
           enabled: true,
-          windowMs: 100,
         },
       });
 
@@ -1041,7 +1036,6 @@ describe("createHttpClient", () => {
         getAccessToken: async () => "",
         dedupePolicy: {
           enabled: true,
-          windowMs: 100,
         },
       });
 
@@ -1071,7 +1065,6 @@ describe("createHttpClient", () => {
         getAccessToken: async () => "",
         dedupePolicy: {
           enabled: true,
-          windowMs: 100,
         },
       });
 
@@ -1102,7 +1095,6 @@ describe("createHttpClient", () => {
         getAccessToken: async () => "",
         dedupePolicy: {
           enabled: true,
-          windowMs: 100,
           generateKey: () => "fixed-key",
         },
       });
@@ -1122,7 +1114,7 @@ describe("createHttpClient", () => {
       expect(requestCount).toBe(1);
     });
 
-    it("可通过 methods 配置允许合并 HEAD 请求", async () => {
+    it("HEAD 请求不会被合并", async () => {
       let requestCount = 0;
 
       const http = createHttpClient({
@@ -1130,10 +1122,13 @@ describe("createHttpClient", () => {
         getAccessToken: async () => "",
         dedupePolicy: {
           enabled: true,
-          methods: ["head"],
         },
       });
 
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
       queueCustomHandler(async (config) => {
         requestCount++;
         return { status: 200, data: { count: requestCount }, config };
@@ -1145,11 +1140,51 @@ describe("createHttpClient", () => {
       ]);
 
       expect(first.data).toEqual({ count: 1 });
-      expect(second.data).toEqual({ count: 1 });
-      expect(requestCount).toBe(1);
+      expect(second.data).toEqual({ count: 2 });
+      expect(requestCount).toBe(2);
     });
 
-    it("methods 未包含的 method 不会被合并", async () => {
+    it("启用 dedupe 后，401 刷新重试不会因 pending 复用而挂起", async () => {
+      const tokenStore = createTokenStore("old-access", "old-refresh");
+      const refreshAccessToken = vi.fn(createRefreshAccessToken(tokenStore));
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: tokenStore.getAccessToken,
+        refreshAccessToken,
+        dedupePolicy: {
+          enabled: true,
+        },
+      });
+
+      queueAxiosError({ status: 401, data: { message: "unauthorized" } });
+      queueResponse({
+        status: 200,
+        data: {
+          accessToken: "new-access",
+          refreshToken: "new-refresh",
+        },
+      });
+      queueCustomHandler(async (config) => ({
+        status: 200,
+        data: { ok: true, auth: config.headers?.Authorization },
+        config,
+      }));
+
+      await expect(
+        Promise.race([
+          http.get("/profile"),
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("dedupe refresh retry hung")), 200);
+          }),
+        ]),
+      ).resolves.toMatchObject({
+        data: { ok: true, auth: "Bearer new-access" },
+      });
+      expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+    });
+
+    it("启用 dedupe 后，5xx 通用重试不会因 pending 复用而挂起", async () => {
       let requestCount = 0;
 
       const http = createHttpClient({
@@ -1157,27 +1192,30 @@ describe("createHttpClient", () => {
         getAccessToken: async () => "",
         dedupePolicy: {
           enabled: true,
-          methods: ["get"],
+        },
+        retryPolicy: {
+          maxRetries: 1,
+          retryDelay: () => 0,
         },
       });
 
+      queueAxiosError({ status: 500, data: { message: "server error" } });
       queueCustomHandler(async (config) => {
         requestCount++;
-        return { status: 200, data: { count: requestCount }, config };
-      });
-      queueCustomHandler(async (config) => {
-        requestCount++;
-        return { status: 200, data: { count: requestCount }, config };
+        return { status: 200, data: { ok: true, attempt: requestCount }, config };
       });
 
-      const [first, second] = await Promise.all([
-        http.request({ method: "head", url: "/profile" }),
-        http.request({ method: "head", url: "/profile" }),
-      ]);
-
-      expect(first.data).toEqual({ count: 1 });
-      expect(second.data).toEqual({ count: 2 });
-      expect(requestCount).toBe(2);
+      await expect(
+        Promise.race([
+          http.get("/profile"),
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("dedupe retry hung")), 200);
+          }),
+        ]),
+      ).resolves.toMatchObject({
+        data: { ok: true, attempt: 1 },
+      });
+      expect(requestCount).toBe(1);
     });
 
     it("默认 key 会归一化 method 大小写并纳入 baseURL", async () => {

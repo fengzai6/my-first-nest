@@ -14,7 +14,7 @@
 - 刷新失败或重试失败后统一执行 `onAuthFailure`
 - 错误直接透传 axios 原始错误，不额外包装
 - 支持通用重试策略（`retryPolicy`）：5xx 或网络错误时自动重试，指数退避
-- 支持请求合并（`dedupePolicy`）：相同 in-flight 请求复用同一个 Promise（默认仅 GET）
+- 支持请求合并（`dedupePolicy`）：相同 in-flight GET 请求复用同一个 Promise
 - 支持运行时动态 headers（`headersProvider`）：每次请求时注入自定义 headers
 
 ## 目录说明
@@ -202,11 +202,10 @@ const http = createHttpClient({
 
 - **`dedupePolicy`** — 请求合并策略，默认关闭
   - `enabled` — 是否启用
-  - `methods` — 允许合并的 method 列表，默认 `["get"]`
   - `generateKey` — 自定义合并 key 生成器，默认 `method:baseURL:url:stableParams`
-  - `windowMs` — 已废弃，保留仅为兼容旧配置，会被忽略
 
-默认只对 GET 请求生效；可通过 `methods` 扩展。请求级 `dedupePolicy.enabled = false` 可覆盖客户端级配置，禁止单个请求的合并。
+仅对 GET 请求生效，不支持配置其他 method。请求级 `dedupePolicy.enabled = false` 可覆盖客户端级配置，禁止单个请求的合并。
+内部 refresh / retry 会自动旁路 dedupe，避免 pending 自引用导致请求挂起。
 
 鉴权失败（命中 `unauthorizedStatusCode`）会优先于通用 `retryPolicy` 处理，避免 401 被自定义 `shouldRetry` 空耗重试次数。
 
@@ -245,9 +244,9 @@ const [a, b] = await Promise.all([
    - 业务响应拦截（`onBusinessResponse`）
    - 成功时返回原始 `AxiosResponse`
 5. 响应失败时：
-   - 先执行通用重试（`retryPolicy`，5xx / 网络错误）
-   - 若为 `401` 且启用了刷新，进入刷新流程
+   - 若为 `401` 且启用了刷新，优先进入刷新流程
    - 若为 `401` 且未启用刷新，直接触发 `onAuthFailure`
+   - 非鉴权失败时再执行通用重试（`retryPolicy`，5xx / 网络错误）
 6. 刷新流程：
    - 通过 `TokenRefreshManager` 合并并发刷新
    - 调用业务侧 `refreshAccessToken`
@@ -289,7 +288,7 @@ const [a, b] = await Promise.all([
 11. 多个客户端共享 TokenRefreshManager 时只刷新一次
 12. headersProvider：同步/异步注入、覆盖 Authorization、未配置时不变
 13. retryPolicy：5xx 重试、503 重试、超过上限、4xx 不重试、未配置不重试、自定义 shouldRetry、网络错误重试
-14. dedupePolicy：相同 GET 合并、不同 URL 不合并、请求级禁用、未配置不合并、POST 不合并、自定义 generateKey
+14. dedupePolicy：相同 GET 合并、不同 URL 不合并、请求级禁用、未配置不合并、POST/HEAD 不合并、自定义 generateKey、与 401/5xx 重试交互
 15. onBusinessResponse 返回 AxiosResponse 对象时会替换原响应
 
 ### edge cases（`http-client.edge-cases.test.ts`）

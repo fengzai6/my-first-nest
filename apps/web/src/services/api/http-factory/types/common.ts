@@ -8,6 +8,8 @@ export interface RequestRetryState {
   _retry?: boolean;
   /** 通用重试计数 */
   __retryCount?: number;
+  /** 内部重试旁路 dedupe，避免 pending 自引用死锁 */
+  __skipDedupe?: boolean;
 }
 
 /**

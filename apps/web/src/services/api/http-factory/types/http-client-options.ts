@@ -11,20 +11,8 @@ import type { AccessTokenResult } from "./token";
  * 请求合并配置。
  */
 export interface DedupePolicy {
-  /** 是否启用请求合并。默认 false。 */
+  /** 是否启用请求合并。默认 false。仅合并 GET 请求。 */
   enabled?: boolean;
-
-  /**
-   * 允许合并的 HTTP method 列表。
-   * 默认 `["get"]`，比较时忽略大小写。
-   */
-  methods?: string[];
-
-  /**
-   * @deprecated 已不再使用。当前仅合并仍在进行中的相同请求。
-   * 保留字段仅为兼容旧配置，传入后会被忽略。
-   */
-  windowMs?: number;
 
   /**
    * 自定义合并 key 生成器。
