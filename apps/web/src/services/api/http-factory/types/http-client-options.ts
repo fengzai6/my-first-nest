@@ -100,9 +100,15 @@ export interface HttpClientOptions<
   // ---- Auth failure ----
 
   /**
-   * 业务状态码中，用于识别鉴权失败的 code 列表。
+   * 刷新失败判定的业务 code 列表。
+   *
+   * 仅用于 `defaultIsRefreshFailure`：当 refresh 请求响应体存在 `data.code`
+   * 且命中该列表时，视为刷新鉴权失败。
+   *
+   * 不会影响普通业务请求的鉴权识别；更通用的入口是 `isRefreshFailure`。
+   * 默认假设响应体形状为 `{ code?: number }`。
    */
-  authFailureCodes?: number[];
+  refreshFailureCodes?: number[];
 
   /**
    * 通用重试策略。
@@ -150,7 +156,7 @@ export interface HttpClientOptions<
    * - 非 AxiosError（如 refreshAccessToken 函数内部抛出的业务错误）视为刷新失败
    * - AxiosError 无 response（网络错误）或状态码 >= 500 时不视为刷新失败
    * - 状态码 === unauthorizedStatusCode 时视为刷新失败
-   * - 响应 data.code 在 authFailureCodes 列表中时视为刷新失败
+   * - 响应 data.code 在 refreshFailureCodes 列表中时视为刷新鉴权失败
    */
   isRefreshFailure?: (error: unknown) => boolean;
 
@@ -163,7 +169,11 @@ export interface HttpClientOptions<
   refreshAccessToken?: () => T | Promise<T>;
 
   /**
-   * 不触发 refresh token 流程的请求 URL 列表。
+   * 不触发 refresh token 流程的请求路径列表。
+   *
+   * 使用路径边界匹配（exact / prefix），不是任意子串 includes。
+   * 例如配置 `/auth` 会匹配 `/auth`、`/auth/login`，
+   * 但不会匹配 `/user/auth-history` 或 `/authorization`。
    */
   skipRefreshUrls?: string[];
 
@@ -234,7 +244,7 @@ export interface HttpClientOptions<
 type ResolvedHttpClientOptionKeys =
   | "accessTokenHeaderName"
   | "accessTokenPrefix"
-  | "authFailureCodes"
+  | "refreshFailureCodes"
   | "unauthorizedStatusCode"
   | "errorMessages"
   | "isRefreshFailure"

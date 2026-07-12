@@ -57,6 +57,11 @@ export const resolveRetryPolicy = (
 
 /**
  * 判断是否跳过刷新流程。
+ *
+ * 匹配规则：
+ * - 使用路径边界匹配，而不是任意子串 includes
+ * - 支持 exact / prefix 路径（例如 `/auth/login`、`/public`）
+ * - `/auth` 不会误伤 `/user/auth-history` 或 `/authorization`
  */
 export const shouldSkipRefresh = (
   skipRefreshUrls: string[],
@@ -68,7 +73,56 @@ export const shouldSkipRefresh = (
     return false;
   }
 
-  return skipRefreshUrls.some((url) => requestUrl.includes(url));
+  const normalizedRequestPath = normalizeRequestPath(requestUrl);
+
+  return skipRefreshUrls.some((skipUrl) =>
+    matchesSkipPath(normalizedRequestPath, skipUrl),
+  );
+};
+
+const normalizeRequestPath = (requestUrl: string): string => {
+  // 兼容相对路径、绝对 URL、带 query/hash 的地址
+  try {
+    const parsed = new URL(requestUrl, "http://localhost");
+    return parsed.pathname || "/";
+  } catch {
+    const withoutQuery = requestUrl.split("?")[0]?.split("#")[0] ?? requestUrl;
+    return withoutQuery.startsWith("/") ? withoutQuery : `/${withoutQuery}`;
+  }
+};
+
+const matchesSkipPath = (requestPath: string, skipUrl: string): boolean => {
+  if (!skipUrl) {
+    return false;
+  }
+
+  const normalizedSkip = skipUrl.startsWith("/") ? skipUrl : `/${skipUrl}`;
+  const skipPath = normalizedSkip.replace(/\/+$/, "") || "/";
+  const path = requestPath.replace(/\/+$/, "") || "/";
+
+  if (path === skipPath || path.startsWith(`${skipPath}/`)) {
+    return true;
+  }
+
+  // 允许匹配路径中的完整段序列（如 /api/auth/login 命中 /auth/login）
+  // 但不会把 /auth 误匹配到 /user/auth-history 或 /authorization
+  const pathSegments = path.split("/").filter(Boolean);
+  const skipSegments = skipPath.split("/").filter(Boolean);
+
+  if (skipSegments.length === 0 || skipSegments.length > pathSegments.length) {
+    return false;
+  }
+
+  for (let i = 0; i <= pathSegments.length - skipSegments.length; i++) {
+    const matched = skipSegments.every(
+      (segment, index) => pathSegments[i + index] === segment,
+    );
+    if (matched) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 /**
@@ -76,7 +130,7 @@ export const shouldSkipRefresh = (
  */
 export const defaultIsRefreshFailure = (
   error: unknown,
-  options: { unauthorizedStatusCode: number; authFailureCodes: number[] },
+  options: { unauthorizedStatusCode: number; refreshFailureCodes: number[] },
 ): boolean => {
   // 非 AxiosError（如 refreshAccessToken 函数内部抛出的业务错误）
   // 说明刷新逻辑本身失败，应视为鉴权失败
@@ -94,6 +148,6 @@ export const defaultIsRefreshFailure = (
 
   return (
     status === options.unauthorizedStatusCode ||
-    (data?.code !== undefined && options.authFailureCodes.includes(data.code))
+    (data?.code !== undefined && options.refreshFailureCodes.includes(data.code))
   );
 };

@@ -29,13 +29,13 @@ export const createHttpClient = <
   const resolvedOptions: ResolvedHttpClientOptions<T> = {
     accessTokenHeaderName: "Authorization",
     accessTokenPrefix: "Bearer",
-    authFailureCodes: [],
+    refreshFailureCodes: [],
     unauthorizedStatusCode: 401,
     errorMessages: {},
     isRefreshFailure: (error: unknown) =>
       defaultIsRefreshFailure(error, {
         unauthorizedStatusCode: resolvedOptions.unauthorizedStatusCode,
-        authFailureCodes: resolvedOptions.authFailureCodes,
+        refreshFailureCodes: resolvedOptions.refreshFailureCodes,
       }),
     skipRefreshUrls: [],
     refreshBufferMs: DEFAULT_REFRESH_BUFFER_MS,

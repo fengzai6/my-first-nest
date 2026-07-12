@@ -156,7 +156,7 @@ describe("createHttpClient edge cases", () => {
     });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      message: "refreshToken 已失效，登录过期",
+      message: "Refresh token is invalid or expired",
     });
 
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
@@ -253,7 +253,7 @@ describe("createHttpClient edge cases", () => {
 
     await expect(http.get("/profile")).rejects.toMatchObject({
       name: "Error",
-      message: "登录已失效，请重新登录",
+      message: "Login session has expired",
     });
 
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
@@ -380,7 +380,7 @@ describe("createHttpClient edge cases", () => {
     ]);
   });
 
-  it("refresh 错误命中 authFailureCodes 时会视为登录过期", async () => {
+  it("refresh 错误命中 refreshFailureCodes 时会视为登录过期", async () => {
     const tokenStore = createTokenStore("old-access", "old-refresh");
     const onAuthFailure = vi.fn(async () => {});
 
@@ -388,7 +388,7 @@ describe("createHttpClient edge cases", () => {
       axiosConfig: {
         baseURL: "/api",
       },
-      authFailureCodes: [1001002],
+      refreshFailureCodes: [1001002],
       getAccessToken: tokenStore.getAccessToken,
       onAuthFailure,
       refreshAccessToken: createRefreshAccessToken(tokenStore),
@@ -403,7 +403,7 @@ describe("createHttpClient edge cases", () => {
 
     await expect(http.get("/profile")).rejects.toMatchObject({
       name: "Error",
-      message: "refreshToken 已失效，登录过期",
+      message: "Refresh token is invalid or expired",
     });
 
     expect(onAuthFailure).toHaveBeenCalledTimes(1);
@@ -426,7 +426,7 @@ describe("createHttpClient edge cases", () => {
     queueAxiosError({ status: 401, data: { message: "unauthorized" } });
 
     await expect(http.get("/profile")).rejects.toMatchObject({
-      message: "refreshToken 已失效，登录过期",
+      message: "Refresh token is invalid or expired",
     });
 
     expect(onAuthFailure).toHaveBeenCalledTimes(1);

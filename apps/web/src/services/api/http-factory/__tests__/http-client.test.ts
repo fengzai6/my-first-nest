@@ -162,7 +162,7 @@ describe("createHttpClient", () => {
 
     await expect(http.get("/profile")).rejects.toMatchObject({
       name: "Error",
-      message: "refreshToken 已失效，登录过期",
+      message: "Refresh token is invalid or expired",
     });
 
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
@@ -319,7 +319,7 @@ describe("createHttpClient", () => {
 
     await expect(http.get("/profile")).rejects.toMatchObject({
       name: "Error",
-      message: "登录已失效，请重新登录",
+      message: "Login session has expired",
     });
 
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
@@ -746,12 +746,12 @@ describe("createHttpClient", () => {
       queueAxiosError({ status: 401, data: { message: "unauthorized" } });
 
       await expect(http.get("/profile")).rejects.toMatchObject({
-        message: "refreshToken 已失效，登录过期",
+        message: "Refresh token is invalid or expired",
       });
 
       expect(onError).toHaveBeenCalledTimes(1);
       expect(onError).toHaveBeenCalledWith(
-        expect.objectContaining({ message: "refreshToken 已失效，登录过期" }),
+        expect.objectContaining({ message: "Refresh token is invalid or expired" }),
         { type: "refresh" },
       );
       expect(onAuthFailure).toHaveBeenCalledTimes(1);

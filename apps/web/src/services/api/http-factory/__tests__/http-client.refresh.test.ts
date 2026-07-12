@@ -39,10 +39,25 @@ describe("shouldSkipRefresh", () => {
     expect(shouldSkipRefresh(["/auth"], {} as any)).toBe(false);
   });
 
-  it("URL 包含 skipRefreshUrl → true", () => {
+  it("URL 以 path 段形式命中 skipRefreshUrl → true", () => {
     expect(
       shouldSkipRefresh(["/auth/login"], { url: "/api/auth/login" } as any),
     ).toBe(true);
+  });
+
+  it("URL 以 prefix path 命中 skipRefreshUrl → true", () => {
+    expect(
+      shouldSkipRefresh(["/public"], { url: "/public/data" } as any),
+    ).toBe(true);
+  });
+
+  it("子串误匹配不会跳过刷新", () => {
+    expect(
+      shouldSkipRefresh(["/auth"], { url: "/user/auth-history" } as any),
+    ).toBe(false);
+    expect(
+      shouldSkipRefresh(["/auth"], { url: "/authorization" } as any),
+    ).toBe(false);
   });
 
   it("URL 不包含任何 skipRefreshUrl → false", () => {
@@ -59,7 +74,7 @@ describe("shouldSkipRefresh", () => {
 });
 
 describe("defaultIsRefreshFailure", () => {
-  const baseOptions = { unauthorizedStatusCode: 401, authFailureCodes: [1001002] };
+  const baseOptions = { unauthorizedStatusCode: 401, refreshFailureCodes: [1001002] };
 
   it("非 AxiosError → true（业务错误视为鉴权失败）", () => {
     expect(defaultIsRefreshFailure(new Error("something"), baseOptions)).toBe(true);
@@ -81,13 +96,13 @@ describe("defaultIsRefreshFailure", () => {
     expect(defaultIsRefreshFailure(makeAxiosError({ status: 401 }), baseOptions)).toBe(true);
   });
 
-  it("data.code 在 authFailureCodes 中 → true", () => {
+  it("data.code 在 refreshFailureCodes 中 → true", () => {
     expect(
       defaultIsRefreshFailure(makeAxiosError({ status: 403, code: 1001002 }), baseOptions),
     ).toBe(true);
   });
 
-  it("data.code 不在 authFailureCodes 中 → false", () => {
+  it("data.code 不在 refreshFailureCodes 中 → false", () => {
     expect(
       defaultIsRefreshFailure(makeAxiosError({ status: 403, code: 999999 }), baseOptions),
     ).toBe(false);
@@ -100,7 +115,7 @@ describe("defaultIsRefreshFailure", () => {
   });
 
   it("自定义 unauthorizedStatusCode 生效", () => {
-    const options = { unauthorizedStatusCode: 498, authFailureCodes: [] };
+    const options = { unauthorizedStatusCode: 498, refreshFailureCodes: [] };
     expect(defaultIsRefreshFailure(makeAxiosError({ status: 498 }), options)).toBe(true);
     expect(defaultIsRefreshFailure(makeAxiosError({ status: 401 }), options)).toBe(false);
   });
