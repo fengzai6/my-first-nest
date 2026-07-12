@@ -141,6 +141,7 @@ const http = createHttpClient({
 - **`refreshAccessToken`** — 自定义刷新逻辑，返回类型与 `getAccessToken` 一致
 - **`shouldRefreshByResponseData`** — 通过业务响应内容判断是否需要刷新 token
 - **`refreshBufferMs`** — 提前刷新的毫秒数，默认 `0`（不提前刷新），设置后会在 token 即将过期前异步触发刷新
+  - 主动刷新失败不会阻塞当前请求；鉴权失败走 `onAuthFailure`，网络等错误仍会触发 `onError({ type: "refresh" })`
 - **`refreshCooldownMs`** — 刷新后的冷却期，默认 `15000ms`，在冷却期内收到的 401 请求会跳过刷新，直接用新 token 重试
 - **`refreshManager`** — 外部传入 `TokenRefreshManager` 实例，用于多个客户端共享同一套 token 刷新逻辑
 - **`skipRefreshUrls`** — 不触发 refresh token 流程的请求路径列表

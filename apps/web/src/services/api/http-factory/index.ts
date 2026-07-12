@@ -193,7 +193,9 @@ export const createHttpClient = <
             const bufferMs = resolvedOptions.refreshBufferMs;
 
             if (bufferMs > 0 && isTokenExpiringSoon(expiresAt, bufferMs)) {
-              refreshAccessToken().catch(() => {});
+              // fire-and-forget：refreshAccessToken 内部已调用 onError/onAuthFailure
+              // 这里仅吞掉 rejection，避免 unhandledrejection，且不阻塞当前请求
+              void refreshAccessToken().catch(() => {});
             }
           }
 

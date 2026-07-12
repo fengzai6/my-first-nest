@@ -1,4 +1,5 @@
 import "./test-utils/mock-axios";
+import axios from "axios";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AccessTokenResult } from "../types/token";
@@ -173,6 +174,94 @@ describe("Token 规范化边界情况", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+  });
+
+  it("主动刷新网络失败时仍会触发 onError，且不阻塞当前请求", async () => {
+    const futureTime = Date.now() + 30000;
+    const onError = vi.fn();
+    const onAuthFailure = vi.fn();
+
+    const getAccessToken = vi.fn(async () => ({
+      token: "expiring-token",
+      expiresAt: futureTime,
+    }));
+
+    const refreshAccessToken = vi.fn(async () => {
+      const error = new axios.AxiosError("Network error");
+      error.isAxiosError = true;
+      throw error;
+    });
+
+    const http = createHttpClient({
+      axiosConfig: { baseURL: "/api" },
+      getAccessToken,
+      refreshAccessToken,
+      refreshBufferMs: 60000,
+      onError,
+      onAuthFailure,
+    });
+
+    queueCustomHandler(async (config) => {
+      expect(config.headers?.Authorization).toBe("Bearer expiring-token");
+      return { status: 200, data: { ok: true } };
+    });
+
+    const response = await http.get("/test");
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(response.data).toEqual({ ok: true });
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Network error" }),
+      { type: "refresh" },
+    );
+    expect(onAuthFailure).not.toHaveBeenCalled();
+  });
+
+  it("主动刷新鉴权失败时会触发 onError 与 onAuthFailure，且不阻塞当前请求", async () => {
+    const futureTime = Date.now() + 30000;
+    const onError = vi.fn();
+    const onAuthFailure = vi.fn();
+
+    const getAccessToken = vi.fn(async () => ({
+      token: "expiring-token",
+      expiresAt: futureTime,
+    }));
+
+    const refreshAccessToken = vi.fn(async () => {
+      throw new Error("refresh rejected");
+    });
+
+    const http = createHttpClient({
+      axiosConfig: { baseURL: "/api" },
+      getAccessToken,
+      refreshAccessToken,
+      refreshBufferMs: 60000,
+      onError,
+      onAuthFailure,
+    });
+
+    queueCustomHandler(async (config) => {
+      expect(config.headers?.Authorization).toBe("Bearer expiring-token");
+      return { status: 200, data: { ok: true } };
+    });
+
+    const response = await http.get("/test");
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(response.data).toEqual({ ok: true });
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Refresh token is invalid or expired",
+      }),
+      { type: "refresh" },
+    );
+    expect(onAuthFailure).toHaveBeenCalledTimes(1);
   });
 
   it("expiresAt 为有效时间但未过期时不应该触发主动刷新", async () => {
