@@ -59,9 +59,10 @@ export const resolveRetryPolicy = (
  * 判断是否跳过刷新流程。
  *
  * 匹配规则：
- * - 使用路径边界匹配，而不是任意子串 includes
- * - 支持 exact / prefix 路径（例如 `/auth/login`、`/public`）
- * - `/auth` 不会误伤 `/user/auth-history` 或 `/authorization`
+ * - 仅 exact / prefix 路径匹配
+ * - 不是任意子串 includes，也不做中间段滑动匹配
+ * - 例如 `/auth` 匹配 `/auth`、`/auth/login`
+ * - 不匹配 `/user/auth-history`、`/authorization`、`/api/auth/login`
  */
 export const shouldSkipRefresh = (
   skipRefreshUrls: string[],
@@ -100,29 +101,7 @@ const matchesSkipPath = (requestPath: string, skipUrl: string): boolean => {
   const skipPath = normalizedSkip.replace(/\/+$/, "") || "/";
   const path = requestPath.replace(/\/+$/, "") || "/";
 
-  if (path === skipPath || path.startsWith(`${skipPath}/`)) {
-    return true;
-  }
-
-  // 允许匹配路径中的完整段序列（如 /api/auth/login 命中 /auth/login）
-  // 但不会把 /auth 误匹配到 /user/auth-history 或 /authorization
-  const pathSegments = path.split("/").filter(Boolean);
-  const skipSegments = skipPath.split("/").filter(Boolean);
-
-  if (skipSegments.length === 0 || skipSegments.length > pathSegments.length) {
-    return false;
-  }
-
-  for (let i = 0; i <= pathSegments.length - skipSegments.length; i++) {
-    const matched = skipSegments.every(
-      (segment, index) => pathSegments[i + index] === segment,
-    );
-    if (matched) {
-      return true;
-    }
-  }
-
-  return false;
+  return path === skipPath || path.startsWith(`${skipPath}/`);
 };
 
 /**

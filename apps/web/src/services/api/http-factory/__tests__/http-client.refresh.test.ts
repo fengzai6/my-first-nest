@@ -39,9 +39,9 @@ describe("shouldSkipRefresh", () => {
     expect(shouldSkipRefresh(["/auth"], {} as any)).toBe(false);
   });
 
-  it("URL 以 path 段形式命中 skipRefreshUrl → true", () => {
+  it("URL exact 命中 skipRefreshUrl → true", () => {
     expect(
-      shouldSkipRefresh(["/auth/login"], { url: "/api/auth/login" } as any),
+      shouldSkipRefresh(["/auth/login"], { url: "/auth/login" } as any),
     ).toBe(true);
   });
 
@@ -49,18 +49,27 @@ describe("shouldSkipRefresh", () => {
     expect(
       shouldSkipRefresh(["/public"], { url: "/public/data" } as any),
     ).toBe(true);
+    expect(
+      shouldSkipRefresh(["/auth"], { url: "/auth/login" } as any),
+    ).toBe(true);
   });
 
-  it("子串误匹配不会跳过刷新", () => {
+  it("中间段/子串路径不会跳过刷新", () => {
     expect(
       shouldSkipRefresh(["/auth"], { url: "/user/auth-history" } as any),
     ).toBe(false);
     expect(
       shouldSkipRefresh(["/auth"], { url: "/authorization" } as any),
     ).toBe(false);
+    expect(
+      shouldSkipRefresh(["/auth"], { url: "/gateway/user/auth/session" } as any),
+    ).toBe(false);
+    expect(
+      shouldSkipRefresh(["/auth/login"], { url: "/api/auth/login" } as any),
+    ).toBe(false);
   });
 
-  it("URL 不包含任何 skipRefreshUrl → false", () => {
+  it("URL 不匹配任何 skipRefreshUrl → false", () => {
     expect(
       shouldSkipRefresh(["/auth/login"], { url: "/api/profile" } as any),
     ).toBe(false);

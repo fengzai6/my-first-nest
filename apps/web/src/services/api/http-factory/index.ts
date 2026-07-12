@@ -61,14 +61,19 @@ export const createHttpClient = <
   });
 
   // 包装 request 方法，实现请求合并（仅 GET）
-  // 内部 refresh / retry 通过 originalRequest 旁路 dedupe，避免 pending 自引用死锁
+  // 内部 refresh / retry 通过 replayRequest(=originalRequest) 旁路 dedupe，
+  // 避免 pending 自引用死锁，也不污染业务 config
   const originalRequest = instance.request.bind(instance);
+  const replayRequest = (
+    config: InternalAxiosRequestConfig & RequestRetryState,
+  ) => originalRequest(config);
+
   if (dedupeManager) {
     instance.request = ((
       config: InternalAxiosRequestConfig & RequestRetryState,
     ) => {
       const method = (config.method ?? "get").toLowerCase();
-      if (method !== "get" || config.__skipDedupe) {
+      if (method !== "get") {
         return originalRequest(config);
       }
 
@@ -198,9 +203,8 @@ export const createHttpClient = <
       token,
     );
 
-    // 内部重试旁路 dedupe：当前请求 Promise 仍在 pending map 中
-    config.__skipDedupe = true;
-    return originalRequest(config);
+    // 内部重试旁路 dedupe：不经过 instance.request 包装
+    return replayRequest(config);
   };
 
   instance.interceptors.request.use(
@@ -208,12 +212,13 @@ export const createHttpClient = <
       const currentAuthorization =
         config.headers?.[resolvedOptions.accessTokenHeaderName];
 
-      // 仅在没有显式 Authorization 时注入 token，并判断是否主动刷新
-      if (!currentAuthorization) {
+      // 仅在调用方未显式提供 header（undefined/null）时注入 token
+      // 空字符串也视为显式控制，不覆盖
+      if (currentAuthorization == null) {
         const tokenResult = await resolvedOptions.getAccessToken();
         const { token, expiresAt } = normalizeTokenResult(tokenResult);
 
-        if (token) {
+        if (token !== "") {
           // 主动刷新：token 即将过期时异步触发刷新，不阻塞当前请求
           if (
             refreshEnabled &&
@@ -336,9 +341,8 @@ export const createHttpClient = <
           config.__retryCount = retryCount + 1;
 
           await new Promise((resolve) => setTimeout(resolve, delay));
-          // 内部重试旁路 dedupe：当前请求 Promise 仍在 pending map 中
-          config.__skipDedupe = true;
-          return originalRequest(config);
+          // 内部重试旁路 dedupe：不经过 instance.request 包装
+          return replayRequest(config);
         }
       }
 

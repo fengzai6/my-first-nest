@@ -21,10 +21,11 @@ export interface DedupePolicy {
   generateKey?: (config: AxiosRequestConfig) => string;
 }
 
-// 扩展 AxiosRequestConfig，支持请求级 dedupePolicy
+// 应用内 axios 类型扩展：仅 createHttpClient 实例消费 dedupePolicy。
+// 其他 axios 实例即使出现该字段也无运行时效果。
 declare module "axios" {
   interface AxiosRequestConfig {
-    /** 请求合并策略。覆盖客户端级配置。 */
+    /** 请求合并策略。覆盖客户端级配置。仅 http-factory 创建的实例生效。 */
     dedupePolicy?: DedupePolicy;
   }
 }
@@ -161,9 +162,9 @@ export interface HttpClientOptions<
   /**
    * 不触发 refresh token 流程的请求路径列表。
    *
-   * 使用路径边界匹配（exact / prefix），不是任意子串 includes。
+   * 仅 exact / prefix 匹配，不是任意子串 includes，也不做中间段滑动匹配。
    * 例如配置 `/auth` 会匹配 `/auth`、`/auth/login`，
-   * 但不会匹配 `/user/auth-history` 或 `/authorization`。
+   * 但不会匹配 `/user/auth-history`、`/authorization`、`/api/auth/login`。
    */
   skipRefreshUrls?: string[];
 

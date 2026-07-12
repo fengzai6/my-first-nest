@@ -117,6 +117,65 @@ describe("createHttpClient", () => {
     expect(tokenStore.getAccessToken).not.toHaveBeenCalled();
   });
 
+  it("显式传入空 Authorization 不会被 token 注入覆盖", async () => {
+    const tokenStore = createTokenStore("old-access", "old-refresh");
+
+    const http = createHttpClient({
+      axiosConfig: {
+        baseURL: "/api",
+      },
+      getAccessToken: tokenStore.getAccessToken,
+    });
+
+    let receivedAuthorization: unknown = "unset";
+
+    queueCustomHandler(async (config) => {
+      receivedAuthorization = config.headers?.Authorization;
+      return { status: 200, data: { ok: true }, config };
+    });
+
+    await http.get("/profile", {
+      headers: {
+        Authorization: "",
+      },
+    });
+
+    expect(receivedAuthorization).toBe("");
+    expect(tokenStore.getAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("内部 refresh 重试不会污染 config 上的 __skipDedupe", async () => {
+    const tokenStore = createTokenStore("old-access", "old-refresh");
+    const refreshAccessToken = vi.fn(createRefreshAccessToken(tokenStore));
+
+    const http = createHttpClient({
+      axiosConfig: { baseURL: "/api" },
+      getAccessToken: tokenStore.getAccessToken,
+      refreshAccessToken,
+      dedupePolicy: { enabled: true },
+    });
+
+    queueAxiosError({ status: 401, data: { message: "unauthorized" } });
+    queueResponse({
+      status: 200,
+      data: {
+        accessToken: "new-access",
+        refreshToken: "new-refresh",
+      },
+    });
+
+    let retriedConfig: any;
+    queueCustomHandler(async (config) => {
+      retriedConfig = config;
+      return { status: 200, data: { ok: true }, config };
+    });
+
+    await http.get("/profile");
+
+    expect(retriedConfig.__skipDedupe).toBeUndefined();
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+  });
+
   it("getAccessToken 为空时不会注入鉴权 header", async () => {
     const getAccessToken = vi.fn(async () => "");
 

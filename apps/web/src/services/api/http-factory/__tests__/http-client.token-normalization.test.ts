@@ -32,7 +32,7 @@ describe("Token 规范化边界情况", () => {
 
     await http.get("/test");
 
-    // 不应该触发主动刷新
+    // 0 视为无效过期时间，不触发主动刷新
     expect(refreshAccessToken).not.toHaveBeenCalled();
   });
 

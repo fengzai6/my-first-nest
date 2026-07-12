@@ -1,15 +1,13 @@
 import type { AxiosResponse } from "axios";
 
 /**
- * 请求内部状态。
+ * 请求内部状态（仅工厂内部使用，业务侧请勿写入）。
  */
 export interface RequestRetryState {
   /** token 刷新重试标记 */
   _retry?: boolean;
   /** 通用重试计数 */
   __retryCount?: number;
-  /** 内部重试旁路 dedupe，避免 pending 自引用死锁 */
-  __skipDedupe?: boolean;
 }
 
 /**

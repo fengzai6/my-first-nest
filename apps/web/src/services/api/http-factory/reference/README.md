@@ -12,7 +12,7 @@
 - 成功时返回原始 `AxiosResponse`
 - 支持自定义业务响应拦截（`onBusinessResponse`）、全局错误钩子（`onError`）、刷新失败判定
 - 刷新失败或重试失败后统一执行 `onAuthFailure`
-- 错误直接透传 axios 原始错误，不额外包装
+- 请求失败默认透传 axios 原始 `AxiosError`；refresh 鉴权失败 / 登录过期时会构造普通 `Error`，均可经 `onError` 替换
 - 支持通用重试策略（`retryPolicy`）：5xx 或网络错误时自动重试，指数退避
 - 支持请求合并（`dedupePolicy`）：相同 in-flight GET 请求复用同一个 Promise
 - 支持运行时动态 headers（`headersProvider`）：每次请求时注入自定义 headers
@@ -91,7 +91,10 @@ const profileData = profile.data;
 ### Token 注入
 
 - **`getAccessToken`** — 获取当前 access token。返回 `string` 时仅注入 token；返回 `AccessTokenDetail` 时会在 token 即将过期前主动触发刷新
+  - 返回空值 / 空字符串时不注入鉴权 header
 - **`accessTokenHeaderName`** — 注入到请求头的字段名，默认 `Authorization`
+  - 调用方未传该 header（`undefined/null`）时工厂注入
+  - 调用方显式传入任意值（含空字符串）时不覆盖
 - **`accessTokenPrefix`** — token 前缀，默认 `Bearer`
 - **`headersProvider`** — 运行时动态 headers 提供者，每次请求时调用，返回的 headers 会合并到请求中（支持同步/异步）
 
@@ -145,9 +148,9 @@ const http = createHttpClient({
 - **`refreshCooldownMs`** — 刷新后的冷却期，默认 `15000ms`，在冷却期内收到的 401 请求会跳过刷新，直接用新 token 重试
 - **`refreshManager`** — 外部传入 `TokenRefreshManager` 实例，用于多个客户端共享同一套 token 刷新逻辑
 - **`skipRefreshUrls`** — 不触发 refresh token 流程的请求路径列表
-  - 使用路径边界 / 完整路径段匹配，不是任意子串 includes
-  - 例如 `/auth` 匹配 `/auth`、`/auth/login`、`/api/auth/login`
-  - 不会匹配 `/user/auth-history` 或 `/authorization`
+  - 仅 exact / prefix 匹配，不是任意子串 includes，也不做中间段滑动匹配
+  - 例如 `/auth` 匹配 `/auth`、`/auth/login`
+  - 不会匹配 `/user/auth-history`、`/authorization`、`/api/auth/login`
 
 ```ts
 import { TokenRefreshManager } from "@/services/api/http-factory/token-refresh-manager";
@@ -208,6 +211,7 @@ const http = createHttpClient({
 
 仅对 GET 请求生效，不支持配置其他 method。请求级 `dedupePolicy.enabled = false` 可覆盖客户端级配置，禁止单个请求的合并。
 内部 refresh / retry 会自动旁路 dedupe，避免 pending 自引用导致请求挂起。
+dedupe 合并的是用户可见 Promise（含 interceptor 后的 refresh/retry 结果），不是“仅首个网络 attempt”。
 
 鉴权失败（命中 `unauthorizedStatusCode`）会优先于通用 `retryPolicy` 处理，避免 401 被自定义 `shouldRetry` 空耗重试次数。
 
