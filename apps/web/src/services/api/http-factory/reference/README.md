@@ -11,7 +11,7 @@
 - 通过 `TokenRefreshManager` 合并并发刷新，避免同一时刻重复刷新
 - 成功时返回原始 `AxiosResponse`
 - 支持自定义业务响应拦截（`onBusinessResponse`）、全局错误钩子（`onError`）、刷新失败判定
-- 刷新失败或重试失败后统一执行 `onAuthFailure`
+- 刷新鉴权失败、空 token 刷新结果、或重试后仍登录过期时执行 `onAuthFailure`；网络错误 / 5xx / 非 AxiosError 默认不触发
 - 请求失败默认透传 axios 原始 `AxiosError`；refresh 鉴权失败 / 登录过期时会构造普通 `Error`，均可经 `onError` 替换
 - 支持通用重试策略（`retryPolicy`）：5xx 或网络错误时自动重试，指数退避
 - 支持请求合并（`dedupePolicy`）：相同 in-flight GET 请求复用同一个 Promise
@@ -295,7 +295,7 @@ const [a, b] = await Promise.all([http.get("/config"), http.get("/config")]);
 2. 并发 401 请求只刷新一次，并在重试时使用新 token
 3. 显式传入的鉴权 header 不会被 token 注入覆盖
 4. getAccessToken 为空时不会注入鉴权 header
-5. refresh 失败时会触发 onAuthFailure 并返回登录过期错误
+5. refresh 鉴权失败（如 401 / refreshFailureCodes / 空 token）时会触发 onAuthFailure 并返回登录过期错误
 6. 业务响应命中 accessToken 失效 code 时会刷新并重试
 7. refresh 返回空字符串 refreshToken 时会交给使用者自行处理
 8. 未启用刷新时，401 会触发 onAuthFailure 且不会读取 refreshToken
@@ -312,12 +312,12 @@ const [a, b] = await Promise.all([http.get("/config"), http.get("/config")]);
 1. 命中 skipRefreshUrls 时，401 / 业务响应触发刷新都不会执行 refresh
 2. 自定义 unauthorizedStatusCode 命中时会刷新并重试
 3. 业务响应要求刷新但未启用刷新时会原样返回响应
-4. refresh 成功响应缺少 accessToken 时会触发鉴权失败（refreshToken 已失效）
+4. refresh 成功响应缺少 accessToken / 返回空 token 时会触发鉴权失败（refreshToken 已失效）
 5. 并发 401 请求在 refresh 返回 500 时不会触发 onAuthFailure（服务端错误不代表 token 失效）
 6. 重试后的业务响应再次命中刷新条件时会停止重试并退出登录
 7. refresh 进行中时新来的 401 请求会复用同一次 refresh
 8. refresh 错误命中 refreshFailureCodes 时会视为登录过期
-9. refresh 抛出非 Error 异常时会触发鉴权失败（归一化后作为 refreshToken 失效处理）
+9. refresh 抛出非 AxiosError / 非 Error 异常时默认不触发鉴权失败，仅透传错误
 10. onAuthFailure 抛错时会透出回调错误而不是原始鉴权错误
 11. onBusinessResponse 抛出的特定消息能在 onError 中正常接收
 

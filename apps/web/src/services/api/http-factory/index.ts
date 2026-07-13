@@ -1,25 +1,25 @@
 import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, AxiosHeaders } from "axios";
+import { DEFAULT_MESSAGES, DEFAULT_REFRESH_BUFFER_MS } from "./constants";
 import { DedupeManager } from "./dedupe-manager";
 import { REFRESH_SKIPPED, TokenRefreshManager } from "./token-refresh-manager";
-import type { AccessTokenResult } from "./types/token";
 import type { ErrorContext, RequestRetryState } from "./types/common";
 import type {
   HttpClientOptions,
   ResolvedHttpClientOptions,
 } from "./types/http-client-options";
-import { DEFAULT_MESSAGES, DEFAULT_REFRESH_BUFFER_MS } from "./constants";
-import { normalizeError, invokeOnError } from "./utils/error";
+import type { AccessTokenResult } from "./types/token";
+import { invokeOnError, normalizeError } from "./utils/error";
 import {
-  formatAccessToken,
-  normalizeTokenResult,
-  isTokenExpiringSoon,
-} from "./utils/token";
-import {
-  shouldSkipRefresh,
   defaultIsRefreshFailure,
   resolveRetryPolicy,
+  shouldSkipRefresh,
 } from "./utils/refresh";
+import {
+  formatAccessToken,
+  isTokenExpiringSoon,
+  normalizeTokenResult,
+} from "./utils/token";
 
 export const createHttpClient = <
   T extends AccessTokenResult = AccessTokenResult,
@@ -50,10 +50,11 @@ export const createHttpClient = <
   const resolvedRetryPolicy = resolveRetryPolicy(options.retryPolicy);
 
   // 请求合并（in-flight coalesce）
-  const dedupePolicy = options.dedupePolicy;
-  const dedupeManager = dedupePolicy?.enabled
-    ? new DedupeManager(dedupePolicy.generateKey)
-    : null;
+  // 始终准备 manager：客户端默认关闭时，仍允许请求级 { enabled: true } 临时启用
+  // 请求级仅可覆盖 enabled，generateKey 只读取客户端级配置
+  const clientDedupePolicy = options.dedupePolicy;
+  const clientDedupeEnabled = clientDedupePolicy?.enabled === true;
+  const dedupeManager = new DedupeManager(clientDedupePolicy?.generateKey);
 
   const instance = axios.create({
     timeout: 15 * 1000,
@@ -67,36 +68,6 @@ export const createHttpClient = <
   const replayRequest = (
     config: InternalAxiosRequestConfig & RequestRetryState,
   ) => originalRequest(config);
-
-  if (dedupeManager) {
-    instance.request = ((
-      config: InternalAxiosRequestConfig & RequestRetryState,
-    ) => {
-      const method = (config.method ?? "get").toLowerCase();
-      if (method !== "get") {
-        return originalRequest(config);
-      }
-
-      // 请求级配置覆盖客户端级配置
-      const requestDedupePolicy = config.dedupePolicy;
-      const shouldDedupe = requestDedupePolicy?.enabled ?? true;
-
-      if (!shouldDedupe) {
-        return originalRequest(config);
-      }
-
-      const key = dedupeManager.getKey(config);
-      const pendingPromise = dedupeManager.getPending(key);
-
-      if (pendingPromise) {
-        return pendingPromise as ReturnType<typeof originalRequest>;
-      }
-
-      const promise = originalRequest(config);
-      dedupeManager.setPending(key, promise);
-      return promise;
-    }) as typeof instance.request;
-  }
 
   const handleAuthFailure = async (error?: unknown) => {
     await resolvedOptions.onAuthFailure?.(error);
@@ -210,69 +181,108 @@ export const createHttpClient = <
       );
     }
 
-    config.headers = config.headers ?? {};
-    config.headers[resolvedOptions.accessTokenHeaderName] = formatAccessToken(
-      resolvedOptions.accessTokenPrefix,
-      token,
+    const headers = AxiosHeaders.from(config.headers ?? {});
+    headers.set(
+      resolvedOptions.accessTokenHeaderName,
+      formatAccessToken(resolvedOptions.accessTokenPrefix, token),
     );
+    config.headers = headers;
+    // 重试需要重新跑 headersProvider / 请求准备逻辑
+    config.__headersPrepared = false;
 
     // 内部重试旁路 dedupe：不经过 instance.request 包装
     return replayRequest(config);
   };
 
+  const prepareRequestHeaders = async (
+    config: InternalAxiosRequestConfig & RequestRetryState,
+  ) => {
+    if (config.__headersPrepared) {
+      return config;
+    }
+
+    const headersProvider = resolvedOptions.headersProvider;
+    const runtimeHeaders = headersProvider
+      ? await headersProvider()
+      : undefined;
+
+    // 先合并调用方 / headersProvider 的 headers，再做大小写无关的 token 判定
+    const headers = AxiosHeaders.from(config.headers ?? {});
+    if (runtimeHeaders) {
+      headers.set(runtimeHeaders);
+    }
+    config.headers = headers;
+
+    const currentAuthorization = headers.get(
+      resolvedOptions.accessTokenHeaderName,
+    );
+
+    // 仅在调用方未显式提供 header（undefined/null）时注入 token
+    // 空字符串也视为显式控制，不覆盖
+    const needToken = currentAuthorization == null;
+
+    if (needToken) {
+      const tokenResult = await resolvedOptions.getAccessToken();
+      const { token, expiresAt } = normalizeTokenResult(tokenResult);
+
+      if (token !== "") {
+        // 主动刷新：token 即将过期时异步触发刷新，不阻塞当前请求
+        if (
+          refreshEnabled &&
+          expiresAt &&
+          !shouldSkipRefresh(resolvedOptions.skipRefreshUrls, config)
+        ) {
+          const bufferMs = resolvedOptions.refreshBufferMs;
+
+          if (bufferMs > 0 && isTokenExpiringSoon(expiresAt, bufferMs)) {
+            // fire-and-forget：refreshAccessToken 内部已调用 onError/onAuthFailure
+            // 这里仅吞掉 rejection，避免 unhandledrejection，且不阻塞当前请求
+            void refreshAccessToken().catch(() => {});
+          }
+        }
+
+        headers.set(
+          resolvedOptions.accessTokenHeaderName,
+          formatAccessToken(resolvedOptions.accessTokenPrefix, token),
+        );
+      }
+    }
+
+    config.__headersPrepared = true;
+    return config;
+  };
+
+  // 请求级仅可覆盖 enabled；generateKey 固定使用客户端级配置
+  instance.request = ((
+    config: InternalAxiosRequestConfig & RequestRetryState,
+  ) => {
+    const method = (config.method ?? "get").toLowerCase();
+    if (method !== "get") {
+      return originalRequest(config);
+    }
+
+    const requestDedupePolicy = config.dedupePolicy;
+    const shouldDedupe = requestDedupePolicy?.enabled ?? clientDedupeEnabled;
+
+    if (!shouldDedupe) {
+      return originalRequest(config);
+    }
+
+    const key = dedupeManager.getKey(config);
+    const pendingPromise = dedupeManager.getPending(key);
+
+    if (pendingPromise) {
+      return pendingPromise as ReturnType<typeof originalRequest>;
+    }
+
+    const promise = originalRequest(config);
+    dedupeManager.setPending(key, promise);
+    return promise;
+  }) as typeof instance.request;
+
   instance.interceptors.request.use(
     async (config: InternalAxiosRequestConfig & RequestRetryState) => {
-      const currentAuthorization =
-        config.headers?.[resolvedOptions.accessTokenHeaderName];
-
-      // 仅在调用方未显式提供 header（undefined/null）时注入 token
-      // 空字符串也视为显式控制，不覆盖
-      const needToken = currentAuthorization == null;
-      const headersProvider = resolvedOptions.headersProvider;
-
-      // token 与 runtime headers 无依赖，可并行；headersProvider 仍后合并以允许覆盖 Authorization
-      const [tokenResult, runtimeHeaders] = await Promise.all([
-        needToken
-          ? Promise.resolve(resolvedOptions.getAccessToken())
-          : Promise.resolve(undefined),
-        headersProvider
-          ? Promise.resolve(headersProvider())
-          : Promise.resolve(undefined),
-      ]);
-
-      if (needToken) {
-        const { token, expiresAt } = normalizeTokenResult(
-          tokenResult as AccessTokenResult,
-        );
-
-        if (token !== "") {
-          // 主动刷新：token 即将过期时异步触发刷新，不阻塞当前请求
-          if (
-            refreshEnabled &&
-            expiresAt &&
-            !shouldSkipRefresh(resolvedOptions.skipRefreshUrls, config)
-          ) {
-            const bufferMs = resolvedOptions.refreshBufferMs;
-
-            if (bufferMs > 0 && isTokenExpiringSoon(expiresAt, bufferMs)) {
-              // fire-and-forget：refreshAccessToken 内部已调用 onError/onAuthFailure
-              // 这里仅吞掉 rejection，避免 unhandledrejection，且不阻塞当前请求
-              void refreshAccessToken().catch(() => {});
-            }
-          }
-
-          config.headers = config.headers ?? {};
-          config.headers[resolvedOptions.accessTokenHeaderName] =
-            formatAccessToken(resolvedOptions.accessTokenPrefix, token);
-        }
-      }
-
-      if (runtimeHeaders) {
-        config.headers = config.headers ?? {};
-        Object.assign(config.headers, runtimeHeaders);
-      }
-
-      return config;
+      return prepareRequestHeaders(config);
     },
     (error) => Promise.reject(error),
   );

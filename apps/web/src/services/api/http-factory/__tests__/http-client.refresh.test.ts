@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { AxiosError } from "axios";
+import type { InternalAxiosRequestConfig } from "axios";
+import { AxiosError, AxiosHeaders } from "axios";
 import { shouldSkipRefresh, defaultIsRefreshFailure } from "../utils/refresh";
+import type { RequestRetryState } from "../types/common";
 
 vi.mock("axios", async () => {
   const actual = await vi.importActual<typeof import("axios")>("axios");
@@ -14,6 +16,15 @@ vi.mock("axios", async () => {
   };
 });
 
+const createRequestConfig = (
+  config: Partial<InternalAxiosRequestConfig & RequestRetryState> = {},
+): InternalAxiosRequestConfig & RequestRetryState => {
+  return {
+    headers: new AxiosHeaders(),
+    ...config,
+  } as InternalAxiosRequestConfig & RequestRetryState;
+};
+
 const makeAxiosError = (
   options: { status?: number; code?: number; response?: boolean } = {},
 ): AxiosError => {
@@ -24,7 +35,7 @@ const makeAxiosError = (
       data: options.code !== undefined ? { code: options.code } : {},
       headers: {},
       statusText: "Error",
-      config: {} as any,
+      config: createRequestConfig(),
     };
   }
   return error;
@@ -36,48 +47,54 @@ describe("shouldSkipRefresh", () => {
   });
 
   it("config.url 为 undefined → false", () => {
-    expect(shouldSkipRefresh(["/auth"], {} as any)).toBe(false);
+    expect(shouldSkipRefresh(["/auth"], createRequestConfig())).toBe(false);
   });
 
   it("URL exact 命中 skipRefreshUrl → true", () => {
     expect(
-      shouldSkipRefresh(["/auth/login"], { url: "/auth/login" } as any),
+      shouldSkipRefresh(["/auth/login"], createRequestConfig({ url: "/auth/login" })),
     ).toBe(true);
   });
 
   it("URL 以 prefix path 命中 skipRefreshUrl → true", () => {
     expect(
-      shouldSkipRefresh(["/public"], { url: "/public/data" } as any),
+      shouldSkipRefresh(["/public"], createRequestConfig({ url: "/public/data" })),
     ).toBe(true);
     expect(
-      shouldSkipRefresh(["/auth"], { url: "/auth/login" } as any),
+      shouldSkipRefresh(["/auth"], createRequestConfig({ url: "/auth/login" })),
     ).toBe(true);
   });
 
   it("中间段/子串路径不会跳过刷新", () => {
     expect(
-      shouldSkipRefresh(["/auth"], { url: "/user/auth-history" } as any),
+      shouldSkipRefresh(["/auth"], createRequestConfig({ url: "/user/auth-history" })),
     ).toBe(false);
     expect(
-      shouldSkipRefresh(["/auth"], { url: "/authorization" } as any),
+      shouldSkipRefresh(["/auth"], createRequestConfig({ url: "/authorization" })),
     ).toBe(false);
     expect(
-      shouldSkipRefresh(["/auth"], { url: "/gateway/user/auth/session" } as any),
+      shouldSkipRefresh(
+        ["/auth"],
+        createRequestConfig({ url: "/gateway/user/auth/session" }),
+      ),
     ).toBe(false);
     expect(
-      shouldSkipRefresh(["/auth/login"], { url: "/api/auth/login" } as any),
+      shouldSkipRefresh(
+        ["/auth/login"],
+        createRequestConfig({ url: "/api/auth/login" }),
+      ),
     ).toBe(false);
   });
 
   it("URL 不匹配任何 skipRefreshUrl → false", () => {
     expect(
-      shouldSkipRefresh(["/auth/login"], { url: "/api/profile" } as any),
+      shouldSkipRefresh(["/auth/login"], createRequestConfig({ url: "/api/profile" })),
     ).toBe(false);
   });
 
   it("skipRefreshUrls 为空数组 → 始终 false", () => {
     expect(
-      shouldSkipRefresh([], { url: "/auth/login" } as any),
+      shouldSkipRefresh([], createRequestConfig({ url: "/auth/login" })),
     ).toBe(false);
   });
 });

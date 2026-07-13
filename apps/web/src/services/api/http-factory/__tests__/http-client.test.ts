@@ -164,15 +164,15 @@ describe("createHttpClient", () => {
       },
     });
 
-    let retriedConfig: any;
+    let retriedConfig: { __skipDedupe?: unknown } | undefined;
     queueCustomHandler(async (config) => {
-      retriedConfig = config;
+      retriedConfig = config as { __skipDedupe?: unknown };
       return { status: 200, data: { ok: true }, config };
     });
 
     await http.get("/profile");
 
-    expect(retriedConfig.__skipDedupe).toBeUndefined();
+    expect(retriedConfig?.__skipDedupe).toBeUndefined();
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
   });
 
@@ -523,8 +523,32 @@ describe("createHttpClient", () => {
       await http.get("/profile");
 
       expect(receivedAuthorization).toBe("Bearer custom-token");
-      // headersProvider 覆盖后，token 注入仍会执行，但最终结果以 headersProvider 为准
-      expect(tokenStore.getAccessToken).toHaveBeenCalledTimes(1);
+      expect(tokenStore.getAccessToken).not.toHaveBeenCalled();
+    });
+
+    it("headersProvider 返回小写 authorization 时不会再读取本地 token", async () => {
+      const tokenStore = createTokenStore("default-token", "test-refresh");
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: tokenStore.getAccessToken,
+        headersProvider: () => ({
+          authorization: "Bearer custom-token",
+        }),
+      });
+
+      let receivedAuthorization: unknown;
+
+      queueCustomHandler(async (config) => {
+        receivedAuthorization =
+          config.headers?.Authorization ?? config.headers?.authorization;
+        return { status: 200, data: { ok: true }, config };
+      });
+
+      await http.get("/profile");
+
+      expect(receivedAuthorization).toBe("Bearer custom-token");
+      expect(tokenStore.getAccessToken).not.toHaveBeenCalled();
     });
 
     it("未配置 headersProvider 时行为不变", async () => {
@@ -1063,6 +1087,34 @@ describe("createHttpClient", () => {
       expect(requestCount).toBe(2);
     });
 
+    it("客户端未启用时，请求级 dedupePolicy.enabled=true 可临时启用合并", async () => {
+      let requestCount = 0;
+
+      const http = createHttpClient({
+        axiosConfig: { baseURL: "/api" },
+        getAccessToken: async () => "",
+      });
+
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+
+      const [first, second] = await Promise.all([
+        http.get("/profile", { dedupePolicy: { enabled: true } }),
+        http.get("/profile", { dedupePolicy: { enabled: true } }),
+      ]);
+
+      expect(first.data).toEqual({ count: 1 });
+      expect(second.data).toEqual({ count: 1 });
+      expect(requestCount).toBe(1);
+    });
+
+
+
+
+
+
     it("未配置 dedupePolicy 时不会合并请求", async () => {
       let requestCount = 0;
 
@@ -1302,6 +1354,24 @@ describe("createHttpClient", () => {
       expect(first.data).toEqual({ count: 1 });
       expect(second.data).toEqual({ count: 1 });
       expect(requestCount).toBe(1);
+
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+      queueCustomHandler(async (config) => {
+        requestCount++;
+        return { status: 200, data: { count: requestCount }, config };
+      });
+
+      const [third, fourth] = await Promise.all([
+        http.request({ method: "get", url: "/profile", baseURL: "/api" }),
+        http.request({ method: "get", url: "/profile", baseURL: "/api-v2" }),
+      ]);
+
+      expect(third.data).toEqual({ count: 2 });
+      expect(fourth.data).toEqual({ count: 3 });
+      expect(requestCount).toBe(3);
     });
 
     it("params 顺序不同但内容相同时会合并", async () => {
@@ -1360,7 +1430,7 @@ describe("createHttpClient", () => {
           ({
             status: 0,
             data: { business: true },
-          }) as any,
+          }) as unknown as import("axios").AxiosResponse,
       });
 
       queueResponse({ status: 200, data: { original: true } });

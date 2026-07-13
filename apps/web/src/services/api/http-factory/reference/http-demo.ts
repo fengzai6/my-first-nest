@@ -69,7 +69,7 @@ export const http = createHttpClient({
 
   // ---- Auth failure ----
 
-  // 业务状态码中用于识别鉴权失败的 code 列表
+  // refresh 请求失败时，用于识别 refresh token 失效的业务 code 列表
   refreshFailureCodes: [40103, 1001002],
 
   // ---- Refresh ----

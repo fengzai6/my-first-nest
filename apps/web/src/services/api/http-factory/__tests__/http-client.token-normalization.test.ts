@@ -138,6 +138,10 @@ describe("Token 规范化边界情况", () => {
 
   it("expiresAt 为有效时间且即将过期时应该触发主动刷新", async () => {
     const futureTime = Date.now() + 30000; // 30 秒后过期
+    let resolveRefresh!: () => void;
+    const refreshCalled = new Promise<void>((resolve) => {
+      resolveRefresh = resolve;
+    });
 
     const getAccessToken = vi.fn(async () => ({
       token: "expiring-token",
@@ -152,7 +156,7 @@ describe("Token 规范化边界情况", () => {
           refreshToken: "new-refresh",
         },
       });
-
+      resolveRefresh();
       return "refreshed-token" as AccessTokenResult;
     });
 
@@ -171,14 +175,20 @@ describe("Token 规范化边界情况", () => {
     await http.get("/test");
 
     // 应该异步触发主动刷新（不阻塞当前请求）
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await refreshCalled;
 
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
   });
 
   it("主动刷新网络失败时仍会触发 onError，且不阻塞当前请求", async () => {
     const futureTime = Date.now() + 30000;
-    const onError = vi.fn();
+    let resolveOnError!: () => void;
+    const onErrorCalled = new Promise<void>((resolve) => {
+      resolveOnError = resolve;
+    });
+    const onError = vi.fn(() => {
+      resolveOnError();
+    });
     const onAuthFailure = vi.fn();
 
     const getAccessToken = vi.fn(async () => ({
@@ -208,7 +218,7 @@ describe("Token 规范化边界情况", () => {
 
     const response = await http.get("/test");
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await onErrorCalled;
 
     expect(response.data).toEqual({ ok: true });
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
@@ -222,7 +232,13 @@ describe("Token 规范化边界情况", () => {
 
   it("主动刷新鉴权失败时会触发 onError 与 onAuthFailure，且不阻塞当前请求", async () => {
     const futureTime = Date.now() + 30000;
-    const onError = vi.fn();
+    let resolveOnError!: () => void;
+    const onErrorCalled = new Promise<void>((resolve) => {
+      resolveOnError = resolve;
+    });
+    const onError = vi.fn(() => {
+      resolveOnError();
+    });
     const onAuthFailure = vi.fn();
 
     const getAccessToken = vi.fn(async () => ({
@@ -254,7 +270,7 @@ describe("Token 规范化边界情况", () => {
 
     const response = await http.get("/test");
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await onErrorCalled;
 
     expect(response.data).toEqual({ ok: true });
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);

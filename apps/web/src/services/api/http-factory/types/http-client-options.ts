@@ -21,12 +21,25 @@ export interface DedupePolicy {
   generateKey?: (config: AxiosRequestConfig) => string;
 }
 
+/**
+ * 请求级合并配置。
+ * 仅允许覆盖 enabled；generateKey 只能在客户端级配置。
+ */
+export interface RequestDedupePolicy {
+  /** 是否启用请求合并。覆盖客户端级 enabled。 */
+  enabled?: boolean;
+}
+
 // 应用内 axios 类型扩展：仅 createHttpClient 实例消费 dedupePolicy。
 // 其他 axios 实例即使出现该字段也无运行时效果。
 declare module "axios" {
   interface AxiosRequestConfig {
-    /** 请求合并策略。覆盖客户端级配置。仅 http-factory 创建的实例生效。 */
-    dedupePolicy?: DedupePolicy;
+    /**
+     * 请求级合并策略。
+     * 仅可覆盖 enabled，不能修改 generateKey。
+     * 仅 http-factory 创建的实例生效。
+     */
+    dedupePolicy?: RequestDedupePolicy;
   }
 }
 

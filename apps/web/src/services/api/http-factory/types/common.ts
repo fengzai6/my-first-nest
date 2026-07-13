@@ -8,6 +8,8 @@ export interface RequestRetryState {
   _retry?: boolean;
   /** 通用重试计数 */
   __retryCount?: number;
+  /** 内部标记：请求 headers 已完成注入，避免 dedupe / interceptor 重复处理 */
+  __headersPrepared?: boolean;
 }
 
 /**
