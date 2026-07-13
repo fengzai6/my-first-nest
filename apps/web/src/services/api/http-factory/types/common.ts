@@ -1,20 +1,22 @@
 import type { AxiosResponse } from "axios";
 
 /**
- * 请求内部状态。
+ * 请求内部状态（仅工厂内部使用，业务侧请勿写入）。
  */
 export interface RequestRetryState {
   /** token 刷新重试标记 */
   _retry?: boolean;
   /** 通用重试计数 */
   __retryCount?: number;
+  /** 内部标记：请求 headers 已完成注入，避免 dedupe / interceptor 重复处理 */
+  __headersPrepared?: boolean;
 }
 
 /**
  * onBusinessResponse 的返回值类型。
  * - void：继续正常流程（表示成功）
  * - Error：抛出错误（表示业务失败）
- * - AxiosResponse：用新响应替换原响应，不会二次触发 onBusinessResponse
+ * - AxiosResponse：用完整响应形态（status/data/headers/config/statusText）替换原响应，不会二次触发 onBusinessResponse
  */
 export type BusinessResponseResult = void | Error | AxiosResponse;
 

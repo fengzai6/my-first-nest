@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { AxiosError } from "axios";
+import type { InternalAxiosRequestConfig } from "axios";
+import { AxiosError, AxiosHeaders } from "axios";
 import { shouldSkipRefresh, defaultIsRefreshFailure } from "../utils/refresh";
+import type { RequestRetryState } from "../types/common";
 
 vi.mock("axios", async () => {
   const actual = await vi.importActual<typeof import("axios")>("axios");
@@ -14,6 +16,15 @@ vi.mock("axios", async () => {
   };
 });
 
+const createRequestConfig = (
+  config: Partial<InternalAxiosRequestConfig & RequestRetryState> = {},
+): InternalAxiosRequestConfig & RequestRetryState => {
+  return {
+    headers: new AxiosHeaders(),
+    ...config,
+  } as InternalAxiosRequestConfig & RequestRetryState;
+};
+
 const makeAxiosError = (
   options: { status?: number; code?: number; response?: boolean } = {},
 ): AxiosError => {
@@ -24,7 +35,7 @@ const makeAxiosError = (
       data: options.code !== undefined ? { code: options.code } : {},
       headers: {},
       statusText: "Error",
-      config: {} as any,
+      config: createRequestConfig(),
     };
   }
   return error;
@@ -36,33 +47,65 @@ describe("shouldSkipRefresh", () => {
   });
 
   it("config.url 为 undefined → false", () => {
-    expect(shouldSkipRefresh(["/auth"], {} as any)).toBe(false);
+    expect(shouldSkipRefresh(["/auth"], createRequestConfig())).toBe(false);
   });
 
-  it("URL 包含 skipRefreshUrl → true", () => {
+  it("URL exact 命中 skipRefreshUrl → true", () => {
     expect(
-      shouldSkipRefresh(["/auth/login"], { url: "/api/auth/login" } as any),
+      shouldSkipRefresh(["/auth/login"], createRequestConfig({ url: "/auth/login" })),
     ).toBe(true);
   });
 
-  it("URL 不包含任何 skipRefreshUrl → false", () => {
+  it("URL 以 prefix path 命中 skipRefreshUrl → true", () => {
     expect(
-      shouldSkipRefresh(["/auth/login"], { url: "/api/profile" } as any),
+      shouldSkipRefresh(["/public"], createRequestConfig({ url: "/public/data" })),
+    ).toBe(true);
+    expect(
+      shouldSkipRefresh(["/auth"], createRequestConfig({ url: "/auth/login" })),
+    ).toBe(true);
+  });
+
+  it("中间段/子串路径不会跳过刷新", () => {
+    expect(
+      shouldSkipRefresh(["/auth"], createRequestConfig({ url: "/user/auth-history" })),
+    ).toBe(false);
+    expect(
+      shouldSkipRefresh(["/auth"], createRequestConfig({ url: "/authorization" })),
+    ).toBe(false);
+    expect(
+      shouldSkipRefresh(
+        ["/auth"],
+        createRequestConfig({ url: "/gateway/user/auth/session" }),
+      ),
+    ).toBe(false);
+    expect(
+      shouldSkipRefresh(
+        ["/auth/login"],
+        createRequestConfig({ url: "/api/auth/login" }),
+      ),
+    ).toBe(false);
+  });
+
+  it("URL 不匹配任何 skipRefreshUrl → false", () => {
+    expect(
+      shouldSkipRefresh(["/auth/login"], createRequestConfig({ url: "/api/profile" })),
     ).toBe(false);
   });
 
   it("skipRefreshUrls 为空数组 → 始终 false", () => {
     expect(
-      shouldSkipRefresh([], { url: "/auth/login" } as any),
+      shouldSkipRefresh([], createRequestConfig({ url: "/auth/login" })),
     ).toBe(false);
   });
 });
 
 describe("defaultIsRefreshFailure", () => {
-  const baseOptions = { unauthorizedStatusCode: 401, authFailureCodes: [1001002] };
+  const baseOptions = { unauthorizedStatusCode: 401, refreshFailureCodes: [1001002] };
 
-  it("非 AxiosError → true（业务错误视为鉴权失败）", () => {
-    expect(defaultIsRefreshFailure(new Error("something"), baseOptions)).toBe(true);
+  it("非 AxiosError → false（编程/业务 Error 默认不视为鉴权失败）", () => {
+    expect(defaultIsRefreshFailure(new Error("something"), baseOptions)).toBe(false);
+    expect(defaultIsRefreshFailure(new TypeError("boom"), baseOptions)).toBe(false);
+    expect(defaultIsRefreshFailure({ reason: "boom" }, baseOptions)).toBe(false);
   });
 
   it("AxiosError 无 response → false", () => {
@@ -81,13 +124,13 @@ describe("defaultIsRefreshFailure", () => {
     expect(defaultIsRefreshFailure(makeAxiosError({ status: 401 }), baseOptions)).toBe(true);
   });
 
-  it("data.code 在 authFailureCodes 中 → true", () => {
+  it("data.code 在 refreshFailureCodes 中 → true", () => {
     expect(
       defaultIsRefreshFailure(makeAxiosError({ status: 403, code: 1001002 }), baseOptions),
     ).toBe(true);
   });
 
-  it("data.code 不在 authFailureCodes 中 → false", () => {
+  it("data.code 不在 refreshFailureCodes 中 → false", () => {
     expect(
       defaultIsRefreshFailure(makeAxiosError({ status: 403, code: 999999 }), baseOptions),
     ).toBe(false);
@@ -100,7 +143,7 @@ describe("defaultIsRefreshFailure", () => {
   });
 
   it("自定义 unauthorizedStatusCode 生效", () => {
-    const options = { unauthorizedStatusCode: 498, authFailureCodes: [] };
+    const options = { unauthorizedStatusCode: 498, refreshFailureCodes: [] };
     expect(defaultIsRefreshFailure(makeAxiosError({ status: 498 }), options)).toBe(true);
     expect(defaultIsRefreshFailure(makeAxiosError({ status: 401 }), options)).toBe(false);
   });

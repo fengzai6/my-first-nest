@@ -57,6 +57,12 @@ export const resolveRetryPolicy = (
 
 /**
  * 判断是否跳过刷新流程。
+ *
+ * 匹配规则：
+ * - 仅 exact / prefix 路径匹配
+ * - 不是任意子串 includes，也不做中间段滑动匹配
+ * - 例如 `/auth` 匹配 `/auth`、`/auth/login`
+ * - 不匹配 `/user/auth-history`、`/authorization`、`/api/auth/login`
  */
 export const shouldSkipRefresh = (
   skipRefreshUrls: string[],
@@ -68,7 +74,34 @@ export const shouldSkipRefresh = (
     return false;
   }
 
-  return skipRefreshUrls.some((url) => requestUrl.includes(url));
+  const normalizedRequestPath = normalizeRequestPath(requestUrl);
+
+  return skipRefreshUrls.some((skipUrl) =>
+    matchesSkipPath(normalizedRequestPath, skipUrl),
+  );
+};
+
+const normalizeRequestPath = (requestUrl: string): string => {
+  // 兼容相对路径、绝对 URL、带 query/hash 的地址
+  try {
+    const parsed = new URL(requestUrl, "http://localhost");
+    return parsed.pathname || "/";
+  } catch {
+    const withoutQuery = requestUrl.split("?")[0]?.split("#")[0] ?? requestUrl;
+    return withoutQuery.startsWith("/") ? withoutQuery : `/${withoutQuery}`;
+  }
+};
+
+const matchesSkipPath = (requestPath: string, skipUrl: string): boolean => {
+  if (!skipUrl) {
+    return false;
+  }
+
+  const normalizedSkip = skipUrl.startsWith("/") ? skipUrl : `/${skipUrl}`;
+  const skipPath = normalizedSkip.replace(/\/+$/, "") || "/";
+  const path = requestPath.replace(/\/+$/, "") || "/";
+
+  return path === skipPath || path.startsWith(`${skipPath}/`);
 };
 
 /**
@@ -76,12 +109,12 @@ export const shouldSkipRefresh = (
  */
 export const defaultIsRefreshFailure = (
   error: unknown,
-  options: { unauthorizedStatusCode: number; authFailureCodes: number[] },
+  options: { unauthorizedStatusCode: number; refreshFailureCodes: number[] },
 ): boolean => {
-  // 非 AxiosError（如 refreshAccessToken 函数内部抛出的业务错误）
-  // 说明刷新逻辑本身失败，应视为鉴权失败
+  // 非 AxiosError（编程错误 / 业务自定义 Error）默认不视为鉴权失败。
+  // 若业务需要“抛 Error 即登出”，请自定义 isRefreshFailure。
   if (!axios.isAxiosError(error)) {
-    return true;
+    return false;
   }
 
   // 无 response（网络错误）或 5xx 服务端错误：不代表 token 失效
@@ -94,6 +127,6 @@ export const defaultIsRefreshFailure = (
 
   return (
     status === options.unauthorizedStatusCode ||
-    (data?.code !== undefined && options.authFailureCodes.includes(data.code))
+    (data?.code !== undefined && options.refreshFailureCodes.includes(data.code))
   );
 };

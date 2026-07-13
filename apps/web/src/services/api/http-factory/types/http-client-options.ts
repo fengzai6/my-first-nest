@@ -11,28 +11,35 @@ import type { AccessTokenResult } from "./token";
  * 请求合并配置。
  */
 export interface DedupePolicy {
-  /** 是否启用请求合并。默认 false。 */
+  /** 是否启用请求合并。默认 false。仅合并 GET 请求。 */
   enabled?: boolean;
 
   /**
-   * 合并时间窗口（毫秒）。
-   * 在此时间窗口内的相同请求会复用同一个 Promise。
-   * 默认 100ms。
-   */
-  windowMs?: number;
-
-  /**
    * 自定义合并 key 生成器。
-   * 默认：`method:url:sortedParams`
+   * 默认：`method:baseURL:url:stableParams`
    */
   generateKey?: (config: AxiosRequestConfig) => string;
 }
 
-// 扩展 AxiosRequestConfig，支持请求级 dedupePolicy
+/**
+ * 请求级合并配置。
+ * 仅允许覆盖 enabled；generateKey 只能在客户端级配置。
+ */
+export interface RequestDedupePolicy {
+  /** 是否启用请求合并。覆盖客户端级 enabled。 */
+  enabled?: boolean;
+}
+
+// 应用内 axios 类型扩展：仅 createHttpClient 实例消费 dedupePolicy。
+// 其他 axios 实例即使出现该字段也无运行时效果。
 declare module "axios" {
   interface AxiosRequestConfig {
-    /** 请求合并策略。覆盖客户端级配置。 */
-    dedupePolicy?: DedupePolicy;
+    /**
+     * 请求级合并策略。
+     * 仅可覆盖 enabled，不能修改 generateKey。
+     * 仅 http-factory 创建的实例生效。
+     */
+    dedupePolicy?: RequestDedupePolicy;
   }
 }
 
@@ -95,9 +102,15 @@ export interface HttpClientOptions<
   // ---- Auth failure ----
 
   /**
-   * 业务状态码中，用于识别鉴权失败的 code 列表。
+   * 刷新失败判定的业务 code 列表。
+   *
+   * 仅用于 `defaultIsRefreshFailure`：当 refresh 请求响应体存在 `data.code`
+   * 且命中该列表时，视为刷新鉴权失败。
+   *
+   * 不会影响普通业务请求的鉴权识别；更通用的入口是 `isRefreshFailure`。
+   * 默认假设响应体形状为 `{ code?: number }`。
    */
-  authFailureCodes?: number[];
+  refreshFailureCodes?: number[];
 
   /**
    * 通用重试策略。
@@ -142,10 +155,12 @@ export interface HttpClientOptions<
    * 判断刷新 token 请求本身是否已经失败到需要退出登录。
    *
    * 默认行为：
-   * - 非 AxiosError（如 refreshAccessToken 函数内部抛出的业务错误）视为刷新失败
+   * - 非 AxiosError（编程错误 / 业务自定义 Error）不视为刷新鉴权失败
    * - AxiosError 无 response（网络错误）或状态码 >= 500 时不视为刷新失败
    * - 状态码 === unauthorizedStatusCode 时视为刷新失败
-   * - 响应 data.code 在 authFailureCodes 列表中时视为刷新失败
+   * - 响应 data.code 在 refreshFailureCodes 列表中时视为刷新鉴权失败
+   *
+   * 若业务需要“refresh 抛 Error 即登出”，请自定义该函数。
    */
   isRefreshFailure?: (error: unknown) => boolean;
 
@@ -158,7 +173,11 @@ export interface HttpClientOptions<
   refreshAccessToken?: () => T | Promise<T>;
 
   /**
-   * 不触发 refresh token 流程的请求 URL 列表。
+   * 不触发 refresh token 流程的请求路径列表。
+   *
+   * 仅 exact / prefix 匹配，不是任意子串 includes，也不做中间段滑动匹配。
+   * 例如配置 `/auth` 会匹配 `/auth`、`/auth/login`，
+   * 但不会匹配 `/user/auth-history`、`/authorization`、`/api/auth/login`。
    */
   skipRefreshUrls?: string[];
 
@@ -199,7 +218,7 @@ export interface HttpClientOptions<
    * 业务响应拦截器。
    * - 返回 void：继续正常流程（表示成功）
    * - 返回 Error：抛出错误（表示业务失败）
-   * - 返回 AxiosResponse：用新响应替换原响应，不会二次触发 onBusinessResponse
+   * - 返回完整 AxiosResponse 形态：用新响应替换原响应，不会二次触发 onBusinessResponse
    * - 可以是 async
    */
   onBusinessResponse?: (
@@ -229,7 +248,7 @@ export interface HttpClientOptions<
 type ResolvedHttpClientOptionKeys =
   | "accessTokenHeaderName"
   | "accessTokenPrefix"
-  | "authFailureCodes"
+  | "refreshFailureCodes"
   | "unauthorizedStatusCode"
   | "errorMessages"
   | "isRefreshFailure"

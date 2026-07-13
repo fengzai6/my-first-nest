@@ -1,12 +1,12 @@
-/** 默认错误消息 */
+/** Default error messages */
 export const DEFAULT_MESSAGES = {
-  refreshTokenExpired: "refreshToken 已失效，登录过期",
-  loginExpired: "登录已失效，请重新登录",
-  refreshDisabled: "未启用 refresh token 逻辑",
+  refreshTokenExpired: "Refresh token is invalid or expired",
+  loginExpired: "Login session has expired",
+  refreshDisabled: "Refresh token flow is not enabled",
 } as const;
 
-/** 默认 token 刷新缓冲时间（毫秒） */
+/** Default proactive refresh buffer (ms) */
 export const DEFAULT_REFRESH_BUFFER_MS = 0;
 
-/** 默认重试延迟上限（毫秒） */
+/** Default retry delay cap (ms) */
 export const DEFAULT_RETRY_DELAY_CAP = 30000;

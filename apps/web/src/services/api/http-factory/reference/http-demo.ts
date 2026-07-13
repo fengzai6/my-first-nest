@@ -69,8 +69,8 @@ export const http = createHttpClient({
 
   // ---- Auth failure ----
 
-  // 业务状态码中用于识别鉴权失败的 code 列表
-  authFailureCodes: [40103, 1001002],
+  // refresh 请求失败时，用于识别 refresh token 失效的业务 code 列表
+  refreshFailureCodes: [40103, 1001002],
 
   // ---- Refresh ----
 
@@ -132,10 +132,9 @@ export const http = createHttpClient({
 
   // ---- Dedupe ----
 
-  // 请求合并：相同 GET 请求在时间窗口内复用同一个 Promise
+  // 请求合并：相同 in-flight GET 请求复用同一个 Promise
   dedupePolicy: {
     enabled: true,
-    windowMs: 100,
   },
 
   // ---- Runtime headers ----

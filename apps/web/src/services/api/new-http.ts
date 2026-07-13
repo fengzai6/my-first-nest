@@ -34,6 +34,10 @@ const newHttp = createHttpClient({
     useUserStore.getState().logout();
   },
   skipRefreshUrls: NO_AUTO_REFRESH_API_LIST,
+  errorMessages: {
+    refreshTokenExpired: "登录已过期，请重新登录",
+    loginExpired: "登录已失效，请重新登录",
+  },
 });
 
 export default newHttp;
