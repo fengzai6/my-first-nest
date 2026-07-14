@@ -22,7 +22,7 @@ my-first-nest/
 | 后端 | NestJS 11, TypeORM, PostgreSQL, JWT, Passport, Socket.IO |
 | 前端 | React 19, Vite, Tailwind CSS 4, Ant Design 5, Zustand, React Query |
 | 文档 | VitePress |
-| 代码质量 | ESLint, Prettier, Husky, lint-staged, commitlint |
+| 代码质量 | ESLint, Prettier |
 
 ## 开发命令
 
@@ -116,7 +116,7 @@ cd apps/web && yarn test
 
 ## Git 规范
 
-### Commit Message（commitlint 强制）
+### Commit Message
 
 ```
 <type>(<scope>): <subject>
@@ -128,6 +128,8 @@ refactor(api): extract shared HTTP client
 ```
 
 type：`feat` / `fix` / `refactor` / `chore` / `style` / `docs` / `test`
+
+本地不再通过 husky/commitlint 强制校验，依赖 Code Review 与仓库约定约束。
 
 ### PR
 
