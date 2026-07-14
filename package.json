@@ -25,8 +25,7 @@
     "docs:dev": "yarn workspace @my-first-nest/docs dev",
     "docs:build": "yarn workspace @my-first-nest/docs build",
     "docker:build:server": "docker build -f apps/server/Dockerfile -t my-first-nest-server .",
-    "docker:build:web": "docker build -f apps/web/Dockerfile -t my-first-nest-web .",
-    "prepare": "husky"
+    "docker:build:web": "docker build -f apps/web/Dockerfile -t my-first-nest-web ."
   },
   "repository": {
     "type": "git",
@@ -48,8 +47,6 @@
     "url": "https://github.com/fengzai6/my-first-nest/issues"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.8.1",
-    "@commitlint/config-conventional": "^19.8.1",
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.39.1",
     "@types/node": "^22.19.1",
@@ -58,15 +55,10 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "globals": "^16.5.0",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.2.7",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.47.0"
-  },
-  "lint-staged": {
-    "*.{ts,tsx,vue}": "yarn lint"
   },
   "engines": {
     "node": ">=20.19.5"
