@@ -129,7 +129,7 @@ refactor(api): extract shared HTTP client
 
 type：`feat` / `fix` / `refactor` / `chore` / `style` / `docs` / `test`
 
-本地不再通过 husky/commitlint 强制校验，依赖 CI 与 Code Review 约束。
+本地不再通过 husky/commitlint 强制校验，依赖 Code Review 与仓库约定约束。
 
 ### PR
 

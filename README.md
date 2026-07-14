@@ -337,7 +337,7 @@ modules/xxx/
 - 统一的错误处理
 - 规范的代码注释
 - 使用 ESLint 和 Prettier 保持代码风格一致
-- Commit 规范由 CI / Code Review 约束
+- Commit 规范由 Code Review 与仓库约定约束
 
 ## 学习资源
 
