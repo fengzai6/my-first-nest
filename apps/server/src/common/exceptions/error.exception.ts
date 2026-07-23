@@ -7,6 +7,7 @@ import {
   PermissionExceptionMap,
 } from './permission.exception';
 import { RoleExceptionCode, RoleExceptionMap } from './role.exception';
+import { JobExceptionCode, JobExceptionMap } from './job.exception';
 import { UserExceptionCode, UserExceptionMap } from './user.exception';
 
 /**
@@ -21,6 +22,7 @@ export const ErrorExceptionCode = {
   ...PermissionExceptionCode,
   ...RoleExceptionCode,
   ...UserExceptionCode,
+  ...JobExceptionCode,
 } as const;
 
 export type ErrorExceptionCode =
@@ -33,6 +35,7 @@ export const ErrorExceptionMap: Record<ErrorExceptionCode, ExceptionInfo> = {
   ...PermissionExceptionMap,
   ...RoleExceptionMap,
   ...UserExceptionMap,
+  ...JobExceptionMap,
 };
 
 export class ErrorException extends BaseException {
