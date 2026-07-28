@@ -25,6 +25,7 @@ export const JOB_QUEUE_NAME = {
 export const JOB_NAMES = {
   EXPORT_REPORT: 'export-report',
   FLAKY_RETRY: 'flaky-retry',
+  CLEANUP_EXPIRED_REFRESH_TOKENS: 'cleanup-expired-refresh-tokens',
 } as const;
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];

@@ -31,3 +31,16 @@ POST /api/background-tasks/flaky-retry
 ```
 
 默认 `attempts = 3`，前 2 次失败，第 3 次成功。
+
+### 清理过期 refresh token
+
+```http
+POST /api/background-tasks/cleanup-expired-refresh-tokens
+```
+
+随后轮询：
+
+```http
+GET /api/jobs/:id
+```
+

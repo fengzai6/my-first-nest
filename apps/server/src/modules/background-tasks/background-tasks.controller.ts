@@ -52,4 +52,20 @@ export class BackgroundTasksController {
       triggerType: JOB_TRIGGER_TYPE.MANUAL,
     });
   }
+
+  @Public()
+  @Post('cleanup-expired-refresh-tokens')
+  @ApiOperation({
+    summary: '手动触发清理过期 refresh token',
+    description: '提交后台任务，清理 users_refresh_tokens 中已过期的记录',
+  })
+  cleanupExpiredRefreshTokens() {
+    return this.jobService.submit({
+      name: JOB_NAMES.CLEANUP_EXPIRED_REFRESH_TOKENS,
+      payload: {},
+      attempts: 3,
+      backoffMs: 2000,
+      triggerType: JOB_TRIGGER_TYPE.MANUAL,
+    });
+  }
 }
