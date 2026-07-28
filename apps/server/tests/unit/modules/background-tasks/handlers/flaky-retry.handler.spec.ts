@@ -10,7 +10,7 @@ const createCtx = (attemptsMade: number, failTimes = 2): IJobContext => ({
   payload: { failTimes },
   attemptsMade,
   maxAttempts: 3,
-  updateProgress: vi.fn(async () => undefined),
+  updateProgress: vi.fn(() => Promise.resolve()),
 });
 
 describe('FlakyRetryHandler', () => {

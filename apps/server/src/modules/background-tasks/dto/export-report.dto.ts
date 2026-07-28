@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
@@ -38,7 +38,7 @@ export class ExportReportDto {
   stepDelayMs?: number = 500;
 
   @ApiPropertyOptional({
-    description: '延迟入队毫秒（用于演示 delayed 状态 / 取消）',
+    description: '延迟入队毫秒（用于 delayed 状态 / 取消）',
     example: 0,
     minimum: 0,
     maximum: 60000,

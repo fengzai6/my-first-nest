@@ -22,7 +22,7 @@ describe('ExportReportHandler', () => {
     expect(register).toHaveBeenCalledWith(handler);
     expect(handler.name).toBe(JOB_NAMES.EXPORT_REPORT);
 
-    const updateProgress = vi.fn(async () => undefined);
+    const updateProgress = vi.fn(() => Promise.resolve());
     const ctx: IJobContext = {
       jobId: 'job-1',
       name: JOB_NAMES.EXPORT_REPORT,

@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createHandler = (name: string): IJobHandler => ({
   name,
-  handle: vi.fn(async () => ({ ok: true })),
+  handle: vi.fn(() => Promise.resolve({ ok: true })),
 });
 
 describe('JobRegistryService', () => {

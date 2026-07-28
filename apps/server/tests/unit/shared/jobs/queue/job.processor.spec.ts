@@ -1,7 +1,7 @@
 import { JobProcessor } from '@/shared/jobs/queue/job.processor';
 import { JobRecordService } from '@/shared/jobs/records/job-record.service';
 import { JobRegistryService } from '@/shared/jobs/registry/job-registry.service';
-import { IJobHandler } from '@/shared/jobs/types/job.types';
+import { IJobContext, IJobHandler } from '@/shared/jobs/types/job.types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createJob = (overrides: Record<string, unknown> = {}) => {
@@ -14,7 +14,7 @@ const createJob = (overrides: Record<string, unknown> = {}) => {
     },
     opts: { attempts: 3 },
     attemptsMade: 0,
-    updateProgress: vi.fn(async () => undefined),
+    updateProgress: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
 };
@@ -24,10 +24,10 @@ const createProcessor = () => {
     get: vi.fn(),
   };
   const records = {
-    markActive: vi.fn(async () => undefined),
-    updateProgress: vi.fn(async () => undefined),
-    markCompleted: vi.fn(async () => undefined),
-    markAttemptFailure: vi.fn(async () => undefined),
+    markActive: vi.fn(() => Promise.resolve()),
+    updateProgress: vi.fn(() => Promise.resolve()),
+    markCompleted: vi.fn(() => Promise.resolve()),
+    markAttemptFailure: vi.fn(() => Promise.resolve()),
   };
 
   const processor = new JobProcessor(
@@ -45,7 +45,7 @@ describe('JobProcessor', () => {
 
   it('should mark active, execute handler and complete', async () => {
     const { processor, registry, records } = createProcessor();
-    const handle = vi.fn(async (ctx) => {
+    const handle = vi.fn(async (ctx: IJobContext) => {
       await ctx.updateProgress(50);
       return { ok: true };
     });
@@ -81,7 +81,7 @@ describe('JobProcessor', () => {
     const error = new Error('boom');
     registry.get.mockReturnValue({
       name: 'flaky-retry',
-      handle: vi.fn(async () => {
+      handle: vi.fn(() => {
         throw error;
       }),
     } satisfies IJobHandler);
@@ -106,7 +106,7 @@ describe('JobProcessor', () => {
     const error = new Error('final boom');
     registry.get.mockReturnValue({
       name: 'flaky-retry',
-      handle: vi.fn(async () => {
+      handle: vi.fn(() => {
         throw error;
       }),
     } satisfies IJobHandler);

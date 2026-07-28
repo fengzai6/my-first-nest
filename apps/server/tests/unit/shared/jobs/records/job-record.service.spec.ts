@@ -34,8 +34,8 @@ const createService = () => {
     create: vi.fn((value: Partial<JobRun>) =>
       Object.assign(new JobRun(), value),
     ),
-    save: vi.fn(async (value: JobRun) => value),
-    update: vi.fn(async () => ({ affected: 1 })),
+    save: vi.fn((value: JobRun) => Promise.resolve(value)),
+    update: vi.fn(() => Promise.resolve({ affected: 1 })),
     findOneBy: vi.fn(),
     findAndCount: vi.fn(),
   };
@@ -127,8 +127,8 @@ describe('JobRecordService', () => {
       expect.objectContaining({
         status: JOB_STATUS.FAILED,
         attemptsMade: 3,
-        errorMessage: expect.stringMatching(/^x{2000}\.\.\.$/),
-        finishedAt: expect.any(Date),
+        errorMessage: expect.stringMatching(/^x{2000}\.\.\.$/) as string,
+        finishedAt: expect.any(Date) as Date,
       }),
     );
   });
