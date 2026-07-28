@@ -28,7 +28,7 @@ const createProcessor = () => {
     get: vi.fn(),
   };
   const records = {
-    markActive: vi.fn(() => Promise.resolve()),
+    markActive: vi.fn(() => Promise.resolve(true)),
     updateProgress: vi.fn(() => Promise.resolve()),
     markCompleted: vi.fn(() => Promise.resolve()),
     markAttemptFailure: vi.fn(() => Promise.resolve()),
@@ -154,5 +154,30 @@ describe('JobProcessor', () => {
       error,
       true,
     );
+  });
+
+  it('should skip execution when activation loses to cancel', async () => {
+    const { processor, registry, records } = createProcessor();
+    const handle = vi.fn(() => Promise.resolve({ ok: true }));
+    registry.get.mockReturnValue({
+      name: 'export-report',
+      handle,
+    } satisfies IJobHandler);
+    records.markActive.mockResolvedValue(false);
+
+    const job = createJob({
+      data: { jobId: 'job-5', name: 'export-report', payload: {} },
+    });
+
+    const result = await processor.process(job as never);
+
+    expect(records.markActive).toHaveBeenCalledWith('job-5', 'bull-1', 1);
+    expect(registry.get).not.toHaveBeenCalled();
+    expect(handle).not.toHaveBeenCalled();
+    expect(records.markCompleted).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      skipped: true,
+      reason: 'not-cancellable-or-already-terminal',
+    });
   });
 });

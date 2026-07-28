@@ -26,7 +26,17 @@ export class JobProcessor extends WorkerHost {
       `Processing jobId=${jobId} name=${name} bullJobId=${job.id} attempt=${attemptsMade}/${maxAttempts}`,
     );
 
-    await this.records.markActive(jobId, job.id, attemptsMade);
+    const activated = await this.records.markActive(
+      jobId,
+      job.id,
+      attemptsMade,
+    );
+    if (!activated) {
+      this.logger.warn(
+        `Skip jobId=${jobId} name=${name}: not activatable (cancelled or terminal)`,
+      );
+      return { skipped: true, reason: 'not-cancellable-or-already-terminal' };
+    }
 
     try {
       const handler = this.registry.get(name);

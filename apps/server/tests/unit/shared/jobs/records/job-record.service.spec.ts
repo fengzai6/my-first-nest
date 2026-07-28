@@ -29,11 +29,23 @@ const createRun = (overrides: Partial<JobRun> = {}) => {
   return run;
 };
 
+const createUpdateQueryBuilder = (affected = 1) => {
+  const queryBuilder = {
+    update: vi.fn(() => queryBuilder),
+    set: vi.fn(() => queryBuilder),
+    where: vi.fn(() => queryBuilder),
+    andWhere: vi.fn(() => queryBuilder),
+    execute: vi.fn(() => Promise.resolve({ affected })),
+  };
+  return queryBuilder;
+};
+
 const createService = () => {
   const repository = {
     create: vi.fn((value: Partial<JobRun>) =>
       Object.assign(new JobRun(), value),
     ),
+    createQueryBuilder: vi.fn(),
     save: vi.fn((value: JobRun) => Promise.resolve(value)),
     update: vi.fn(() => Promise.resolve({ affected: 1 })),
     findOneBy: vi.fn(),
@@ -73,15 +85,17 @@ describe('JobRecordService', () => {
 
   it('should normalize progress into 0-100 range', async () => {
     const { service, repository } = createService();
+    const queryBuilder = createUpdateQueryBuilder(1);
+    repository.createQueryBuilder.mockReturnValue(queryBuilder);
 
     await service.updateProgress('job-1', 150);
-    expect(repository.update).toHaveBeenCalledWith('job-1', {
+    expect(queryBuilder.set).toHaveBeenCalledWith({
       progress: 100,
       status: JOB_STATUS.ACTIVE,
     });
 
     await service.updateProgress('job-1', -20);
-    expect(repository.update).toHaveBeenCalledWith('job-1', {
+    expect(queryBuilder.set).toHaveBeenCalledWith({
       progress: 0,
       status: JOB_STATUS.ACTIVE,
     });
@@ -89,16 +103,19 @@ describe('JobRecordService', () => {
 
   it('should mark active with first startedAt and attemptsMade', async () => {
     const { service, repository } = createService();
-    const run = createRun();
-    repository.findOneBy.mockResolvedValue(run);
+    const queryBuilder = createUpdateQueryBuilder(1);
+    repository.createQueryBuilder.mockReturnValue(queryBuilder);
+    repository.findOneBy.mockResolvedValue(
+      createRun({
+        status: JOB_STATUS.ACTIVE,
+        bullJobId: 'bull-1',
+        attemptsMade: 2,
+        startedAt: new Date(),
+      }),
+    );
 
-    await service.markActive('job-1', 'bull-1', 2);
-
-    expect(run.status).toBe(JOB_STATUS.ACTIVE);
-    expect(run.bullJobId).toBe('bull-1');
-    expect(run.attemptsMade).toBe(2);
-    expect(run.startedAt).toBeInstanceOf(Date);
-    expect(repository.save).toHaveBeenCalledWith(run);
+    await expect(service.markActive('job-1', 'bull-1', 2)).resolves.toBe(true);
+    expect(queryBuilder.set).toHaveBeenCalled();
   });
 
   it('should mark completed with result and attempts', async () => {
@@ -181,5 +198,34 @@ describe('JobRecordService', () => {
       page: 2,
       pageSize: 10,
     });
+  });
+
+  it('should conditionally mark active and return true', async () => {
+    const { service, repository } = createService();
+    const queryBuilder = createUpdateQueryBuilder(1);
+    repository.createQueryBuilder.mockReturnValue(queryBuilder);
+    repository.findOneBy.mockResolvedValue(
+      createRun({
+        status: JOB_STATUS.ACTIVE,
+        bullJobId: 'bull-1',
+        attemptsMade: 2,
+      }),
+    );
+
+    await expect(service.markActive('job-1', 'bull-1', 2)).resolves.toBe(true);
+    expect(queryBuilder.update).toHaveBeenCalledWith(JobRun);
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'status IN (:...statuses)',
+      { statuses: [JOB_STATUS.QUEUED, JOB_STATUS.DELAYED] },
+    );
+  });
+
+  it('should return false when job is already cancelled during activation', async () => {
+    const { service, repository } = createService();
+    const queryBuilder = createUpdateQueryBuilder(0);
+    repository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+    await expect(service.markActive('job-1', 'bull-1', 1)).resolves.toBe(false);
+    expect(repository.findOneBy).not.toHaveBeenCalled();
   });
 });

@@ -74,25 +74,46 @@ export class JobRecordService {
     await this.jobRunRepository.update(jobId, { bullJobId });
   }
 
+  /**
+   * 仅当任务仍可执行（queued/delayed）时激活。
+   * 返回 false 表示取消或其他终态已抢先，worker 应跳过执行。
+   */
   async markActive(
     jobId: string,
     bullJobId?: string,
     attemptsMade?: number,
-  ): Promise<void> {
-    const run = await this.getEntityOrFail(jobId);
-    run.status = JOB_STATUS.ACTIVE;
-    if (bullJobId) run.bullJobId = bullJobId;
-    if (typeof attemptsMade === 'number') run.attemptsMade = attemptsMade;
-    if (!run.startedAt) run.startedAt = new Date();
-    await this.jobRunRepository.save(run);
+  ): Promise<boolean> {
+    const result = await this.jobRunRepository
+      .createQueryBuilder()
+      .update(JobRun)
+      .set({
+        status: JOB_STATUS.ACTIVE,
+        bullJobId: bullJobId ?? undefined,
+        attemptsMade:
+          typeof attemptsMade === 'number' ? attemptsMade : undefined,
+        startedAt: () => 'COALESCE(started_at, NOW())',
+      })
+      .where('id = :jobId', { jobId })
+      .andWhere('status IN (:...statuses)', {
+        statuses: [JOB_STATUS.QUEUED, JOB_STATUS.DELAYED],
+      })
+      .execute();
+
+    return Boolean(result.affected);
   }
 
   async updateProgress(jobId: string, progress: number): Promise<void> {
     const normalized = Math.max(0, Math.min(100, Math.round(progress)));
-    await this.jobRunRepository.update(jobId, {
-      progress: normalized,
-      status: JOB_STATUS.ACTIVE,
-    });
+    await this.jobRunRepository
+      .createQueryBuilder()
+      .update(JobRun)
+      .set({
+        progress: normalized,
+        status: JOB_STATUS.ACTIVE,
+      })
+      .where('id = :jobId', { jobId })
+      .andWhere('status = :status', { status: JOB_STATUS.ACTIVE })
+      .execute();
   }
 
   async markCompleted(
