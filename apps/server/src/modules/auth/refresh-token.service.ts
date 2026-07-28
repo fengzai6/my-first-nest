@@ -100,6 +100,23 @@ export class RefreshTokenService {
     }
   }
 
+  /**
+   * 清理已过期的 refresh token。
+   * 返回删除的 DB 记录数。Redis key 带 TTL，过期后会自动失效。
+   */
+  async cleanupExpired(
+    now: Date = new Date(),
+  ): Promise<{ deletedCount: number }> {
+    const result = await this.refreshTokenRepository
+      .createQueryBuilder()
+      .delete()
+      .from(RefreshToken)
+      .where('expires_at < :now', { now })
+      .execute();
+
+    return { deletedCount: result.affected ?? 0 };
+  }
+
   private async refreshTokenViaDb(refreshToken: string) {
     const tokenRecord = await this.refreshTokenRepository.findOne({
       where: { token: refreshToken },

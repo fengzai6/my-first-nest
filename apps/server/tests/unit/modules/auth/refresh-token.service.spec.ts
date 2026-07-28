@@ -23,8 +23,18 @@ type TokenUpdate = {
   expiresAt: Date;
 };
 
+type MockQueryBuilder = {
+  delete: MockInstance<() => MockQueryBuilder>;
+  from: MockInstance<(entity: unknown) => MockQueryBuilder>;
+  where: MockInstance<
+    (condition: string, params: { now: Date }) => MockQueryBuilder
+  >;
+  execute: MockInstance<() => Promise<{ affected?: number | null }>>;
+};
+
 type MockRepository = {
   create: MockInstance<(value: Partial<RefreshToken>) => RefreshToken>;
+  createQueryBuilder: MockInstance<() => MockQueryBuilder>;
   delete: MockInstance<(value: { token: string }) => Promise<void>>;
   findOne: MockInstance<
     (value: {
@@ -100,10 +110,22 @@ const createRefreshToken = ({
   return refreshToken;
 };
 
+const createQueryBuilder = (): MockQueryBuilder => {
+  const queryBuilder = {
+    delete: vi.fn(() => queryBuilder),
+    from: vi.fn(() => queryBuilder),
+    where: vi.fn(() => queryBuilder),
+    execute: vi.fn(() => Promise.resolve({ affected: 0 as number | null })),
+  } as MockQueryBuilder;
+
+  return queryBuilder;
+};
+
 const createRepository = (): MockRepository => ({
   create: vi.fn((value: Partial<RefreshToken>) =>
     Object.assign(new RefreshToken(), value),
   ),
+  createQueryBuilder: vi.fn(() => createQueryBuilder()),
   delete: vi.fn(() => Promise.resolve()),
   findOne: vi.fn(),
   remove: vi.fn((value: RefreshToken) => Promise.resolve(value)),
@@ -391,5 +413,33 @@ describe('RefreshTokenService', () => {
       code: ErrorExceptionCode.INVALID_REFRESH_TOKEN,
     });
     expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it('should delete expired refresh tokens and return deleted count', async () => {
+    const { service, repository } = createService();
+    const queryBuilder = createQueryBuilder();
+    queryBuilder.execute.mockResolvedValue({ affected: 3 });
+    repository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+    const result = await service.cleanupExpired();
+
+    expect(repository.createQueryBuilder).toHaveBeenCalled();
+    expect(queryBuilder.delete).toHaveBeenCalled();
+    expect(queryBuilder.from).toHaveBeenCalledWith(RefreshToken);
+    expect(queryBuilder.where).toHaveBeenCalledWith('expires_at < :now', {
+      now: BASE_TIME,
+    });
+    expect(result).toEqual({ deletedCount: 3 });
+  });
+
+  it('should return zero when no expired refresh tokens exist', async () => {
+    const { service, repository } = createService();
+    const queryBuilder = createQueryBuilder();
+    queryBuilder.execute.mockResolvedValue({ affected: null });
+    repository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+    await expect(service.cleanupExpired(BASE_TIME)).resolves.toEqual({
+      deletedCount: 0,
+    });
   });
 });
