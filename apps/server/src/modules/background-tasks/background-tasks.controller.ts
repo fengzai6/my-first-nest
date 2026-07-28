@@ -1,26 +1,27 @@
-import { Public } from '@/common/decorators/jwt-auth.decorator';
+import { UserInfo } from '@/common/decorators/jwt-auth.decorator';
 import {
   JOB_NAMES,
   JOB_TRIGGER_TYPE,
 } from '@/shared/jobs/constants/job.constants';
 import { JobService } from '@/shared/jobs/services/job.service';
 import { Body, Controller, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { User } from '../users/entities/user.entity';
 import { ExportReportDto } from './dto/export-report.dto';
 import { FlakyRetryDto } from './dto/flaky-retry.dto';
 
 @ApiTags('Background Tasks - 后台任务')
+@ApiBearerAuth()
 @Controller('background-tasks')
 export class BackgroundTasksController {
   constructor(private readonly jobService: JobService) {}
 
-  @Public()
   @Post('export-report')
   @ApiOperation({
     summary: '提交异步导出任务',
     description: '立即返回 jobId，可通过 GET /jobs/:id 轮询进度',
   })
-  exportReport(@Body() body: ExportReportDto) {
+  exportReport(@Body() body: ExportReportDto, @UserInfo() user: User) {
     return this.jobService.submit({
       name: JOB_NAMES.EXPORT_REPORT,
       payload: {
@@ -31,17 +32,17 @@ export class BackgroundTasksController {
       delayMs: body.delayMs ?? 0,
       attempts: 1,
       triggerType: JOB_TRIGGER_TYPE.MANUAL,
+      createdBy: user.id,
     });
   }
 
-  @Public()
   @Post('flaky-retry')
   @ApiOperation({
     summary: '提交失败重试任务',
     description:
       '前 N 次执行失败，用于验证 BullMQ attempts / backoff 与落库记录',
   })
-  flakyRetry(@Body() body: FlakyRetryDto) {
+  flakyRetry(@Body() body: FlakyRetryDto, @UserInfo() user: User) {
     return this.jobService.submit({
       name: JOB_NAMES.FLAKY_RETRY,
       payload: {
@@ -50,22 +51,23 @@ export class BackgroundTasksController {
       attempts: 3,
       backoffMs: 1000,
       triggerType: JOB_TRIGGER_TYPE.MANUAL,
+      createdBy: user.id,
     });
   }
 
-  @Public()
   @Post('cleanup-expired-refresh-tokens')
   @ApiOperation({
     summary: '手动触发清理过期 refresh token',
     description: '提交后台任务，清理 users_refresh_tokens 中已过期的记录',
   })
-  cleanupExpiredRefreshTokens() {
+  cleanupExpiredRefreshTokens(@UserInfo() user: User) {
     return this.jobService.submit({
       name: JOB_NAMES.CLEANUP_EXPIRED_REFRESH_TOKENS,
       payload: {},
       attempts: 3,
       backoffMs: 2000,
       triggerType: JOB_TRIGGER_TYPE.MANUAL,
+      createdBy: user.id,
     });
   }
 }

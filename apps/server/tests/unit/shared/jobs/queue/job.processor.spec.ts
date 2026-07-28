@@ -1,3 +1,7 @@
+import {
+  ErrorException,
+  ErrorExceptionCode,
+} from '@/common/exceptions/error.exception';
 import { JobProcessor } from '@/shared/jobs/queue/job.processor';
 import { JobRecordService } from '@/shared/jobs/records/job-record.service';
 import { JobRegistryService } from '@/shared/jobs/registry/job-registry.service';
@@ -122,6 +126,31 @@ describe('JobProcessor', () => {
     expect(records.markAttemptFailure).toHaveBeenCalledWith(
       'job-3',
       3,
+      error,
+      true,
+    );
+  });
+
+  it('should mark final failure when handler is unregistered', async () => {
+    const { processor, registry, records } = createProcessor();
+    const error = new ErrorException(ErrorExceptionCode.JOB_HANDLER_NOT_FOUND);
+    registry.get.mockImplementation(() => {
+      throw error;
+    });
+
+    const job = createJob({
+      data: { jobId: 'job-4', name: 'missing-handler', payload: {} },
+      attemptsMade: 0,
+      opts: { attempts: 1 },
+    });
+
+    await expect(processor.process(job as never)).rejects.toMatchObject({
+      code: ErrorExceptionCode.JOB_HANDLER_NOT_FOUND,
+    });
+    expect(records.markActive).toHaveBeenCalledWith('job-4', 'bull-1', 1);
+    expect(records.markAttemptFailure).toHaveBeenCalledWith(
+      'job-4',
+      1,
       error,
       true,
     );

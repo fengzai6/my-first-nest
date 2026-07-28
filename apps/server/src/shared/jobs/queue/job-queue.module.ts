@@ -28,6 +28,9 @@ const buildRedisConnection = (redis: RedisLike) => {
       ...base,
       host: parsed.hostname,
       port: parsed.port ? Number(parsed.port) : 6379,
+      username: parsed.username
+        ? decodeURIComponent(parsed.username)
+        : undefined,
       password: parsed.password
         ? decodeURIComponent(parsed.password)
         : undefined,

@@ -141,6 +141,31 @@ export class JobRecordService {
     return this.jobRunRepository.save(run);
   }
 
+  /**
+   * 仅当任务仍处于可取消状态时落库为 cancelled。
+   * 返回 null 表示当前已不可取消（例如已被 worker 取走）。
+   */
+  async markCancelledIfCancellable(jobId: string): Promise<JobRun | null> {
+    const result = await this.jobRunRepository
+      .createQueryBuilder()
+      .update(JobRun)
+      .set({
+        status: JOB_STATUS.CANCELLED,
+        finishedAt: new Date(),
+      })
+      .where('id = :jobId', { jobId })
+      .andWhere('status IN (:...statuses)', {
+        statuses: [JOB_STATUS.QUEUED, JOB_STATUS.DELAYED],
+      })
+      .execute();
+
+    if (!result.affected) {
+      return null;
+    }
+
+    return this.getEntityOrFail(jobId);
+  }
+
   async getEntityOrFail(jobId: string): Promise<JobRun> {
     const run = await this.jobRunRepository.findOneBy({ id: jobId });
     if (!run) {

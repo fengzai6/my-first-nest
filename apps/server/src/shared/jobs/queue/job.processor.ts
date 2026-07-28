@@ -28,22 +28,22 @@ export class JobProcessor extends WorkerHost {
 
     await this.records.markActive(jobId, job.id, attemptsMade);
 
-    const handler = this.registry.get(name);
-
-    const ctx: IJobContext = {
-      jobId,
-      bullJobId: job.id,
-      name,
-      payload,
-      attemptsMade,
-      maxAttempts,
-      updateProgress: async (progress: number) => {
-        await this.records.updateProgress(jobId, progress);
-        await job.updateProgress(progress);
-      },
-    };
-
     try {
+      const handler = this.registry.get(name);
+
+      const ctx: IJobContext = {
+        jobId,
+        bullJobId: job.id,
+        name,
+        payload,
+        attemptsMade,
+        maxAttempts,
+        updateProgress: async (progress: number) => {
+          await this.records.updateProgress(jobId, progress);
+          await job.updateProgress(progress);
+        },
+      };
+
       const result = await handler.handle(ctx);
       await this.records.markCompleted(jobId, result, attemptsMade);
       this.logger.log(`Completed jobId=${jobId} name=${name}`);

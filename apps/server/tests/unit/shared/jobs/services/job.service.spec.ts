@@ -62,6 +62,7 @@ const createService = () => {
     getEntityOrFail: vi.fn(),
     markAttemptFailure: vi.fn(),
     markCancelled: vi.fn(),
+    markCancelledIfCancellable: vi.fn(),
     toView: vi.fn(),
     list: vi.fn(),
   };
@@ -191,25 +192,67 @@ describe('JobService', () => {
 
     records.getEntityOrFail.mockResolvedValue(run);
     queue.remove.mockResolvedValue(true);
-    records.markCancelled.mockResolvedValue(cancelled);
+    records.markCancelledIfCancellable.mockResolvedValue(cancelled);
     records.toView.mockReturnValue(view);
 
     const result = await service.cancel('job-1');
 
     expect(queue.remove).toHaveBeenCalledWith('bull-1');
-    expect(records.markCancelled).toHaveBeenCalledWith('job-1');
+    expect(records.markCancelledIfCancellable).toHaveBeenCalledWith('job-1');
     expect(result.status).toBe(JOB_STATUS.CANCELLED);
   });
 
   it('should reject cancel for active job', async () => {
-    const { service, records, queue } = createService();
+    const { service, records } = createService();
     records.getEntityOrFail.mockResolvedValue(
       createRun({ status: JOB_STATUS.ACTIVE }),
     );
+    records.markCancelledIfCancellable.mockResolvedValue(null);
 
     await expect(service.cancel('job-1')).rejects.toMatchObject({
       code: ErrorExceptionCode.JOB_NOT_CANCELLABLE,
     });
-    expect(queue.remove).not.toHaveBeenCalled();
+  });
+
+  it('should not mark failed when attachBullJobId fails after enqueue', async () => {
+    const { service, registry, records, queue } = createService();
+    const run = createRun();
+    const view = createView();
+    const error = new Error('db write failed');
+
+    registry.has.mockReturnValue(true);
+    records.createQueued.mockResolvedValue(run);
+    queue.enqueue.mockResolvedValue({ id: 'bull-1' });
+    records.attachBullJobId.mockRejectedValue(error);
+    records.getViewOrFail.mockResolvedValue(view);
+
+    const result = await service.submit({
+      name: 'export-report',
+      payload: { title: 'report' },
+    });
+
+    expect(records.markAttemptFailure).not.toHaveBeenCalled();
+    expect(result).toBe(view);
+  });
+
+  it('should still cancel when queue.remove throws', async () => {
+    const { service, records, queue } = createService();
+    const run = createRun({ status: JOB_STATUS.QUEUED, bullJobId: 'bull-1' });
+    const cancelled = createRun({
+      status: JOB_STATUS.CANCELLED,
+      bullJobId: 'bull-1',
+    });
+    const view = createView({ status: JOB_STATUS.CANCELLED });
+
+    records.getEntityOrFail.mockResolvedValue(run);
+    queue.remove.mockRejectedValue(new Error('already active'));
+    records.markCancelledIfCancellable.mockResolvedValue(cancelled);
+    records.toView.mockReturnValue(view);
+
+    const result = await service.cancel('job-1');
+
+    expect(queue.remove).toHaveBeenCalledWith('bull-1');
+    expect(records.markCancelledIfCancellable).toHaveBeenCalledWith('job-1');
+    expect(result.status).toBe(JOB_STATUS.CANCELLED);
   });
 });

@@ -12,7 +12,6 @@ import { JobQueueService } from '../queue/job-queue.service';
 import { JobRecordService } from '../records/job-record.service';
 import { JobRegistryService } from '../registry/job-registry.service';
 import {
-  JOB_CANCELLABLE_STATUSES,
   IJobRunView,
   IListJobsQuery,
   ISubmitJobInput,
@@ -47,6 +46,7 @@ export class JobService {
       status,
     });
 
+    let bullJobId: string | undefined;
     try {
       const bullJob = await this.queue.enqueue(
         {
@@ -61,10 +61,7 @@ export class JobService {
           backoffMs: input.backoffMs,
         },
       );
-
-      if (bullJob.id) {
-        await this.records.attachBullJobId(run.id, String(bullJob.id));
-      }
+      bullJobId = bullJob.id ? String(bullJob.id) : undefined;
     } catch (error) {
       await this.records.markAttemptFailure(run.id, 0, error, true);
       this.logger.error(
@@ -72,6 +69,17 @@ export class JobService {
         error instanceof Error ? error.stack : undefined,
       );
       throw error;
+    }
+
+    if (bullJobId) {
+      try {
+        await this.records.attachBullJobId(run.id, bullJobId);
+      } catch (error) {
+        this.logger.error(
+          `Failed to attach bullJobId=${bullJobId} for jobId=${run.id}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
     }
 
     return this.records.getViewOrFail(run.id);
@@ -88,15 +96,23 @@ export class JobService {
   async cancel(jobId: string): Promise<IJobRunView> {
     const run = await this.records.getEntityOrFail(jobId);
 
-    if (!JOB_CANCELLABLE_STATUSES.includes(run.status)) {
+    if (run.bullJobId) {
+      try {
+        await this.queue.remove(run.bullJobId);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to remove bullJobId=${run.bullJobId} during cancel: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    const cancelled = await this.records.markCancelledIfCancellable(jobId);
+    if (!cancelled) {
       throw new ErrorException(ErrorExceptionCode.JOB_NOT_CANCELLABLE);
     }
 
-    if (run.bullJobId) {
-      await this.queue.remove(run.bullJobId);
-    }
-
-    const cancelled = await this.records.markCancelled(jobId);
     return this.records.toView(cancelled);
   }
 }
