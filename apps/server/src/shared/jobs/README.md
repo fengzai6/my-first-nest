@@ -40,7 +40,7 @@ export class CleanupHandler implements IJobHandler {
 
 ## 与 @nestjs/schedule 的边界
 
-| | schedule-demo | shared/jobs |
+| | scheduled-tasks | shared/jobs |
 |--|---------------|-------------|
 | 定位 | 轻量进程内 cron | 完整任务系统 |
 | 进度/结果 | 无 | `job_runs` |

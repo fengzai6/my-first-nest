@@ -22,12 +22,12 @@
 | 项 | 结论 |
 |----|------|
 | 分期 | 一期服务端，二期前端 |
-| 双底座 | `@nestjs/schedule` 轻量示例 + BullMQ 完整任务能力 |
+| 双底座 | `@nestjs/schedule` 轻量定时任务 + BullMQ 完整任务能力 |
 | 任务定义 | 代码注册 handler，不设动态任务定义表 |
 | 能力范围 | 定时 + 手动/接口异步任务 + 状态轮询 |
 | 状态存储 | BullMQ 负责执行；PostgreSQL 存执行记录 |
-| 示例 | schedule 心跳 + `export-report` + `flaky-retry` |
-| 模块化 | 基础设施与业务示例分离 |
+| 内置任务 | schedule 心跳 + `export-report` + `flaky-retry` |
+| 模块化 | 基础设施与业务任务分离 |
 | Redis | BullMQ 使用独立 `ioredis` 连接，复用现有 Redis 配置，不混用 `REDIS_CLIENT` |
 | 鉴权 | 一期演示接口可用 `@Public()`，预留 `createdBy` |
 
@@ -36,8 +36,8 @@
 ### 3.1 分层
 
 ```text
-Controllers / Demo APIs
-  - 提交异步任务、查询状态、触发失败重试示例
+Controllers / Task APIs
+  - 提交异步任务、查询状态、触发失败重试任务
         |
 Job Application Layer
   - JobService：提交 / 取消 / 查询
@@ -47,8 +47,8 @@ Job Application Layer
    +----+----+
 BullMQ Queue/Worker     PostgreSQL job_runs
 
-另：ScheduleDemoModule（@nestjs/schedule）
-仅作轻量对比示例，不进入 Job 主链路
+另：ScheduledTasksModule（@nestjs/schedule）
+负责轻量进程内定时任务，不进入 Job 主链路
 ```
 
 ### 3.2 目录结构
@@ -76,13 +76,13 @@ apps/server/src/
 │       └── README.md
 │
 ├── modules/
-│   ├── schedule-demo/
-│   │   ├── schedule-demo.module.ts
+│   ├── scheduled-tasks/
+│   │   ├── scheduled-tasks.module.ts
 │   │   ├── heartbeat.scheduler.ts
 │   │   └── README.md
-│   └── demo-jobs/
-│       ├── demo-jobs.module.ts
-│       ├── demo-jobs.controller.ts
+│   └── background-tasks/
+│       ├── background-tasks.module.ts
+│       ├── background-tasks.controller.ts
 │       ├── handlers/
 │       │   ├── export-report.handler.ts
 │       │   └── flaky-retry.handler.ts
@@ -95,8 +95,8 @@ apps/server/src/
 | 模块 | 职责 | 不做什么 |
 |------|------|----------|
 | `shared/jobs` | 队列、注册、执行编排、落库、通用任务 API | 不写具体业务逻辑 |
-| `modules/demo-jobs` | 示例 handler + 演示提交 API | 不实现底层队列 |
-| `modules/schedule-demo` | 轻量 cron 对比 | 不接入 BullMQ / 不写 `job_runs` |
+| `modules/background-tasks` | 后台任务 handler + 提交 API | 不实现底层队列 |
+| `modules/scheduled-tasks` | 轻量 cron 任务 | 不接入 BullMQ / 不写 `job_runs` |
 
 ### 3.4 Handler 发现方式
 
@@ -182,7 +182,7 @@ active 期间失败且仍可重试 → 由 BullMQ 重新调度，attemptsMade + 
 - `job_schedules` 管理表
 - `job_run_events` 流水表
 
-说明：任务类型由代码注册；调度示例可用代码侧 `upsertJobScheduler`；事件流水后续按需再加。
+说明：任务类型由代码注册；周期调度可用代码侧 `upsertJobScheduler`；事件流水后续按需再加。
 
 ## 5. 接口设计
 
@@ -262,12 +262,12 @@ cancel(jobId: string): Promise<JobRunView>
 | `GET` | `/jobs/:id` | 查询单任务，供轮询 |
 | `POST` | `/jobs/:id/cancel` | 取消 `queued` / `delayed` |
 
-#### 示例提交 API（`DemoJobsController`）
+#### 后台任务提交 API（`BackgroundTasksController`）
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `POST` | `/demo-jobs/export-report` | 异步导出，返回 jobId |
-| `POST` | `/demo-jobs/flaky-retry` | 失败重试示例 |
+| `POST` | `/background-tasks/export-report` | 异步导出，返回 jobId |
+| `POST` | `/background-tasks/flaky-retry` | 失败重试任务 |
 
 `export-report` body：
 
@@ -309,11 +309,11 @@ JobProcessor.process(bullJob)
 - 写 `job_runs.progress`
 - 可选同步 `bullJob.updateProgress(n)`
 
-## 6. 示例任务
+## 6. 内置任务
 
 ### 6.1 schedule 心跳
 
-- 位置：`modules/schedule-demo/heartbeat.scheduler.ts`
+- 位置：`modules/scheduled-tasks/heartbeat.scheduler.ts`
 - 行为：每分钟输出心跳日志
 - 目的：展示 `@nestjs/schedule` 最小用法
 - 不进入 `job_runs`
@@ -321,7 +321,7 @@ JobProcessor.process(bullJob)
 ### 6.2 export-report
 
 - 名称：`export-report`
-- 触发：`POST /demo-jobs/export-report`
+- 触发：`POST /background-tasks/export-report`
 - 行为：按 steps 推进 progress 到 100，写入 mock result
 - 查询：`GET /jobs/:id`
 - 默认 `attempts = 1`
@@ -329,7 +329,7 @@ JobProcessor.process(bullJob)
 ### 6.3 flaky-retry
 
 - 名称：`flaky-retry`
-- 触发：`POST /demo-jobs/flaky-retry`
+- 触发：`POST /background-tasks/flaky-retry`
 - 行为：前 `failTimes` 次抛错
 - 队列：`attempts = 3`，`backoff` 固定或指数
 - 结果：
@@ -366,13 +366,13 @@ JobProcessor.process(bullJob)
 | 重试 | 需自管 | 内置 attempts / backoff |
 | 进度与结果 | 无统一模型 | `job_runs` + API |
 | 适用 | 轻量本地逻辑 | 异步任务与任务中心 |
-| 本项目位置 | `schedule-demo` | `shared/jobs` + `demo-jobs` |
+| 本项目位置 | `scheduled-tasks` | `shared/jobs` + `background-tasks` |
 
 文档落点：
 
 - `shared/jobs/README.md`
-- `modules/demo-jobs/README.md`
-- `modules/schedule-demo/README.md`
+- `modules/background-tasks/README.md`
+- `modules/scheduled-tasks/README.md`
 
 ## 9. 错误处理与边界
 
@@ -418,7 +418,7 @@ JobProcessor.process(bullJob)
 1. 接入依赖与 BullMQ / schedule 模块骨架
 2. 实现 `job_runs`、JobRecordService、JobRegistry、JobService、Processor
 3. 实现通用 `/jobs` API
-4. 实现 demo handlers 与提交 API
-5. 实现 schedule-demo 心跳
+4. 实现后台任务 handlers 与提交 API
+5. 实现 scheduled-tasks 心跳
 6. 补 README / roadmap 说明
 7. 按需补 migration 与测试（测试范围实现前再确认）

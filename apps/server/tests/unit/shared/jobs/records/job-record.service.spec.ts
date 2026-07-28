@@ -14,7 +14,7 @@ const createRun = (overrides: Partial<JobRun> = {}) => {
   run.queueName = 'default';
   run.status = JOB_STATUS.QUEUED;
   run.progress = 0;
-  run.payload = { title: 'demo' };
+  run.payload = { title: 'report' };
   run.result = null;
   run.errorMessage = null;
   run.attemptsMade = 0;
@@ -55,7 +55,7 @@ describe('JobRecordService', () => {
     const run = await service.createQueued({
       name: 'export-report',
       queueName: 'default',
-      payload: { title: 'demo' },
+      payload: { title: 'report' },
       maxAttempts: 1,
       triggerType: JOB_TRIGGER_TYPE.MANUAL,
     });

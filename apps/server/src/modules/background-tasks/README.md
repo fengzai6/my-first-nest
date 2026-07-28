@@ -1,13 +1,13 @@
-# Demo Jobs
+# Background Tasks
 
-BullMQ 任务系统示例模块。
+基于 BullMQ 的后台任务模块。
 
 ## 接口
 
 ### 异步导出
 
 ```http
-POST /api/demo-jobs/export-report
+POST /api/background-tasks/export-report
 {
   "title": "monthly-report",
   "steps": 5,
@@ -24,7 +24,7 @@ GET /api/jobs/:id
 ### 失败重试
 
 ```http
-POST /api/demo-jobs/flaky-retry
+POST /api/background-tasks/flaky-retry
 {
   "failTimes": 2
 }

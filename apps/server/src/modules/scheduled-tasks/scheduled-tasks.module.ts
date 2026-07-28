@@ -6,4 +6,4 @@ import { HeartbeatScheduler } from './heartbeat.scheduler';
   imports: [ScheduleModule.forRoot()],
   providers: [HeartbeatScheduler],
 })
-export class ScheduleDemoModule {}
+export class ScheduledTasksModule {}

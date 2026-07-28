@@ -1,4 +1,4 @@
-import { FlakyRetryHandler } from '@/modules/demo-jobs/handlers/flaky-retry.handler';
+import { FlakyRetryHandler } from '@/modules/background-tasks/handlers/flaky-retry.handler';
 import { JOB_NAMES } from '@/shared/jobs/constants/job.constants';
 import { JobRegistryService } from '@/shared/jobs/registry/job-registry.service';
 import { IJobContext } from '@/shared/jobs/types/job.types';

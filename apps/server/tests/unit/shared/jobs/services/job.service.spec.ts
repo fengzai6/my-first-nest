@@ -17,7 +17,7 @@ const createView = (overrides: Partial<IJobRunView> = {}): IJobRunView => ({
   queueName: 'default',
   status: JOB_STATUS.QUEUED,
   progress: 0,
-  payload: { title: 'demo' },
+  payload: { title: 'report' },
   result: undefined,
   errorMessage: null,
   attemptsMade: 0,
@@ -36,7 +36,7 @@ const createRun = (overrides: Partial<JobRun> = {}) => {
   run.queueName = 'default';
   run.status = JOB_STATUS.QUEUED;
   run.progress = 0;
-  run.payload = { title: 'demo' };
+  run.payload = { title: 'report' };
   run.result = null;
   run.errorMessage = null;
   run.attemptsMade = 0;
@@ -107,7 +107,7 @@ describe('JobService', () => {
 
     const result = await service.submit({
       name: 'export-report',
-      payload: { title: 'demo' },
+      payload: { title: 'report' },
       attempts: 1,
     });
 
@@ -122,7 +122,7 @@ describe('JobService', () => {
       {
         jobId: 'job-1',
         name: 'export-report',
-        payload: { title: 'demo' },
+        payload: { title: 'report' },
       },
       expect.objectContaining({
         jobId: 'job-1',

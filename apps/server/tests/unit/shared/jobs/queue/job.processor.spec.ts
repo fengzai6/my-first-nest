@@ -10,7 +10,7 @@ const createJob = (overrides: Record<string, unknown> = {}) => {
     data: {
       jobId: 'job-1',
       name: 'export-report',
-      payload: { title: 'demo' },
+      payload: { title: 'report' },
     },
     opts: { attempts: 3 },
     attemptsMade: 0,

@@ -1,6 +1,6 @@
-# Schedule Demo
+# Scheduled Tasks
 
-基于 `@nestjs/schedule` 的轻量定时示例。
+基于 `@nestjs/schedule` 的轻量定时任务。
 
 ## 行为
 
@@ -10,7 +10,7 @@
 
 ## 对比
 
-| | schedule-demo | BullMQ jobs |
+| | scheduled-tasks | BullMQ jobs |
 |--|---------------|-------------|
 | 接入成本 | 很低 | 中等 |
 | 多实例 | 易重复执行 | 队列天然单次消费 |

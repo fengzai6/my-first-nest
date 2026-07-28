@@ -9,9 +9,9 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ExportReportDto } from './dto/export-report.dto';
 import { FlakyRetryDto } from './dto/flaky-retry.dto';
 
-@ApiTags('Demo Jobs - 任务示例')
-@Controller('demo-jobs')
-export class DemoJobsController {
+@ApiTags('Background Tasks - 后台任务')
+@Controller('background-tasks')
+export class BackgroundTasksController {
   constructor(private readonly jobService: JobService) {}
 
   @Public()
@@ -37,8 +37,9 @@ export class DemoJobsController {
   @Public()
   @Post('flaky-retry')
   @ApiOperation({
-    summary: '提交失败重试示例任务',
-    description: '前 N 次失败，演示 BullMQ attempts / backoff 与落库记录',
+    summary: '提交失败重试任务',
+    description:
+      '前 N 次执行失败，用于验证 BullMQ attempts / backoff 与落库记录',
   })
   flakyRetry(@Body() body: FlakyRetryDto) {
     return this.jobService.submit({

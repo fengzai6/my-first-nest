@@ -1,4 +1,4 @@
-import { ExportReportHandler } from '@/modules/demo-jobs/handlers/export-report.handler';
+import { ExportReportHandler } from '@/modules/background-tasks/handlers/export-report.handler';
 import { JOB_NAMES } from '@/shared/jobs/constants/job.constants';
 import { JobRegistryService } from '@/shared/jobs/registry/job-registry.service';
 import { IJobContext } from '@/shared/jobs/types/job.types';
@@ -26,7 +26,7 @@ describe('ExportReportHandler', () => {
     const ctx: IJobContext = {
       jobId: 'job-1',
       name: JOB_NAMES.EXPORT_REPORT,
-      payload: { title: 'demo', steps: 2, stepDelayMs: 100 },
+      payload: { title: 'report', steps: 2, stepDelayMs: 100 },
       attemptsMade: 1,
       maxAttempts: 1,
       updateProgress,
@@ -40,8 +40,8 @@ describe('ExportReportHandler', () => {
     expect(updateProgress).toHaveBeenNthCalledWith(1, 50);
     expect(updateProgress).toHaveBeenNthCalledWith(2, 100);
     expect(result).toEqual({
-      title: 'demo',
-      downloadUrl: 'mock://exports/job-1/demo.csv',
+      title: 'report',
+      downloadUrl: 'mock://exports/job-1/report.csv',
       steps: 2,
     });
   });
