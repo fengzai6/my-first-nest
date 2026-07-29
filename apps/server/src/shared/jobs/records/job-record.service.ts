@@ -5,6 +5,8 @@ import {
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
+import { JobEventsService } from '../events/job-events.service';
+import { resolveJobSseEventName } from '../events/job-sse.util';
 import {
   JOB_STATUS,
   JobStatus,
@@ -20,6 +22,7 @@ export class JobRecordService {
   constructor(
     @InjectRepository(JobRun)
     private readonly jobRunRepository: Repository<JobRun>,
+    private readonly jobEvents: JobEventsService,
   ) {}
 
   toView(run: JobRun): IJobRunView {
@@ -99,12 +102,17 @@ export class JobRecordService {
       })
       .execute();
 
-    return Boolean(result.affected);
+    const affected = Boolean(result.affected);
+    if (affected) {
+      await this.publishJobEvent(jobId);
+    }
+
+    return affected;
   }
 
   async updateProgress(jobId: string, progress: number): Promise<void> {
     const normalized = Math.max(0, Math.min(100, Math.round(progress)));
-    await this.jobRunRepository
+    const result = await this.jobRunRepository
       .createQueryBuilder()
       .update(JobRun)
       .set({
@@ -114,6 +122,10 @@ export class JobRecordService {
       .where('id = :jobId', { jobId })
       .andWhere('status = :status', { status: JOB_STATUS.ACTIVE })
       .execute();
+
+    if (result.affected) {
+      await this.publishJobEvent(jobId);
+    }
   }
 
   async markCompleted(
@@ -129,6 +141,7 @@ export class JobRecordService {
     if (typeof attemptsMade === 'number') run.attemptsMade = attemptsMade;
     run.finishedAt = new Date();
     await this.jobRunRepository.save(run);
+    this.publishJobRunEvent(run);
   }
 
   async markAttemptFailure(
@@ -145,6 +158,7 @@ export class JobRecordService {
         errorMessage,
         finishedAt: new Date(),
       });
+      await this.publishJobEvent(jobId);
       return;
     }
 
@@ -153,13 +167,16 @@ export class JobRecordService {
       attemptsMade,
       errorMessage,
     });
+    await this.publishJobEvent(jobId);
   }
 
   async markCancelled(jobId: string): Promise<JobRun> {
     const run = await this.getEntityOrFail(jobId);
     run.status = JOB_STATUS.CANCELLED;
     run.finishedAt = new Date();
-    return this.jobRunRepository.save(run);
+    const saved = await this.jobRunRepository.save(run);
+    this.publishJobRunEvent(saved);
+    return saved;
   }
 
   /**
@@ -184,7 +201,9 @@ export class JobRecordService {
       return null;
     }
 
-    return this.getEntityOrFail(jobId);
+    const cancelled = await this.getEntityOrFail(jobId);
+    this.publishJobRunEvent(cancelled);
+    return cancelled;
   }
 
   async getEntityOrFail(jobId: string): Promise<JobRun> {
@@ -238,5 +257,18 @@ export class JobRecordService {
       return `${message.slice(0, MAX_ERROR_MESSAGE_LENGTH)}...`;
     }
     return message;
+  }
+
+  private async publishJobEvent(jobId: string): Promise<void> {
+    const run = await this.getEntityOrFail(jobId);
+    this.publishJobRunEvent(run);
+  }
+
+  private publishJobRunEvent(run: JobRun): void {
+    const view = this.toView(run);
+    this.jobEvents.publish({
+      event: resolveJobSseEventName(view.status),
+      data: view,
+    });
   }
 }

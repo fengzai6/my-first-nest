@@ -54,4 +54,23 @@ describe('TimeoutInterceptor', () => {
       firstValueFrom(interceptor.intercept(createContext(), next)),
     ).rejects.toBe(error);
   });
+
+  it('should skip timeout wrapping for server-sent events', async () => {
+    const interceptor = new TimeoutInterceptor(createApp());
+    const source = NEVER;
+    const next = {
+      handle: () => source,
+    } as CallHandler;
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => ({
+          headers: {
+            accept: 'text/event-stream',
+          },
+        }),
+      }),
+    } as ExecutionContext;
+
+    expect(interceptor.intercept(context, next)).toBe(source);
+  });
 });

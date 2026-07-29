@@ -40,6 +40,8 @@
     "url": "https://github.com/fengzai6/my-first-nest/issues"
   },
   "dependencies": {
+    "@bull-board/api": "^8.3.0",
+    "@bull-board/express": "^8.3.0",
     "@keyv/redis": "^5.1.6",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/cache-manager": "^3.1.2",

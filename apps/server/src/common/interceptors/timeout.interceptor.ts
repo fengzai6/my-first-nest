@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Observable, throwError, TimeoutError } from 'rxjs';
 import { catchError, timeout } from 'rxjs/operators';
+import { Request } from 'express';
 
 @Injectable()
 export class TimeoutInterceptor implements NestInterceptor {
@@ -17,6 +18,14 @@ export class TimeoutInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const { server } = getAppConfig(this.app);
+    const request =
+      typeof context.switchToHttp === 'function'
+        ? context.switchToHttp().getRequest<Request>()
+        : undefined;
+
+    if (request?.headers?.accept?.includes('text/event-stream')) {
+      return next.handle();
+    }
 
     return next.handle().pipe(
       timeout(server.timeout * 1000),

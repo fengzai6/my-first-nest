@@ -30,5 +30,16 @@ export const JOB_NAMES = {
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 
+export const JOB_SSE_EVENT = {
+  SNAPSHOT: 'job.snapshot',
+  UPDATED: 'job.updated',
+  COMPLETED: 'job.completed',
+  FAILED: 'job.failed',
+  CANCELLED: 'job.cancelled',
+} as const;
+
+export type JobSseEventName =
+  (typeof JOB_SSE_EVENT)[keyof typeof JOB_SSE_EVENT];
+
 /** BullMQ 默认队列名 */
 export const DEFAULT_JOB_QUEUE = JOB_QUEUE_NAME.DEFAULT;

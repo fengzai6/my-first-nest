@@ -51,9 +51,12 @@ const createService = () => {
     findOneBy: vi.fn(),
     findAndCount: vi.fn(),
   };
+  const events = {
+    publish: vi.fn(),
+  };
 
-  const service = new JobRecordService(repository as never);
-  return { service, repository };
+  const service = new JobRecordService(repository as never, events as never);
+  return { service, repository, events };
 };
 
 describe('JobRecordService', () => {
@@ -87,6 +90,7 @@ describe('JobRecordService', () => {
     const { service, repository } = createService();
     const queryBuilder = createUpdateQueryBuilder(1);
     repository.createQueryBuilder.mockReturnValue(queryBuilder);
+    repository.findOneBy.mockResolvedValue(createRun({ status: JOB_STATUS.ACTIVE }));
 
     await service.updateProgress('job-1', 150);
     expect(queryBuilder.set).toHaveBeenCalledWith({
@@ -99,6 +103,37 @@ describe('JobRecordService', () => {
       progress: 0,
       status: JOB_STATUS.ACTIVE,
     });
+  });
+
+  it('should publish updated event after progress changes', async () => {
+    const { service, repository, events } = createService();
+    const queryBuilder = createUpdateQueryBuilder(1);
+    repository.createQueryBuilder.mockReturnValue(queryBuilder);
+    repository.findOneBy.mockResolvedValue(
+      createRun({ status: JOB_STATUS.ACTIVE, progress: 60 }),
+    );
+
+    await service.updateProgress('job-1', 60);
+
+    expect(events.publish).toHaveBeenCalledWith({
+      event: 'job.updated',
+      data: expect.objectContaining({
+        id: 'job-1',
+        status: JOB_STATUS.ACTIVE,
+        progress: 60,
+      }),
+    });
+  });
+
+  it('should not publish progress event when update affects no row', async () => {
+    const { service, repository, events } = createService();
+    const queryBuilder = createUpdateQueryBuilder(0);
+    repository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+    await service.updateProgress('job-1', 60);
+
+    expect(events.publish).not.toHaveBeenCalled();
+    expect(repository.findOneBy).not.toHaveBeenCalled();
   });
 
   it('should mark active with first startedAt and attemptsMade', async () => {
@@ -119,7 +154,7 @@ describe('JobRecordService', () => {
   });
 
   it('should mark completed with result and attempts', async () => {
-    const { service, repository } = createService();
+    const { service, repository, events } = createService();
     const run = createRun({ status: JOB_STATUS.ACTIVE, startedAt: new Date() });
     repository.findOneBy.mockResolvedValue(run);
 
@@ -131,11 +166,22 @@ describe('JobRecordService', () => {
     expect(run.attemptsMade).toBe(3);
     expect(run.errorMessage).toBeNull();
     expect(run.finishedAt).toBeInstanceOf(Date);
+    expect(events.publish).toHaveBeenCalledWith({
+      event: 'job.completed',
+      data: expect.objectContaining({
+        id: 'job-1',
+        status: JOB_STATUS.COMPLETED,
+        progress: 100,
+      }),
+    });
   });
 
   it('should mark final failure with truncated error message', async () => {
-    const { service, repository } = createService();
+    const { service, repository, events } = createService();
     const longMessage = 'x'.repeat(2500);
+    repository.findOneBy.mockResolvedValue(
+      createRun({ status: JOB_STATUS.FAILED, errorMessage: 'x'.repeat(2000) }),
+    );
 
     await service.markAttemptFailure('job-1', 3, new Error(longMessage), true);
 
@@ -148,10 +194,20 @@ describe('JobRecordService', () => {
         finishedAt: expect.any(Date) as Date,
       }),
     );
+    expect(events.publish).toHaveBeenCalledWith({
+      event: 'job.failed',
+      data: expect.objectContaining({
+        id: 'job-1',
+        status: JOB_STATUS.FAILED,
+      }),
+    });
   });
 
   it('should mark non-final failure as queued', async () => {
-    const { service, repository } = createService();
+    const { service, repository, events } = createService();
+    repository.findOneBy.mockResolvedValue(
+      createRun({ status: JOB_STATUS.QUEUED, attemptsMade: 1 }),
+    );
 
     await service.markAttemptFailure('job-1', 1, 'temp fail', false);
 
@@ -159,6 +215,33 @@ describe('JobRecordService', () => {
       status: JOB_STATUS.QUEUED,
       attemptsMade: 1,
       errorMessage: 'temp fail',
+    });
+    expect(events.publish).toHaveBeenCalledWith({
+      event: 'job.updated',
+      data: expect.objectContaining({
+        id: 'job-1',
+        status: JOB_STATUS.QUEUED,
+        attemptsMade: 1,
+      }),
+    });
+  });
+
+  it('should publish cancelled event when cancellation succeeds', async () => {
+    const { service, repository, events } = createService();
+    const queryBuilder = createUpdateQueryBuilder(1);
+    repository.createQueryBuilder.mockReturnValue(queryBuilder);
+    repository.findOneBy.mockResolvedValue(
+      createRun({ status: JOB_STATUS.CANCELLED }),
+    );
+
+    await service.markCancelledIfCancellable('job-1');
+
+    expect(events.publish).toHaveBeenCalledWith({
+      event: 'job.cancelled',
+      data: expect.objectContaining({
+        id: 'job-1',
+        status: JOB_STATUS.CANCELLED,
+      }),
     });
   });
 
