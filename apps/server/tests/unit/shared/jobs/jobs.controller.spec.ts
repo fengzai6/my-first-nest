@@ -11,7 +11,9 @@ import { Request, Response } from 'express';
 import { Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const createView = (status = JOB_STATUS.ACTIVE): IJobRunView => ({
+const createView = (
+  status: IJobRunView['status'] = JOB_STATUS.ACTIVE,
+): IJobRunView => ({
   id: 'job-1',
   name: 'export-report',
   queueName: 'default',
@@ -49,12 +51,18 @@ const createController = () => {
 };
 
 const createResponse = () => {
-  return {
-    setHeader: vi.fn(),
-    flushHeaders: vi.fn(),
-    write: vi.fn(),
-    end: vi.fn(),
+  const setHeader = vi.fn();
+  const flushHeaders = vi.fn();
+  const write = vi.fn();
+  const end = vi.fn();
+  const response = {
+    setHeader,
+    flushHeaders,
+    write,
+    end,
   } as unknown as Response;
+
+  return { response, setHeader, write, end };
 };
 
 const createRequest = () => {
@@ -76,7 +84,7 @@ describe('JobsController', () => {
   it('should stream snapshot and close after terminal event', async () => {
     const { controller, jobService, events } = createController();
     const subject = new Subject<IJobSseEvent>();
-    const response = createResponse();
+    const { response, setHeader, write, end } = createResponse();
     const { request } = createRequest();
 
     jobService.getById.mockResolvedValue(createView());
@@ -84,11 +92,8 @@ describe('JobsController', () => {
 
     await controller.getEvents('job-1', request, response);
 
-    expect(response.setHeader).toHaveBeenCalledWith(
-      'Content-Type',
-      'text/event-stream',
-    );
-    expect(response.write).toHaveBeenCalledWith(
+    expect(setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream');
+    expect(write).toHaveBeenCalledWith(
       expect.stringContaining('event: job.snapshot'),
     );
 
@@ -97,7 +102,7 @@ describe('JobsController', () => {
       event: JOB_SSE_EVENT.UPDATED,
       data: createView(),
     });
-    expect(response.write).toHaveBeenCalledWith(
+    expect(write).toHaveBeenCalledWith(
       expect.stringContaining('event: job.updated'),
     );
 
@@ -107,20 +112,20 @@ describe('JobsController', () => {
       data: createView(JOB_STATUS.COMPLETED),
     });
 
-    expect(response.write).toHaveBeenCalledWith(
+    expect(write).toHaveBeenCalledWith(
       expect.stringContaining('event: job.completed'),
     );
-    expect(response.end).toHaveBeenCalledTimes(1);
+    expect(end).toHaveBeenCalledTimes(1);
   });
 
   it('should subscribe before sending snapshot so mid-read events are not lost', async () => {
     const { controller, jobService, events } = createController();
     const subject = new Subject<IJobSseEvent>();
-    const response = createResponse();
+    const { response, write } = createResponse();
     const { request } = createRequest();
     const writeOrder: string[] = [];
 
-    jobService.getById.mockImplementation(async () => {
+    jobService.getById.mockImplementation(() => {
       subject.next({
         id: '1',
         event: JOB_SSE_EVENT.UPDATED,
@@ -129,10 +134,10 @@ describe('JobsController', () => {
       return createView();
     });
     events.subscribe.mockReturnValue(subject.asObservable());
-    response.write = vi.fn((chunk: string) => {
+    write.mockImplementation((chunk: string) => {
       writeOrder.push(chunk);
       return true;
-    }) as Response['write'];
+    });
 
     await controller.getEvents('job-1', request, response);
 

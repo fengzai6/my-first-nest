@@ -5,6 +5,9 @@ import { Injectable, NestMiddleware } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { NextFunction, Request, Response } from 'express';
 
+type JobBoardRequest = Pick<Request, 'headers' | 'cookies'>;
+type JobBoardResponse = Pick<Response, 'status' | 'json'>;
+
 @Injectable()
 export class JobBoardAuthMiddleware implements NestMiddleware {
   constructor(
@@ -12,7 +15,7 @@ export class JobBoardAuthMiddleware implements NestMiddleware {
     private readonly usersService: UsersService,
   ) {}
 
-  async use(req: Request, res: Response, next: NextFunction) {
+  async use(req: JobBoardRequest, res: JobBoardResponse, next: NextFunction) {
     const tokenResult = this.extractToken(req);
     if (!tokenResult) {
       this.reject(res);
@@ -33,7 +36,7 @@ export class JobBoardAuthMiddleware implements NestMiddleware {
     }
   }
 
-  private extractToken(req: Request) {
+  private extractToken(req: JobBoardRequest) {
     const bearerToken = this.extractBearerToken(req.headers.authorization);
     if (bearerToken) {
       return { token: bearerToken, tokenType: TokenType.ACCESS };
@@ -53,7 +56,7 @@ export class JobBoardAuthMiddleware implements NestMiddleware {
     return token || null;
   }
 
-  private reject(res: Response) {
+  private reject(res: JobBoardResponse) {
     res.status(401).json({
       statusCode: 401,
       message: 'Unauthorized',

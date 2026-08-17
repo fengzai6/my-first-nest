@@ -1,10 +1,16 @@
-import { FlakyRetryHandler } from '@/modules/background-tasks/handlers/flaky-retry.handler';
+import {
+  FlakyRetryHandler,
+  IFlakyRetryPayload,
+} from '@/modules/background-tasks/handlers/flaky-retry.handler';
 import { JOB_NAMES } from '@/shared/jobs/constants/job.constants';
 import { JobRegistryService } from '@/shared/jobs/registry/job-registry.service';
 import { IJobContext } from '@/shared/jobs/types/job.types';
 import { describe, expect, it, vi } from 'vitest';
 
-const createCtx = (attemptsMade: number, failTimes = 2): IJobContext => ({
+const createCtx = (
+  attemptsMade: number,
+  failTimes = 2,
+): IJobContext<IFlakyRetryPayload> => ({
   jobId: 'job-1',
   name: JOB_NAMES.FLAKY_RETRY,
   payload: { failTimes },

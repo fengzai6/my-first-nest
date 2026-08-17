@@ -22,11 +22,16 @@ const createMiddleware = () => {
 };
 
 const createResponse = () => {
+  const status = vi.fn();
+  const json = vi.fn();
   const response = {
-    status: vi.fn(() => response),
-    json: vi.fn(() => response),
+    status,
+    json,
   } as unknown as Response;
-  return response;
+  status.mockReturnValue(response);
+  json.mockReturnValue(response);
+
+  return { response, status };
 };
 
 const createRequest = (authorization?: string) => {
@@ -50,18 +55,18 @@ describe('JobBoardAuthMiddleware', () => {
 
   it('should reject request without bearer token', async () => {
     const { middleware } = createMiddleware();
-    const response = createResponse();
+    const { response, status } = createResponse();
     const next = vi.fn();
 
     await middleware.use(createRequest(), response, next);
 
-    expect(response.status).toHaveBeenCalledWith(401);
+    expect(status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
 
   it('should reject refresh token', async () => {
     const { middleware, jwtService } = createMiddleware();
-    const response = createResponse();
+    const { response, status } = createResponse();
     const next = vi.fn();
 
     jwtService.verify.mockReturnValue({
@@ -71,13 +76,13 @@ describe('JobBoardAuthMiddleware', () => {
 
     await middleware.use(createRequest('Bearer token'), response, next);
 
-    expect(response.status).toHaveBeenCalledWith(401);
+    expect(status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
 
   it('should allow valid refresh token cookie for browser board access', async () => {
     const { middleware, jwtService, usersService } = createMiddleware();
-    const response = createResponse();
+    const { response } = createResponse();
     const next = vi.fn();
 
     jwtService.verify.mockReturnValue({
@@ -94,7 +99,7 @@ describe('JobBoardAuthMiddleware', () => {
 
   it('should reject when user does not exist', async () => {
     const { middleware, jwtService, usersService } = createMiddleware();
-    const response = createResponse();
+    const { response, status } = createResponse();
     const next = vi.fn();
 
     jwtService.verify.mockReturnValue({
@@ -105,13 +110,13 @@ describe('JobBoardAuthMiddleware', () => {
 
     await middleware.use(createRequest('Bearer token'), response, next);
 
-    expect(response.status).toHaveBeenCalledWith(401);
+    expect(status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
 
   it('should allow valid access token', async () => {
     const { middleware, jwtService, usersService } = createMiddleware();
-    const response = createResponse();
+    const { response } = createResponse();
     const next = vi.fn();
 
     jwtService.verify.mockReturnValue({
