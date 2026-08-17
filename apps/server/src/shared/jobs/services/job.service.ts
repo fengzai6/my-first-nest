@@ -55,7 +55,7 @@ export class JobService {
           payload: input.payload,
         },
         {
-          jobId: run.id,
+          jobId: `job-${run.id}`,
           delayMs,
           attempts: maxAttempts,
           backoffMs: input.backoffMs,

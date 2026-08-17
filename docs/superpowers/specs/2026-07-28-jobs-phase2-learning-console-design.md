@@ -1,8 +1,8 @@
 # 任务系统二期设计：任务中心 + Bull Board + SSE
 
-> 状态：已确认并实现  
-> 日期：2026-07-28  
-> 范围：在一期服务端任务底座之上，实现学习向完整二期  
+> 状态：二期与前端 SSE 接入均已实现<br>
+> 日期：2026-07-28（更新：2026-08-17）<br>
+> 范围：在一期服务端任务底座之上，实现学习向完整二期，并补齐 Jobs 前端 SSE 详情刷新<br>
 > 前置：`docs/superpowers/specs/2026-07-14-jobs-system-design.md`
 
 ## 1. 目标
@@ -11,21 +11,21 @@
 
 1. 前端任务中心：列表、筛选、详情、手动触发、取消
 2. Bull Board：观察 BullMQ 队列内部状态
-3. SSE 任务进度推送：本期先实现服务端能力，前端暂不接入
+3. SSE 任务进度推送：前端详情默认使用 SSE，并可切换到轮询进行学习对比
 
 核心学习点：
 
 - 业务层 `job_runs` 与队列层 BullMQ 的定位差异
-- 保留轮询与 SSE 两种实时刷新路径的设计；本期前端先使用轮询，SSE 通过后端接口单独验证
+- 保留轮询与 SSE 两种可运行、可观察的实时刷新路径
 
 ## 2. 共识与约束
 
 | 项         | 结论                                                            |
 | ---------- | --------------------------------------------------------------- |
 | 复用一期   | 必须复用现有 JobService / JobRecordService / handlers / JWT API |
-| 轮询       | 保留完整代码路径，不删除、不降级为隐藏实现                      |
-| SSE        | 后端新增第二种实时方式，不替换轮询；前端暂不接入                |
-| 切换       | 方案保留，前端本期不开发 Polling / SSE 切换                     |
+| 轮询       | 保留完整代码路径，并可在详情面板中主动选择                      |
+| SSE        | 复用 `fzkit` 的 `http.sse()` 接入，不替换或删除轮询             |
+| 切换       | 详情面板提供 Polling / SSE 切换，默认 SSE；两种模式必须互斥     |
 | Bull Board | 挂载管理入口，必须鉴权，不替代任务中心                          |
 | 鉴权       | 沿用全局 JWT；不做用户级任务隔离 / RBAC 细化                    |
 | 不做       | 动态 cron 管理台、WebSocket 进度、新业务 handler、完整 RBAC     |
@@ -38,7 +38,7 @@
   - 触发：POST /api/background-tasks/*
   - 取消：POST /api/jobs/:id/cancel
   - 详情刷新模式 A：轮询 GET /api/jobs/:id
-  - 后端预留刷新模式 B：SSE  GET /api/jobs/:id/events（前端暂不接）
+  - 详情刷新模式 B：SSE GET /api/jobs/:id/events（默认）
   - 队列监控入口：打开 /admin/queues
 
 服务端
@@ -87,8 +87,8 @@
 │ - cleanup-expired-...    │ 操作：查看详情 / 取消           │
 ├──────────────────────────┴─────────────────────────────────┤
 │ 任务详情（选中后展开）                                     │
-│ 刷新方式：Polling；SSE 后端能力保留，前端暂不接入          │
-│ 当前轮询状态                                               │
+│ 刷新方式：[SSE] [Polling]；默认 SSE                        │
+│ 当前连接 / 轮询状态                                        │
 │ progress / status / attempts / timestamps                  │
 │ payload / result / errorMessage                            │
 └────────────────────────────────────────────────────────────┘
@@ -114,7 +114,8 @@ apps/web/src/
 │   ├── dtos/job.ts
 │   └── hooks/
 │       ├── use-jobs-list.ts
-│       └── use-job-polling.ts
+│       ├── use-job-polling.ts
+│       └── use-job-sse.ts
 └── constants/  # 如补充 PATHS / JOB 常量
 ```
 
@@ -123,7 +124,7 @@ apps/web/src/
 - 组件目录 kebab-case，命名导出
 - 不做桶导出
 - HTTP 复用 `new-http`
-- React Query 负责列表与轮询；前端 SSE hook 暂缓实现
+- React Query 负责列表、详情缓存和轮询；SSE hook 通过完整快照替换这些缓存
 
 ## 5. API 增补
 
@@ -162,7 +163,8 @@ apps/web/src/
 - 连接后立即推送一次当前快照（`job.snapshot`）
 - 后续仅推送该 `jobId` 的变更
 - 终态 `completed` / `failed` / `cancelled` 推送后关闭流
-- 前端可断线重连；若已终态，重连后收到 snapshot 后立即结束
+- 前端由 `fzkit` 在可恢复网络异常或 401 刷新 Token 后重连；若已终态，重连后收到 snapshot 后立即结束
+- `fzkit` 会自动维护并在重连时发送 `Last-Event-ID`。当前单实例服务端不持久化事件历史，也不按该游标重放；重连后的完整 snapshot 是恢复当前任务状态的依据
 
 ### 5.3 Bull Board
 
@@ -176,7 +178,7 @@ apps/web/src/
 - 必须鉴权
 - 至少暴露 default 队列 waiting/active/completed/failed
 
-## 6. 轮询与 SSE 并存设计（SSE 前端暂缓）
+## 6. 轮询与 SSE 并存设计
 
 ### 6.1 模式定义
 
@@ -192,17 +194,17 @@ export type JobRefreshMode =
 
 ### 6.2 行为规则
 
-| 模式    | 行为                                                           | 停止条件                           |
-| ------- | -------------------------------------------------------------- | ---------------------------------- |
-| Polling | `useQuery(GetJobById)` + `refetchInterval`（建议 1500–2000ms） | 终态、关闭详情 |
-| SSE     | 本期只实现后端 `/api/jobs/:id/events`，前端暂不建立连接        | 后端终态后结束流 |
+| 模式    | 行为                                                                                 | 停止条件                         |
+| ------- | ------------------------------------------------------------------------------------ | -------------------------------- |
+| Polling | `useQuery(GetJobById)` + `refetchInterval`（建议 1500–2000ms）                       | 终态、切换 SSE、关闭详情         |
+| SSE     | 已提交或查看过的未终态任务各自通过 `new-http.sse('/jobs/:id/events')` 接收完整快照并更新详情与列表缓存；默认启用 | 任务终态、切换 Polling、页面卸载 |
 
-后续前端接入时的切换规则：
+前端切换规则：
 
 1. 切换前先 teardown 旧模式（取消 interval / 关闭流）
 2. 切换后立即拉一次当前快照或建立新连接
 3. 两种模式互斥运行，避免双通道同时写状态
-4. 列表页本身可用手动刷新或低频 invalidate；详情实时刷新只由当前模式负责
+4. 列表页本身可用手动刷新或低频 invalidate；SSE 模式持续跟踪已提交或查看过的未终态任务，切换详情只改变当前展示任务，不关闭其他仍在跟踪的流
 
 ### 6.3 前端 hooks
 
@@ -214,22 +216,25 @@ export type JobRefreshMode =
 
 `use-job-sse.ts`
 
-- 本期暂不实现
-- 输入：`jobId`、`enabled`
-- 输出：job 数据、connectionStatus、lastEventAt、error
-- 终态后关闭连接
-- 断线后有限次重连（学习示例即可，如指数退避到上限）
+- 输入：当前详情 `jobId`、已跟踪的未终态 `jobIds`、`enabled`
+- 输出：job 数据、connectionStatus、lastEventAt、error、retry
+- 使用现有 `new-http.sse()`；Token 注入、401 刷新重连、`Last-Event-ID` 续传由 `fzkit` 处理
+- 以任务 ID 管理多条独立订阅；新任务加入时不得关闭既有未终态任务的流，终态后释放对应订阅
+- 通过 `sequentialMessages: true` 按接收顺序处理事件；解析成功后将完整 `IJobRun` 替换到详情缓存，并复用 `syncJobToJobsListCache` 同步当前列表缓存
+- 服务端为避免读快照期间漏事件而先订阅，因此 `job.updated` 可能先于本连接的 `job.snapshot` 到达；已处理任何非 snapshot 事件时，随后到达的 snapshot 不得覆盖缓存
+- 终态事件主动关闭订阅，避免服务端关闭后的 EOF 触发无意义重连
+- 可恢复错误按 `fzkit` 默认指数退避重连，最多 5 次；达到上限或收到不可恢复错误后展示错误并允许用户重试
 
-`job-detail-panel` 本期只启用 `use-job-polling`；`use-job-sse` 作为后续接入点保留在方案中。
+`job-detail-panel` 增加紧凑的分段控件，由页面维护当前 `JobRefreshMode`。默认 `SSE`；详情轮询与 SSE 管理器必须以互斥的 `enabled` 参数运行，切换到 Polling 时关闭全部已跟踪 SSE 流，切回 SSE 时为仍未终态的已跟踪任务重新建立流。
 
-### 6.4 学习对比文案（页面内固定展示）
+### 6.4 学习对比文案（详情面板展示）
 
 | 方式 | 优点               | 缺点             | 适用     |
 | ---- | ------------------ | ---------------- | -------- |
 | 轮询 | 实现简单、兼容性好 | 有延迟、多余请求 | 通用默认 |
 | SSE  | 实时、服务端推送   | 连接管理更复杂   | 进度场景 |
 
-页面可先保留说明：SSE 是后端已预留的第二种实现示例，前端暂不接入；轮询不被替代。
+页面展示当前模式与 SSE 连接状态。SSE 遇到不可恢复错误时展示重试操作，不自动降级到轮询，以便两条路径的行为保持可观察。
 
 ## 7. SSE 事件协议
 
@@ -333,12 +338,26 @@ SSE controller 流程：
 
 浏览器原生 `EventSource` 不能自定义 `Authorization` header。
 
-后续前端接入推荐实现：
+前端实现：
 
-- 前端用 `fetch` + `ReadableStream` 读 SSE，并带上 JWT
-- 复用现有 token 获取方式
+- 通过 `fzkit` 的 `http.sse()` 使用 `fetch` + `ReadableStream` 读取 SSE，并自动带上 JWT
+- 复用 `new-http` 中既有 token 获取、刷新和登出策略
 
 不推荐把 accessToken 塞进 query string 作为主方案。
+
+### 7.6 前端缓存与关闭规则
+
+1. 收到 `job.snapshot`、`job.updated` 或任一终态事件时，解析 `data` 为完整 `IJobRun`，按整份对象替换详情缓存；不做字段级合并。
+2. 详情缓存更新后，调用既有 `syncJobToJobsListCache` 更新已缓存且包含该任务的列表页；任务不再符合当前筛选条件时沿用该函数移除它。
+3. `job.completed`、`job.failed`、`job.cancelled` 三种事件更新缓存后立即调用订阅的 `close()`；这属于正常完成，不展示连接错误。
+4. 切换刷新模式或卸载详情面板时必须关闭全部 SSE 订阅。切换任务仅更新详情展示目标，其他已跟踪且未终态任务的订阅继续运行；手动关闭后不得再次发起重连。
+5. 不可恢复连接错误、JSON 解析失败或最大重试次数耗尽时保留最后一份任务快照，并由详情面板展示错误与“重试”操作；重试仅重建 SSE 订阅。
+
+### 7.7 前端测试范围
+
+1. 将 SSE 事件解析、缓存替换、终态判断抽为无 React 副作用的小函数；Vitest 覆盖正常 snapshot、updated、终态事件，以及 `updated` 先于 snapshot 时快照不回退状态。
+2. mock `new-http.sse()` 验证订阅参数、终态主动关闭、禁用或卸载后的 cleanup，以及解析错误写入可展示的错误状态。
+3. Vitest 覆盖新增任务时保留既有流、移除一个任务时不影响其他流，以及重连后的 snapshot 恢复；刷新模式通过手动验收覆盖默认 SSE、切换到 Polling 后 SSE 被禁用、切回 SSE 后轮询被禁用。
 
 ## 8. Bull Board 挂载与鉴权
 
@@ -409,7 +428,7 @@ README / 页面固定说明：
 - `@bull-board/express`
 - 以及兼容的 Nest 适配包（若选用）
 
-前端本期不实现 SSE；后续接入时用原生 fetch stream 即可。
+前端通过现有 `fzkit` 的 `http.sse()` 接入 SSE；不新增独立 SSE 依赖。
 
 ## 10. 前端实现要点
 
@@ -418,7 +437,7 @@ README / 页面固定说明：
 - 页面挂在 `AuthGuard` 下
 - 未登录跳转登录
 - REST 请求继续走 `new-http` 自动带 JWT
-- SSE 前端接入暂缓
+- SSE 请求继续走 `new-http.sse()` 自动带 JWT，并复用 401 刷新与登出策略
 
 ### 10.2 列表
 
@@ -448,7 +467,8 @@ README / 页面固定说明：
 - payload / result / errorMessage
 - attemptsMade / maxAttempts
 - startedAt / finishedAt / createdAt
-- 轮询刷新状态 + SSE 暂缓接入说明
+- 默认 SSE 的连接状态；可切换的 Polling / SSE 刷新方式
+- SSE 终态错误的重试操作
 
 ## 11. 文档改动
 
@@ -490,42 +510,43 @@ README / 页面固定说明：
 1. 登录后可进入任务中心完整流程
 2. 可触发 3 类后台任务并看到结果
 3. 同一任务详情支持：
-   - 仅轮询刷新
-   - 后端 SSE 可通过接口单独验证
+   - 默认 SSE 刷新，并正确更新进度和终态
+   - 通过可见控件切换到轮询，且两种模式不会同时运行
+   - 连续提交或查看多条未终态任务时，前一条 SSE 流不会因详情切换而被丢弃
 4. 轮询终态停止；SSE 后端终态后结束流
-5. Bull Board 可访问且受保护
-6. 文档能讲清：
+5. SSE 在 401 后刷新 Token 重连，并在可恢复断线后使用完整 snapshot 恢复当前状态
+6. Bull Board 可访问且受保护
+7. 文档能讲清：
    - 任务中心 vs Bull Board
    - 轮询 vs SSE
-7. 代码风格匹配现有 monorepo
-8. 本地可运行并给出测试步骤
+8. 代码风格匹配现有 monorepo
+9. 本地可运行并给出测试步骤
 
-## 14. 建议实现顺序
+## 14. 前端 SSE 后续实现顺序
 
-1. 服务端：JobEventsService + 记录变更发事件
-2. 服务端：SSE `GET /jobs/:id/events`
-3. 服务端：Bull Board 模块 + 鉴权 + vite proxy
-4. 前端：jobs API/types + 列表/触发/取消
-5. 前端：详情 + polling hook
-6. 文档与手动验收
-7. 提交独立分支 `feat/jobs-phase2-learning-console`
+1. 前端：补充刷新模式类型与可测试的 SSE 事件缓存函数
+2. 前端：新增 `use-job-sse.ts`，复用 `new-http.sse()`
+3. 前端：调整 `use-job-polling.ts` 接受 `enabled`，保证模式互斥
+4. 前端：增加详情面板的刷新模式切换、连接状态、错误和重试操作
+5. 前端：更新页面默认模式与事件缓存同步
+6. 测试、类型检查、构建与手动验收
 
 ## 15. 本地验证提纲（实现后执行）
 
 1. 登录 web
-2. 打开任务中心，触发 export-report，用 Polling 看到 progress → completed
-3. 用 curl 或浏览器开发工具验证 `/api/jobs/:id/events` 可收到 snapshot / updated / terminal 事件并结束流
-4. 触发 flaky-retry，观察重试与最终状态
-5. 触发 cleanup-expired-refresh-tokens，观察完成
-6. 对 queued/delayed 任务执行取消
-7. 打开队列监控，确认需鉴权且能看到 default 队列
-8. 未登录访问 `/jobs` 应跳转登录；未带 token 访问 Board/SSE 应 401
+2. 打开任务中心，触发 export-report，默认 SSE 看到 progress → completed
+3. 切换到 Polling 后，确认详情继续刷新且 SSE 订阅已关闭
+4. 触发 SSE 的 401 或临时断线，确认刷新 Token / 重连后由 snapshot 恢复当前状态
+5. 触发 flaky-retry，观察重试与最终状态
+6. 触发 cleanup-expired-refresh-tokens，观察完成
+7. 对 queued/delayed 任务执行取消
+8. 打开队列监控，确认需鉴权且能看到 default 队列
+9. 未登录访问 `/jobs` 应跳转登录；未带 token 访问 Board/SSE 应 401
 
-## 16. 待确认后执行
+## 16. 确认后的执行边界
 
-用户确认本设计后：
+本设计已于 2026-08-17 确认。后续实现：
 
-1. 产出实现计划（writing-plans）
-2. 在独立分支编码
-3. 手动验证 + 必要测试
-4. 按需开 PR
+1. 仅修改 `apps/web` 中与 Jobs 详情刷新相关的类型、hooks、页面组件和测试，以及本设计文档和对应实现计划。
+2. 不修改既有服务端 SSE 协议、轮询 API、Bull Board 或 refresh token 流程。
+3. 完成后按需提交；不自动推送或创建 PR。
