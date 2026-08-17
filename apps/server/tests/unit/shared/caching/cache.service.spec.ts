@@ -1,5 +1,5 @@
 import { CacheService } from '@/shared/caching/cache.service';
-import { describe, expect, it, MockInstance, vi } from 'vitest';
+import { afterEach, describe, expect, it, MockInstance, vi } from 'vitest';
 
 type MockCache = {
   del: MockInstance<(key: string) => Promise<boolean>>;
@@ -70,6 +70,10 @@ const createServiceWithRedis = (redisStore: Record<string, unknown> | null) => {
 };
 
 describe('CacheService', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('should delegate get set del and wrap to cache manager', async () => {
     const cache = createCache();
     const service = new CacheService(cache as never);
@@ -133,6 +137,9 @@ describe('CacheService', () => {
   });
 
   it('should rotate refresh token via lua script', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+
     const redisClient = createMockRedisClient();
     const { service } = createServiceWithRedis(redisClient);
 
@@ -146,11 +153,18 @@ describe('CacheService', () => {
     expect(result).toBe(true);
     expect(redisClient.evalFn).toHaveBeenCalledWith(expect.any(String), {
       keys: ['old-token', 'new-token'],
-      arguments: ['expected-value', '60000'],
+      arguments: [
+        'expected-value',
+        '{"value":"expected-value","expires":1767225660000}',
+        '60000',
+      ],
     });
   });
 
   it('should rotate refresh token with namespace', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+
     const redisClient = createMockRedisClient({
       keyPrefixSeparator: ':',
       namespace: 'myapp',
@@ -161,7 +175,7 @@ describe('CacheService', () => {
 
     expect(redisClient.evalFn).toHaveBeenCalledWith(expect.any(String), {
       keys: ['myapp:old', 'myapp:new'],
-      arguments: ['val', '60000'],
+      arguments: ['val', '{"value":"val","expires":1767225660000}', '60000'],
     });
   });
 
