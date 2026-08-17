@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Observable, throwError, TimeoutError } from 'rxjs';
 import { catchError, timeout } from 'rxjs/operators';
+import { SKIP_TIMEOUT_KEY } from '@/common/decorators/skip-timeout.decorator';
 
 @Injectable()
 export class TimeoutInterceptor implements NestInterceptor {
@@ -17,6 +18,14 @@ export class TimeoutInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const { server } = getAppConfig(this.app);
+    const handler =
+      typeof context.getHandler === 'function'
+        ? context.getHandler()
+        : undefined;
+
+    if (handler && Reflect.getMetadata(SKIP_TIMEOUT_KEY, handler) === true) {
+      return next.handle();
+    }
 
     return next.handle().pipe(
       timeout(server.timeout * 1000),

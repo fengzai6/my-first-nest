@@ -2,6 +2,7 @@ import NestJsIcon from "@/assets/nestjs.svg";
 import {
   ApiOutlined,
   DatabaseOutlined,
+  FieldTimeOutlined,
   HomeOutlined,
   SettingOutlined,
   SmileOutlined,
@@ -42,6 +43,11 @@ const sidebarGroups = [
         name: "缓存能力",
         icon: <DatabaseOutlined />,
         path: "/cache-capabilities",
+      },
+      {
+        name: "任务中心",
+        icon: <FieldTimeOutlined />,
+        path: "/jobs",
       },
       {
         name: "个人设置",

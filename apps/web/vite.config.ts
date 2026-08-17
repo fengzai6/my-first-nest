@@ -24,13 +24,18 @@ export default defineConfig(() => {
       },
     },
     server: {
+      port: 4174,
       proxy: {
         "/api": {
-          target: `http://localhost:8080`,
+          target: "http://localhost:3174",
+          changeOrigin: true,
+        },
+        "/admin": {
+          target: "http://localhost:3174",
           changeOrigin: true,
         },
         "/socket.io": {
-          target: `http://localhost:8080`,
+          target: "http://localhost:3174",
           changeOrigin: true,
           ws: true,
         },

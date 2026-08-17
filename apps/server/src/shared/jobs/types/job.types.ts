@@ -1,5 +1,6 @@
 import {
   JOB_STATUS,
+  JobSseEventName,
   JobStatus,
   JobTriggerType,
 } from '../constants/job.constants';
@@ -57,6 +58,12 @@ export interface IBullJobData {
   jobId: string;
   name: string;
   payload?: unknown;
+}
+
+export interface IJobSseEvent {
+  id: string;
+  event: JobSseEventName;
+  data: IJobRunView;
 }
 
 export const JOB_TERMINAL_STATUSES: readonly JobStatus[] = [

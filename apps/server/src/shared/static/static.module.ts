@@ -10,7 +10,7 @@ import { join } from 'path';
       // 使用 process.cwd() 获取当前工作目录路径
       rootPath: join(process.cwd(), 'client/dist'),
       // 路径匹配问题：https://github.com/pillarjs/path-to-regexp#errors
-      exclude: ['/api/{*path}'],
+      exclude: ['/api/{*path}', '/admin/{*path}'],
     }),
   ],
 })
