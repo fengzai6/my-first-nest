@@ -38,8 +38,14 @@ describe('JobEventsService', () => {
       received.push(event.data.id);
     });
 
-    service.publish({ event: JOB_SSE_EVENT.UPDATED, data: createView('job-2') });
-    service.publish({ event: JOB_SSE_EVENT.UPDATED, data: createView('job-1') });
+    service.publish({
+      event: JOB_SSE_EVENT.UPDATED,
+      data: createView('job-2'),
+    });
+    service.publish({
+      event: JOB_SSE_EVENT.UPDATED,
+      data: createView('job-1'),
+    });
 
     expect(received).toEqual(['job-1']);
     subscription.unsubscribe();
@@ -65,9 +71,15 @@ describe('JobEventsService', () => {
       received.push(event.id);
     });
 
-    service.publish({ event: JOB_SSE_EVENT.UPDATED, data: createView('job-1') });
+    service.publish({
+      event: JOB_SSE_EVENT.UPDATED,
+      data: createView('job-1'),
+    });
     subscription.unsubscribe();
-    service.publish({ event: JOB_SSE_EVENT.UPDATED, data: createView('job-1') });
+    service.publish({
+      event: JOB_SSE_EVENT.UPDATED,
+      data: createView('job-1'),
+    });
 
     expect(received).toEqual(['1']);
   });

@@ -90,7 +90,9 @@ describe('JobRecordService', () => {
     const { service, repository } = createService();
     const queryBuilder = createUpdateQueryBuilder(1);
     repository.createQueryBuilder.mockReturnValue(queryBuilder);
-    repository.findOneBy.mockResolvedValue(createRun({ status: JOB_STATUS.ACTIVE }));
+    repository.findOneBy.mockResolvedValue(
+      createRun({ status: JOB_STATUS.ACTIVE }),
+    );
 
     await service.updateProgress('job-1', 150);
     expect(queryBuilder.set).toHaveBeenCalledWith({

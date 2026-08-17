@@ -64,7 +64,10 @@ describe('JobBoardAuthMiddleware', () => {
     const response = createResponse();
     const next = vi.fn();
 
-    jwtService.verify.mockReturnValue({ sub: 'user-1', type: TokenType.REFRESH });
+    jwtService.verify.mockReturnValue({
+      sub: 'user-1',
+      type: TokenType.REFRESH,
+    });
 
     await middleware.use(createRequest('Bearer token'), response, next);
 
@@ -77,7 +80,10 @@ describe('JobBoardAuthMiddleware', () => {
     const response = createResponse();
     const next = vi.fn();
 
-    jwtService.verify.mockReturnValue({ sub: 'user-1', type: TokenType.REFRESH });
+    jwtService.verify.mockReturnValue({
+      sub: 'user-1',
+      type: TokenType.REFRESH,
+    });
     usersService.findOne.mockResolvedValue({ id: 'user-1' });
 
     await middleware.use(createCookieRequest('refresh-token'), response, next);
@@ -91,7 +97,10 @@ describe('JobBoardAuthMiddleware', () => {
     const response = createResponse();
     const next = vi.fn();
 
-    jwtService.verify.mockReturnValue({ sub: 'user-1', type: TokenType.ACCESS });
+    jwtService.verify.mockReturnValue({
+      sub: 'user-1',
+      type: TokenType.ACCESS,
+    });
     usersService.findOne.mockRejectedValue(new UnauthorizedException());
 
     await middleware.use(createRequest('Bearer token'), response, next);
@@ -105,7 +114,10 @@ describe('JobBoardAuthMiddleware', () => {
     const response = createResponse();
     const next = vi.fn();
 
-    jwtService.verify.mockReturnValue({ sub: 'user-1', type: TokenType.ACCESS });
+    jwtService.verify.mockReturnValue({
+      sub: 'user-1',
+      type: TokenType.ACCESS,
+    });
     usersService.findOne.mockResolvedValue({ id: 'user-1' });
 
     await middleware.use(createRequest('Bearer token'), response, next);
