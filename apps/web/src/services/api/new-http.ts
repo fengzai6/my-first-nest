@@ -1,6 +1,7 @@
 import { RefreshToken } from "@/services/api/refresh-token";
 import { useUserStore } from "@/stores/user";
-import { createHttpClient } from "./http-factory";
+import { message } from "antd";
+import { createHttpClient } from "fzkit";
 
 const NO_AUTO_REFRESH_API_LIST = ["/auth/login", "/auth/refresh-token"];
 
@@ -11,6 +12,9 @@ const newHttp = createHttpClient({
       "Content-Type": "application/json",
     },
     timeout: 1000 * 10,
+  },
+  dedupePolicy: {
+    enabled: true,
   },
   refreshBufferMs: import.meta.env.DEV ? 1000 * 10 : 60_000,
   getAccessToken: () => {
@@ -32,6 +36,9 @@ const newHttp = createHttpClient({
   },
   onAuthFailure: () => {
     useUserStore.getState().logout();
+  },
+  onError: (error) => {
+    message.error(`HTTP Error: ${error.message || "请求失败"}`);
   },
   skipRefreshUrls: NO_AUTO_REFRESH_API_LIST,
   errorMessages: {
