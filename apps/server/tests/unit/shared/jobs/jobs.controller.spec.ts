@@ -112,4 +112,32 @@ describe('JobsController', () => {
     );
     expect(response.end).toHaveBeenCalledTimes(1);
   });
+
+  it('should subscribe before sending snapshot so mid-read events are not lost', async () => {
+    const { controller, jobService, events } = createController();
+    const subject = new Subject<IJobSseEvent>();
+    const response = createResponse();
+    const { request } = createRequest();
+    const writeOrder: string[] = [];
+
+    jobService.getById.mockImplementation(async () => {
+      subject.next({
+        id: '1',
+        event: JOB_SSE_EVENT.UPDATED,
+        data: createView(),
+      });
+      return createView();
+    });
+    events.subscribe.mockReturnValue(subject.asObservable());
+    response.write = vi.fn((chunk: string) => {
+      writeOrder.push(chunk);
+      return true;
+    }) as Response['write'];
+
+    await controller.getEvents('job-1', request, response);
+
+    expect(events.subscribe).toHaveBeenCalledWith('job-1');
+    expect(writeOrder[0]).toContain('event: job.updated');
+    expect(writeOrder[1]).toContain('event: job.snapshot');
+  });
 });

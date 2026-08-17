@@ -22,6 +22,7 @@ import { formatSseEvent } from './events/job-sse.util';
 import { ListJobsDto } from './dto/list-jobs.dto';
 import { JobService } from './services/job.service';
 import { JOB_TERMINAL_STATUSES } from './types/job.types';
+import { SkipTimeout } from '@/common/decorators/skip-timeout.decorator';
 
 @ApiTags('Jobs - 任务中心')
 @ApiBearerAuth()
@@ -41,20 +42,18 @@ export class JobsController {
   @Get(':id/events')
   @ApiOperation({ summary: '订阅单个任务状态事件（SSE）' })
   @ApiParam({ name: 'id', description: 'job_runs.id' })
+  @SkipTimeout()
   async getEvents(
     @Param('id') id: string,
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    const snapshot = await this.jobService.getById(id);
-
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
 
-    const closeStream = () => {
-      subscription.unsubscribe();
+    const endStream = () => {
       if (!res.writableEnded) {
         res.end();
       }
@@ -63,13 +62,16 @@ export class JobsController {
     const subscription = this.jobEvents.subscribe(id).subscribe((event) => {
       res.write(formatSseEvent(event));
       if (JOB_TERMINAL_STATUSES.includes(event.data.status)) {
-        closeStream();
+        subscription.unsubscribe();
+        endStream();
       }
     });
 
     req.on('close', () => {
       subscription.unsubscribe();
     });
+
+    const snapshot = await this.jobService.getById(id);
 
     res.write(
       formatSseEvent({
@@ -80,7 +82,8 @@ export class JobsController {
     );
 
     if (JOB_TERMINAL_STATUSES.includes(snapshot.status)) {
-      closeStream();
+      subscription.unsubscribe();
+      endStream();
     }
   }
 

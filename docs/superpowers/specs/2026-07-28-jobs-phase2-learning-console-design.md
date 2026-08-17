@@ -1,6 +1,6 @@
 # 任务系统二期设计：任务中心 + Bull Board + SSE
 
-> 状态：待用户确认  
+> 状态：已确认并实现  
 > 日期：2026-07-28  
 > 范围：在一期服务端任务底座之上，实现学习向完整二期  
 > 前置：`docs/superpowers/specs/2026-07-14-jobs-system-design.md`
@@ -265,21 +265,24 @@ export const JOB_SSE_EVENT = {
 
 ### 7.3 data payload
 
+所有 SSE 事件的 `data` 都是完整 `IJobRunView` 快照，不是部分字段补丁。前端应按整份任务对象替换缓存，不要做字段合并。
+
 ```ts
-export interface IJobSsePayload {
+export interface IJobRunView {
   id: string;
   name: string;
+  queueName: string;
   status: JobStatus;
   progress: number;
-  errorMessage?: string | null;
+  payload?: unknown;
   result?: unknown;
+  errorMessage?: string | null;
   attemptsMade: number;
   maxAttempts: number;
   triggerType: JobTriggerType;
-  startedAt?: string | null;
-  finishedAt?: string | null;
-  createdAt: string;
-  updatedAt?: string;
+  startedAt?: Date | string | null;
+  finishedAt?: Date | string | null;
+  createdAt: Date | string;
 }
 ```
 
@@ -292,7 +295,7 @@ data: {"id":"123","name":"export-report","status":"active","progress":40,"errorM
 
 event: job.updated
 id: 2
-data: {"id":"123","status":"active","progress":80,...}
+data: {"id":"123","name":"export-report","queueName":"default","status":"active","progress":80,"payload":{"title":"report"},"result":null,"errorMessage":null,"attemptsMade":1,"maxAttempts":1,"triggerType":"manual","startedAt":"...","finishedAt":null,"createdAt":"..."}
 
 event: job.completed
 id: 3
@@ -313,12 +316,13 @@ data: {"id":"123","status":"completed","progress":100,"result":{"file":"mock.pdf
 
 SSE controller 流程：
 
-1. 校验 job 存在
-2. 写 SSE headers
-3. 发送 snapshot
-4. 订阅 `JobEventsService` 按 jobId 过滤
-5. 终态后 complete + `res.end()`
-6. req close 时取消订阅
+1. 写 SSE headers
+2. 先订阅 `JobEventsService`，按 jobId 过滤
+3. 再读取并发送 snapshot
+4. 终态后 complete + `res.end()`
+5. req close 时取消订阅
+
+必须先订阅再读 snapshot，避免快照读取期间发布的事件丢失。
 
 说明：
 
@@ -342,7 +346,8 @@ SSE controller 流程：
 
 - UI：`/admin/queues`
 - 不挂在 `/api` 下
-- Vite 开发代理需增加 `/admin` 转发到后端 `8080`
+- Vite 开发代理需增加 `/admin` 转发到后端当前开发端口
+- 本仓库当前本地约定：server `3174`，web `4174`。项目默认值仍可能是 `8080` / `5173`；端口被占用时以实际启动输出为准
 
 ### 8.2 集成方式
 

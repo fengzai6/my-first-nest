@@ -31,6 +31,16 @@ const createApp = () =>
 
 const createContext = () => ({}) as ExecutionContext;
 
+const createHttpContext = (handler: unknown, accept?: string) =>
+  ({
+    getHandler: () => handler,
+    switchToHttp: () => ({
+      getRequest: () => ({
+        headers: accept ? { accept } : {},
+      }),
+    }),
+  }) as ExecutionContext;
+
 describe('TimeoutInterceptor', () => {
   it('should convert request processing timeout to gateway timeout', async () => {
     const interceptor = new TimeoutInterceptor(createApp());
@@ -55,22 +65,27 @@ describe('TimeoutInterceptor', () => {
     ).rejects.toBe(error);
   });
 
-  it('should skip timeout wrapping for server-sent events', async () => {
+  it('should skip timeout wrapping for server-sent events', () => {
     const interceptor = new TimeoutInterceptor(createApp());
     const source = NEVER;
     const next = {
       handle: () => source,
     } as CallHandler;
-    const context = {
-      switchToHttp: () => ({
-        getRequest: () => ({
-          headers: {
-            accept: 'text/event-stream',
-          },
-        }),
-      }),
-    } as ExecutionContext;
+    const handler = () => undefined;
+    Reflect.defineMetadata('skipTimeout', true, handler);
+    const context = createHttpContext(handler);
 
     expect(interceptor.intercept(context, next)).toBe(source);
+  });
+
+  it('should keep timeout wrapping when only Accept header claims SSE', () => {
+    const interceptor = new TimeoutInterceptor(createApp());
+    const source = NEVER;
+    const next = {
+      handle: () => source,
+    } as CallHandler;
+    const context = createHttpContext(() => undefined, 'text/event-stream');
+
+    expect(interceptor.intercept(context, next)).not.toBe(source);
   });
 });

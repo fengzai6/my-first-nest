@@ -79,7 +79,7 @@ Bull Board 挂载在 `/admin/queues`，用于队列可观测性学习，不能�
 curl -N \
   -H "Accept: text/event-stream" \
   -H "Authorization: Bearer <access-token>" \
-  http://localhost:8080/api/jobs/<job-id>/events
+  http://localhost:3174/api/jobs/<job-id>/events
 ```
 
 ## 与 @nestjs/schedule 的边界

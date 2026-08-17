@@ -10,6 +10,7 @@ import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { ExpressAdapter } from '@bull-board/express';
 import { Queue } from 'bullmq';
+import { Express } from 'express';
 import { DEFAULT_JOB_QUEUE } from '../constants/job.constants';
 import { JobQueueModule } from '../queue/job-queue.module';
 import { IBullJobData } from '../types/job.types';
@@ -52,7 +53,8 @@ export class JobBoardModule implements OnModuleInit {
       serverAdapter,
     });
 
-    const app = this.httpAdapterHost.httpAdapter.getInstance();
+    const app: Express =
+      this.httpAdapterHost.httpAdapter.getInstance<Express>();
     app.use(JOB_BOARD_PATH, this.authMiddleware.use.bind(this.authMiddleware));
     app.use(JOB_BOARD_PATH, serverAdapter.getRouter());
   }

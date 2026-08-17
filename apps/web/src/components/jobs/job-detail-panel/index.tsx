@@ -1,7 +1,7 @@
 import { JobProgressSection } from "@/components/jobs/job-progress-section";
 import { JobStatusTag } from "@/components/jobs/job-status-tag";
 import type { IJobRun } from "@/services/types/job";
-import { Alert, Card, Descriptions, Empty, Space, Typography } from "antd";
+import { Alert, Button, Card, Descriptions, Empty, Space, Typography } from "antd";
 
 const { Paragraph, Text } = Typography;
 
@@ -19,13 +19,37 @@ interface IJobDetailPanelProps {
   job?: IJobRun;
   loading?: boolean;
   isFetching?: boolean;
+  error?: Error | null;
+  onRetry?: () => void;
 }
 
 export const JobDetailPanel = ({
   job,
   loading,
   isFetching,
+  error,
+  onRetry,
 }: IJobDetailPanelProps) => {
+  if (error) {
+    return (
+      <Card title="任务详情" className="h-full">
+        <Alert
+          type="error"
+          showIcon
+          message="任务详情加载失败"
+          description={error.message}
+          action={
+            onRetry ? (
+              <Button size="small" onClick={onRetry}>
+                重试
+              </Button>
+            ) : undefined
+          }
+        />
+      </Card>
+    );
+  }
+
   if (!job) {
     return (
       <Card title="任务详情" className="h-full" loading={loading}>

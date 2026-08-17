@@ -1,4 +1,8 @@
-import { JOB_SSE_EVENT, JOB_STATUS, JobStatus } from '../constants/job.constants';
+import {
+  JOB_SSE_EVENT,
+  JOB_STATUS,
+  JobStatus,
+} from '../constants/job.constants';
 import { IJobSseEvent } from '../types/job.types';
 
 export const resolveJobSseEventName = (status: JobStatus) => {
@@ -9,5 +13,11 @@ export const resolveJobSseEventName = (status: JobStatus) => {
 };
 
 export const formatSseEvent = (event: IJobSseEvent) => {
-  return [`event: ${event.event}`, `id: ${event.id}`, `data: ${JSON.stringify(event.data)}`, '', ''].join('\n');
+  return [
+    `event: ${event.event}`,
+    `id: ${event.id}`,
+    `data: ${JSON.stringify(event.data)}`,
+    '',
+    '',
+  ].join('\n');
 };

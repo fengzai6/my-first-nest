@@ -1,4 +1,5 @@
 import { GetJob } from "@/services/api/jobs";
+import type { IFindJobsQuery } from "@/services/dtos/job";
 import { JOBS_LIST_QUERY_KEY } from "@/services/hooks/use-jobs-list";
 import {
   JOB_TERMINAL_STATUSES,
@@ -11,19 +12,33 @@ export const syncJobToJobsListCache = (
   queryClient: QueryClient,
   job: IJobRun,
 ) => {
-  queryClient.setQueriesData<IJobsPage>(
-    { queryKey: JOBS_LIST_QUERY_KEY },
-    (current) => {
-      if (!current?.list.some((item) => item.id === job.id)) {
-        return current;
-      }
+  const queries = queryClient.getQueriesData<IJobsPage>({
+    queryKey: JOBS_LIST_QUERY_KEY,
+  });
 
-      return {
+  for (const [queryKey, current] of queries) {
+    if (!current?.list.some((item) => item.id === job.id)) {
+      continue;
+    }
+
+    const filters = queryKey[2] as IFindJobsQuery | undefined;
+    const matchesName = !filters?.name || job.name === filters.name;
+    const matchesStatus = !filters?.status || job.status === filters.status;
+
+    if (!matchesName || !matchesStatus) {
+      queryClient.setQueryData<IJobsPage>(queryKey, {
         ...current,
-        list: current.list.map((item) => (item.id === job.id ? job : item)),
-      };
-    },
-  );
+        list: current.list.filter((item) => item.id !== job.id),
+        total: Math.max(0, current.total - 1),
+      });
+      continue;
+    }
+
+    queryClient.setQueryData<IJobsPage>(queryKey, {
+      ...current,
+      list: current.list.map((item) => (item.id === job.id ? job : item)),
+    });
+  }
 };
 
 export const useJobPolling = (jobId: string | null) => {

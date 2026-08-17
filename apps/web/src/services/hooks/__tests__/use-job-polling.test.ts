@@ -81,4 +81,49 @@ describe("syncJobToJobsListCache", () => {
 
     expect(queryClient.getQueryData<IJobsPage>(listQueryKey)).toEqual(page);
   });
+
+  it("任务离开当前筛选条件时从该列表缓存移除", () => {
+    const queryClient = new QueryClient();
+    const queuedListQueryKey: IJobsListQueryKey = [
+      ...JOBS_LIST_QUERY_KEY,
+      { page: 1, pageSize: 10, status: JOB_STATUS.QUEUED },
+    ];
+    const unfilteredListQueryKey: IJobsListQueryKey = [
+      ...JOBS_LIST_QUERY_KEY,
+      { page: 1, pageSize: 10 },
+    ];
+    const queuedJob = createJob();
+    const activeJob = createJob({
+      status: JOB_STATUS.ACTIVE,
+      progress: 45,
+      attemptsMade: 1,
+    });
+
+    queryClient.setQueryData<IJobsPage>(queuedListQueryKey, {
+      list: [queuedJob],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+    });
+    queryClient.setQueryData<IJobsPage>(unfilteredListQueryKey, {
+      list: [queuedJob],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+    });
+
+    syncJobToJobsListCache(queryClient, activeJob);
+
+    expect(
+      queryClient.getQueryData<IJobsPage>(queuedListQueryKey),
+    ).toEqual({
+      list: [],
+      total: 0,
+      page: 1,
+      pageSize: 10,
+    });
+    expect(
+      queryClient.getQueryData<IJobsPage>(unfilteredListQueryKey)?.list[0],
+    ).toEqual(activeJob);
+  });
 });

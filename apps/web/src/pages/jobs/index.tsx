@@ -17,7 +17,7 @@ import { useJobPolling } from "@/services/hooks/use-job-polling";
 import { useJobsList } from "@/services/hooks/use-jobs-list";
 import type { IJobRun, JobStatus } from "@/services/types/job";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Card, message } from "antd";
+import { Alert, Button, Card, message } from "antd";
 import { useState } from "react";
 
 export const Jobs = () => {
@@ -125,6 +125,21 @@ export const Jobs = () => {
         description="本期前端任务详情使用 GET /api/jobs/:id 轮询；服务端已提供 SSE 事件接口供单独验证，后续再接入前端切换。"
       />
 
+      {jobsQuery.isError && (
+        <Alert
+          type="error"
+          showIcon
+          className="mb-4"
+          message="任务列表加载失败"
+          description={jobsQuery.error.message}
+          action={
+            <Button size="small" onClick={() => jobsQuery.refetch()}>
+              重试
+            </Button>
+          }
+        />
+      )}
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
         <JobTriggerPanel
           loading={triggerLoading}
@@ -168,6 +183,8 @@ export const Jobs = () => {
           job={jobDetailQuery.data}
           loading={jobDetailQuery.isLoading}
           isFetching={jobDetailQuery.isFetching}
+          error={jobDetailQuery.error}
+          onRetry={() => jobDetailQuery.refetch()}
         />
       </div>
     </div>

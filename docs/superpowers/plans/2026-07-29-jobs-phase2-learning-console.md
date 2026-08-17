@@ -125,7 +125,7 @@ After successful state writes, load the current view where required and publish 
 
 - [x] **Step 4: Implement SSE controller**
 
-Add `@Get(':id/events')` before `@Get(':id')`; use `@Res()` and `@Req()` to write `text/event-stream`, send snapshot, subscribe to `JobEventsService`, end on terminal event or request close.
+Add `@Get(':id/events')` before `@Get(':id')`; use `@Res()` and `@Req()` to write `text/event-stream`, subscribe to `JobEventsService` first, then read and send snapshot, and end on terminal event or request close. Add a race test covering an event published while the snapshot is being read.
 
 - [x] **Step 5: Run focused server tests**
 
