@@ -1,4 +1,8 @@
 import { RefreshToken } from "@/services/api/refresh-token";
+import {
+  AUTH_REFRESH_SCOPE_KEY,
+  tokenRefreshManager,
+} from "@/services/api/token-refresh-manager";
 import { useUserStore } from "@/stores/user";
 import { message } from "antd";
 import { createHttpClient } from "fzkit";
@@ -17,6 +21,8 @@ const newHttp = createHttpClient({
     enabled: true,
   },
   refreshBufferMs: import.meta.env.DEV ? 1000 * 10 : 60_000,
+  refreshManager: tokenRefreshManager,
+  refreshScopeKey: AUTH_REFRESH_SCOPE_KEY,
   getAccessToken: () => {
     const jwtToken = useUserStore.getState().jwtToken;
     if (!jwtToken?.accessToken) return null;
@@ -39,6 +45,7 @@ const newHttp = createHttpClient({
   },
   onError: (error) => {
     message.error(`HTTP Error: ${error.message || "请求失败"}`);
+    console.error("HTTP Error:", error);
   },
   skipRefreshUrls: NO_AUTO_REFRESH_API_LIST,
   errorMessages: {

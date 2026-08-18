@@ -11,9 +11,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const refreshTokenMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../refresh-token", () => ({
-  RefreshToken: refreshTokenMock,
-}));
+vi.mock("../refresh-token", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../refresh-token")>();
+
+  return {
+    ...actual,
+    RefreshToken: refreshTokenMock,
+  };
+});
 
 interface IRequestRecord {
   authorization: string | undefined;
@@ -24,6 +29,7 @@ interface IRequestRecord {
 interface IAppAssembly {
   http: HttpClientInstance;
   useUserStore: typeof import("@/stores/user").useUserStore;
+  handleRefreshAndReconnect: typeof import("../socket-client").handleRefreshAndReconnect;
 }
 
 const wait = (ms: number) => {
@@ -59,12 +65,18 @@ const createUnauthorizedError = () => {
 const loadAppAssembly = async (): Promise<IAppAssembly> => {
   vi.resetModules();
 
-  const [{ default: http }, { useUserStore }] = await Promise.all([
-    import("../new-http"),
-    import("@/stores/user"),
-  ]);
+  const [{ default: http }, { useUserStore }, { handleRefreshAndReconnect }] =
+    await Promise.all([
+      import("../new-http"),
+      import("@/stores/user"),
+      import("../socket-client"),
+    ]);
 
-  return { http: http as HttpClientInstance, useUserStore };
+  return {
+    http: http as HttpClientInstance,
+    useUserStore,
+    handleRefreshAndReconnect,
+  };
 };
 
 describe("new-http fzkit 业务装配", () => {
@@ -340,5 +352,69 @@ describe("new-http fzkit 业务装配", () => {
 
     expect(sseRequestCount).toBe(3);
     expect(closeReasons).toEqual(["manual"]);
+  });
+
+  it("HTTP 401 与 socket 并发刷新只走一次 RefreshToken", async () => {
+    const { http, useUserStore, handleRefreshAndReconnect } =
+      await loadAppAssembly();
+    http.defaults.baseURL = serverUrl;
+    useUserStore.getState().setJwtToken({
+      accessToken: "old-access-token",
+      expiresAt: Date.now() + 60_000,
+    });
+    let releaseRefresh: () => void = () => undefined;
+    const refreshGate = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    refreshTokenMock.mockImplementation(async () => {
+      await refreshGate;
+      const refreshedToken = {
+        accessToken: "new-access-token",
+        expiresAt: Date.now() + 60_000,
+      };
+      useUserStore.getState().setJwtToken(refreshedToken);
+      return refreshedToken;
+    });
+
+    const httpRequest = http.get<{ authorization: string }>("/protected/first");
+    const socketRefresh = handleRefreshAndReconnect();
+    await waitFor(() => refreshTokenMock.mock.calls.length === 1);
+    releaseRefresh();
+    const [httpResponse] = await Promise.all([httpRequest, socketRefresh]);
+
+    expect(refreshTokenMock).toHaveBeenCalledTimes(1);
+    expect(httpResponse.data.authorization).toBe("Bearer new-access-token");
+    expect(useUserStore.getState().jwtToken?.accessToken).toBe(
+      "new-access-token",
+    );
+  });
+
+  it("HTTP 刷新完成后，冷却期内 socket 不再打 RefreshToken", async () => {
+    const { http, useUserStore, handleRefreshAndReconnect } =
+      await loadAppAssembly();
+    http.defaults.baseURL = serverUrl;
+    useUserStore.getState().setJwtToken({
+      accessToken: "old-access-token",
+      expiresAt: Date.now() + 60_000,
+    });
+    refreshTokenMock.mockImplementation(async () => {
+      const refreshedToken = {
+        accessToken: "new-access-token",
+        expiresAt: Date.now() + 60_000,
+      };
+      useUserStore.getState().setJwtToken(refreshedToken);
+      return refreshedToken;
+    });
+
+    const httpResponse = await http.get<{ authorization: string }>(
+      "/protected/first",
+    );
+    await handleRefreshAndReconnect();
+
+    expect(refreshTokenMock).toHaveBeenCalledTimes(1);
+    expect(httpResponse.data.authorization).toBe("Bearer new-access-token");
+    expect(useUserStore.getState().jwtToken?.accessToken).toBe(
+      "new-access-token",
+    );
   });
 });

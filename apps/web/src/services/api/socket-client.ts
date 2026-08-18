@@ -5,8 +5,9 @@ import type {
   ClientToServerEvents,
   ServerToClientEvents,
 } from "./socket-event.types";
+import { tokenRefreshManager } from "./token-refresh-manager";
 
-let isRefreshing = false;
+const SOCKET_REFRESH_OWNER = Symbol("socket-refresh-owner");
 
 export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
   "/socket",
@@ -32,19 +33,43 @@ export const leaveRoom = (room: string): void => {
   socket.emit("leave-room", { room });
 };
 
-const handleRefreshAndReconnect = async (): Promise<void> => {
-  if (isRefreshing) return;
+const resolveAccessToken = (result: unknown): string | undefined => {
+  if (typeof result === "string" && result) {
+    return result;
+  }
 
-  isRefreshing = true;
+  if (result && typeof result === "object" && "token" in result) {
+    const token = (result as { token?: unknown }).token;
+    if (typeof token === "string" && token) {
+      return token;
+    }
+  }
+
+  return useUserStore.getState().jwtToken?.accessToken;
+};
+
+export const handleRefreshAndReconnect = async (): Promise<void> => {
   try {
-    const { accessToken } = await RefreshToken();
+    const result = await tokenRefreshManager.runRefresh(async () => {
+      const { accessToken, expiresAt } = await RefreshToken();
+
+      return {
+        token: accessToken,
+        expiresAt,
+      };
+    }, SOCKET_REFRESH_OWNER);
+
+    const accessToken = resolveAccessToken(result);
+    if (!accessToken) {
+      useUserStore.getState().logout();
+      return;
+    }
+
     socket.auth = { token: accessToken };
     socket.disconnect();
     socket.connect();
   } catch {
     useUserStore.getState().logout();
-  } finally {
-    isRefreshing = false;
   }
 };
 
