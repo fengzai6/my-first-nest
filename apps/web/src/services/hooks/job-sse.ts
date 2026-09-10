@@ -9,7 +9,10 @@ import {
 } from "@/services/types/job";
 import type { QueryClient } from "@tanstack/react-query";
 import type { SseState, SseSubscription } from "fzkit/http-client";
-import { getJobDetailQueryKey, syncJobToJobsListCache } from "./use-job-polling";
+import {
+  getJobDetailQueryKey,
+  syncJobToJobsListCache,
+} from "./use-job-polling";
 
 interface ISubscribeToJobSseOptions {
   jobId: string | null;
@@ -69,7 +72,10 @@ const isJobRun = (value: unknown): value is IJobRun => {
     return false;
   }
 
-  if (!JOB_STATUSES.has(value.status) || !JOB_TRIGGER_TYPES.has(value.triggerType)) {
+  if (
+    !JOB_STATUSES.has(value.status) ||
+    !JOB_TRIGGER_TYPES.has(value.triggerType)
+  ) {
     return false;
   }
 
@@ -117,6 +123,7 @@ export const subscribeToJobSse = ({
       if (disposed) return;
 
       receivedNonSnapshotEvent = false;
+      receivedError = false;
       onConnectionState("open");
     },
     onRetry: () => {
@@ -138,7 +145,7 @@ export const subscribeToJobSse = ({
         return;
       }
 
-      if (!isJobRun(data)) {
+      if (!isJobRun(data) || data.id !== jobId) {
         reportError(new Error("任务 SSE 事件数据格式无效"));
         subscription.close();
         return;

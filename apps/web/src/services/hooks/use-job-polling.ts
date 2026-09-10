@@ -6,7 +6,11 @@ import {
   type IJobRun,
   type IJobsPage,
 } from "@/services/types/job";
-import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 
 export const getJobDetailQueryKey = (jobId: string) =>
   ["jobs", "detail", jobId] as const;
@@ -20,13 +24,16 @@ export const syncJobToJobsListCache = (
   });
 
   for (const [queryKey, current] of queries) {
-    if (!current?.list.some((item) => item.id === job.id)) {
-      continue;
-    }
-
     const filters = queryKey[2] as IFindJobsQuery | undefined;
     const matchesName = !filters?.name || job.name === filters.name;
     const matchesStatus = !filters?.status || job.status === filters.status;
+
+    if (!current?.list.some((item) => item.id === job.id)) {
+      if (current && matchesName && matchesStatus) {
+        void queryClient.invalidateQueries({ queryKey, exact: true });
+      }
+      continue;
+    }
 
     if (!matchesName || !matchesStatus) {
       queryClient.setQueryData<IJobsPage>(queryKey, {

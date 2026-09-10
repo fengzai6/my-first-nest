@@ -194,9 +194,9 @@ export type JobRefreshMode =
 
 ### 6.2 行为规则
 
-| 模式    | 行为                                                                                 | 停止条件                         |
-| ------- | ------------------------------------------------------------------------------------ | -------------------------------- |
-| Polling | `useQuery(GetJobById)` + `refetchInterval`（建议 1500–2000ms）                       | 终态、切换 SSE、关闭详情         |
+| 模式    | 行为                                                                                                             | 停止条件                         |
+| ------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Polling | `useQuery(GetJobById)` + `refetchInterval`（建议 1500–2000ms）                                                   | 终态、切换 SSE、关闭详情         |
 | SSE     | 已提交或查看过的未终态任务各自通过 `new-http.sse('/jobs/:id/events')` 接收完整快照并更新详情与列表缓存；默认启用 | 任务终态、切换 Polling、页面卸载 |
 
 前端切换规则：
@@ -270,7 +270,9 @@ export const JOB_SSE_EVENT = {
 
 ### 7.3 data payload
 
-所有 SSE 事件的 `data` 都是完整 `IJobRunView` 快照，不是部分字段补丁。前端应按整份任务对象替换缓存，不要做字段合并。
+服务端所有 SSE 事件的 `data` 都是完整 `IJobRunView` 快照，不是部分字段补丁。`formatSseEvent` 通过 `JSON.stringify` 序列化后，`Date` 字段转换为 ISO 8601 字符串，`undefined` 字段省略，`null` 字段保留。
+
+前端将 `data` 解析为完整 `IJobRun`。除 `startedAt`、`finishedAt`、`createdAt` 由服务端的 `Date | null` / `Date` 变为 JSON 字符串外，其余字段一一对应。前端应按整份对象替换详情缓存，不要做字段合并。
 
 ```ts
 export interface IJobRunView {
@@ -296,15 +298,15 @@ export interface IJobRunView {
 ```text
 event: job.snapshot
 id: 1
-data: {"id":"123","name":"export-report","status":"active","progress":40,"errorMessage":null,"result":null,"attemptsMade":1,"maxAttempts":1,"triggerType":"manual","startedAt":"...","finishedAt":null,"createdAt":"..."}
+data: {"id":"123","name":"export-report","queueName":"default","status":"queued","progress":0,"payload":{"title":"report"},"result":null,"errorMessage":null,"attemptsMade":0,"maxAttempts":3,"triggerType":"manual","startedAt":null,"finishedAt":null,"createdAt":"..."}
 
 event: job.updated
 id: 2
-data: {"id":"123","name":"export-report","queueName":"default","status":"active","progress":80,"payload":{"title":"report"},"result":null,"errorMessage":null,"attemptsMade":1,"maxAttempts":1,"triggerType":"manual","startedAt":"...","finishedAt":null,"createdAt":"..."}
+data: {"id":"123","name":"export-report","queueName":"default","status":"active","progress":80,"payload":{"title":"report"},"result":null,"errorMessage":null,"attemptsMade":1,"maxAttempts":3,"triggerType":"manual","startedAt":"...","finishedAt":null,"createdAt":"..."}
 
 event: job.completed
 id: 3
-data: {"id":"123","status":"completed","progress":100,"result":{"file":"mock.pdf"},...}
+data: {"id":"123","name":"export-report","queueName":"default","status":"completed","progress":100,"payload":{"title":"report"},"result":{"file":"mock.pdf"},"errorMessage":null,"attemptsMade":1,"maxAttempts":3,"triggerType":"manual","startedAt":"...","finishedAt":"...","createdAt":"..."}
 ```
 
 ### 7.4 服务端事件源
@@ -347,8 +349,8 @@ SSE controller 流程：
 
 ### 7.6 前端缓存与关闭规则
 
-1. 收到 `job.snapshot`、`job.updated` 或任一终态事件时，解析 `data` 为完整 `IJobRun`，按整份对象替换详情缓存；不做字段级合并。
-2. 详情缓存更新后，调用既有 `syncJobToJobsListCache` 更新已缓存且包含该任务的列表页；任务不再符合当前筛选条件时沿用该函数移除它。
+1. 收到 `job.snapshot`、`job.updated` 或任一终态事件时，将服务端完整 `IJobRunView` 的 JSON `data` 解析为前端完整 `IJobRun`，按整份对象替换详情缓存；不做字段级合并。
+2. 详情缓存更新后，调用既有 `syncJobToJobsListCache` 更新已缓存且包含该任务的列表页；任务尚未在列表中但已符合筛选条件时，仅失效对应精确查询，以保留分页和排序契约；任务不再符合当前筛选条件时从缓存移除。
 3. `job.completed`、`job.failed`、`job.cancelled` 三种事件更新缓存后立即调用订阅的 `close()`；这属于正常完成，不展示连接错误。
 4. 切换刷新模式或卸载详情面板时必须关闭全部 SSE 订阅。切换任务仅更新详情展示目标，其他已跟踪且未终态任务的订阅继续运行；手动关闭后不得再次发起重连。
 5. 不可恢复连接错误、JSON 解析失败或最大重试次数耗尽时保留最后一份任务快照，并由详情面板展示错误与“重试”操作；重试仅重建 SSE 订阅。

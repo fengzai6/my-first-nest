@@ -26,15 +26,22 @@ export const useJobSse = (
     enabled: false,
   });
 
-  const handleConnectionState = useEffectEvent((streamJobId: string, nextState: SseState) => {
-    if (streamJobId !== jobId) return;
-    setConnectionState(nextState);
-  });
+  const handleConnectionState = useEffectEvent(
+    (streamJobId: string, nextState: SseState) => {
+      if (streamJobId !== jobId) return;
+      setConnectionState(nextState);
+      if (nextState === "open") {
+        setError(null);
+      }
+    },
+  );
 
-  const handleError = useEffectEvent((streamJobId: string, nextError: Error) => {
-    if (streamJobId !== jobId) return;
-    setError(nextError);
-  });
+  const handleError = useEffectEvent(
+    (streamJobId: string, nextError: Error) => {
+      if (streamJobId !== jobId) return;
+      setError(nextError);
+    },
+  );
 
   const handleEventReceived = useEffectEvent((streamJobId: string) => {
     if (streamJobId !== jobId) return;
@@ -64,8 +71,7 @@ export const useJobSse = (
     const manager = createJobSseSubscriptionManager({
       queryClient,
       createCallbacks: (streamJobId) => ({
-        onConnectionState: (state) =>
-          handleConnectionState(streamJobId, state),
+        onConnectionState: (state) => handleConnectionState(streamJobId, state),
         onError: (nextError) => handleError(streamJobId, nextError),
         onEventReceived: () => handleEventReceived(streamJobId),
         onTerminal: () => onTerminal?.(streamJobId),

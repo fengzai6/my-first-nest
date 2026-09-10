@@ -5,11 +5,16 @@ import {
   type ServerResponse,
 } from "node:http";
 import type { AddressInfo } from "node:net";
-import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
+import {
+  AxiosError,
+  AxiosHeaders,
+  type InternalAxiosRequestConfig,
+} from "axios";
 import type { HttpClientInstance } from "fzkit/http-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const refreshTokenMock = vi.hoisted(() => vi.fn());
+const messageErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../refresh-token", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../refresh-token")>();
@@ -17,6 +22,18 @@ vi.mock("../refresh-token", async (importOriginal) => {
   return {
     ...actual,
     RefreshToken: refreshTokenMock,
+  };
+});
+
+vi.mock("antd", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("antd")>();
+
+  return {
+    ...actual,
+    message: {
+      ...actual.message,
+      error: messageErrorMock,
+    },
   };
 });
 
@@ -30,6 +47,7 @@ interface IAppAssembly {
   http: HttpClientInstance;
   useUserStore: typeof import("@/stores/user").useUserStore;
   handleRefreshAndReconnect: typeof import("../socket-client").handleRefreshAndReconnect;
+  socket: typeof import("../socket-client").socket;
 }
 
 const wait = (ms: number) => {
@@ -65,17 +83,21 @@ const createUnauthorizedError = () => {
 const loadAppAssembly = async (): Promise<IAppAssembly> => {
   vi.resetModules();
 
-  const [{ default: http }, { useUserStore }, { handleRefreshAndReconnect }] =
-    await Promise.all([
-      import("../new-http"),
-      import("@/stores/user"),
-      import("../socket-client"),
-    ]);
+  const [
+    { default: http },
+    { useUserStore },
+    { handleRefreshAndReconnect, socket },
+  ] = await Promise.all([
+    import("../new-http"),
+    import("@/stores/user"),
+    import("../socket-client"),
+  ]);
 
   return {
     http: http as HttpClientInstance,
     useUserStore,
     handleRefreshAndReconnect,
+    socket,
   };
 };
 
@@ -130,6 +152,11 @@ describe("new-http fzkit 业务装配", () => {
       return;
     }
 
+    if (url.pathname === "/error") {
+      writeJson(response, 500, { message: "internal server error" });
+      return;
+    }
+
     if (url.pathname === "/dedupe") {
       dedupeRequestCount += 1;
       await dedupeGate;
@@ -178,6 +205,7 @@ describe("new-http fzkit 业务装配", () => {
     sseRequestCount = 0;
     sseRequests = [];
     refreshTokenMock.mockReset();
+    messageErrorMock.mockReset();
 
     server = createServer((request, response) => {
       void handleRequest(request, response);
@@ -292,6 +320,29 @@ describe("new-http fzkit 业务装配", () => {
     expect(logout).not.toHaveBeenCalled();
   });
 
+  it("HTTP 错误日志仅记录脱敏字段", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const { http } = await loadAppAssembly();
+      http.defaults.baseURL = serverUrl;
+
+      await expect(http.get("/error")).rejects.toMatchObject({
+        response: { status: 500 },
+      });
+
+      expect(consoleError).toHaveBeenCalledWith(
+        "HTTP Error:",
+        expect.objectContaining({ message: expect.any(String) }),
+      );
+      expect(consoleError.mock.calls.at(-1)?.[1]).not.toHaveProperty("config");
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("合并相同的并发 GET 请求", async () => {
     const { http, useUserStore } = await loadAppAssembly();
     http.defaults.baseURL = serverUrl;
@@ -355,8 +406,10 @@ describe("new-http fzkit 业务装配", () => {
   });
 
   it("HTTP 401 与 socket 并发刷新只走一次 RefreshToken", async () => {
-    const { http, useUserStore, handleRefreshAndReconnect } =
+    const { http, useUserStore, handleRefreshAndReconnect, socket } =
       await loadAppAssembly();
+    const disconnect = vi.spyOn(socket, "disconnect").mockReturnValue(socket);
+    const connect = vi.spyOn(socket, "connect").mockReturnValue(socket);
     http.defaults.baseURL = serverUrl;
     useUserStore.getState().setJwtToken({
       accessToken: "old-access-token",
@@ -387,11 +440,16 @@ describe("new-http fzkit 业务装配", () => {
     expect(useUserStore.getState().jwtToken?.accessToken).toBe(
       "new-access-token",
     );
+    expect(socket.auth).toEqual({ token: "new-access-token" });
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(connect).toHaveBeenCalledTimes(1);
   });
 
   it("HTTP 刷新完成后，冷却期内 socket 不再打 RefreshToken", async () => {
-    const { http, useUserStore, handleRefreshAndReconnect } =
+    const { http, useUserStore, handleRefreshAndReconnect, socket } =
       await loadAppAssembly();
+    const disconnect = vi.spyOn(socket, "disconnect").mockReturnValue(socket);
+    const connect = vi.spyOn(socket, "connect").mockReturnValue(socket);
     http.defaults.baseURL = serverUrl;
     useUserStore.getState().setJwtToken({
       accessToken: "old-access-token",
@@ -416,5 +474,8 @@ describe("new-http fzkit 业务装配", () => {
     expect(useUserStore.getState().jwtToken?.accessToken).toBe(
       "new-access-token",
     );
+    expect(socket.auth).toEqual({ token: "new-access-token" });
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(connect).toHaveBeenCalledTimes(1);
   });
 });

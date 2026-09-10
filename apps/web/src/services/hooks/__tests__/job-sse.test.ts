@@ -15,15 +15,9 @@ vi.mock("@/services/api/new-http", () => ({
   default: { sse },
 }));
 
-import {
-  createJobSseSubscriptionManager,
-  subscribeToJobSse,
-} from "../job-sse";
+import { createJobSseSubscriptionManager, subscribeToJobSse } from "../job-sse";
 import { getJobDetailQueryKey } from "../use-job-polling";
-import {
-  JOBS_LIST_QUERY_KEY,
-  type IJobsListQueryKey,
-} from "../use-jobs-list";
+import { JOBS_LIST_QUERY_KEY, type IJobsListQueryKey } from "../use-jobs-list";
 
 const createJob = (overrides: Partial<IJobRun> = {}): IJobRun => ({
   id: "job-1",
@@ -177,7 +171,9 @@ describe("subscribeToJobSse", () => {
     manager.sync(["job-1"]);
     manager.sync(["job-1", "job-2"]);
 
-    expect(subscriptionsByUrl.get("/jobs/job-1/events")?.close).not.toHaveBeenCalled();
+    expect(
+      subscriptionsByUrl.get("/jobs/job-1/events")?.close,
+    ).not.toHaveBeenCalled();
     expect(sse).toHaveBeenCalledTimes(2);
 
     await optionsByUrl.get("/jobs/job-1/events")?.onMessage?.({
@@ -198,8 +194,12 @@ describe("subscribeToJobSse", () => {
 
     manager.close();
 
-    expect(subscriptionsByUrl.get("/jobs/job-1/events")?.close).toHaveBeenCalledTimes(1);
-    expect(subscriptionsByUrl.get("/jobs/job-2/events")?.close).toHaveBeenCalledTimes(1);
+    expect(
+      subscriptionsByUrl.get("/jobs/job-1/events")?.close,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      subscriptionsByUrl.get("/jobs/job-2/events")?.close,
+    ).toHaveBeenCalledTimes(1);
   });
 
   it("移除跟踪任务时只关闭对应流并保留其他任务流", async () => {
@@ -234,8 +234,12 @@ describe("subscribeToJobSse", () => {
     manager.sync(["job-1", "job-2"]);
     manager.sync(["job-2"]);
 
-    expect(subscriptionsByUrl.get("/jobs/job-1/events")?.close).toHaveBeenCalledTimes(1);
-    expect(subscriptionsByUrl.get("/jobs/job-2/events")?.close).not.toHaveBeenCalled();
+    expect(
+      subscriptionsByUrl.get("/jobs/job-1/events")?.close,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      subscriptionsByUrl.get("/jobs/job-2/events")?.close,
+    ).not.toHaveBeenCalled();
 
     await optionsByUrl.get("/jobs/job-2/events")?.onMessage?.({
       event: JOB_SSE_EVENT.UPDATED,
@@ -372,6 +376,35 @@ describe("subscribeToJobSse", () => {
     expect(subscription.close).toHaveBeenCalledTimes(1);
   });
 
+  it("事件任务 ID 与订阅不匹配时拒绝写入并关闭订阅", async () => {
+    const onError = vi.fn();
+    const mismatchedJob = createJob({
+      id: "job-2",
+      status: JOB_STATUS.ACTIVE,
+      progress: 50,
+    });
+
+    subscribeToJobSse({
+      jobId: "job-1",
+      enabled: true,
+      queryClient,
+      onConnectionState: vi.fn(),
+      onError,
+      onEventReceived: vi.fn(),
+    });
+
+    await sseOptions?.onMessage?.({
+      event: JOB_SSE_EVENT.UPDATED,
+      data: JSON.stringify(mismatchedJob),
+    });
+
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    expect(subscription.close).toHaveBeenCalledTimes(1);
+    expect(
+      queryClient.getQueryData(getJobDetailQueryKey("job-1")),
+    ).toBeUndefined();
+  });
+
   it("重试耗尽时写入可展示的订阅错误", async () => {
     const onError = vi.fn();
 
@@ -412,5 +445,25 @@ describe("subscribeToJobSse", () => {
 
     expect(onConnectionState).toHaveBeenNthCalledWith(1, "open");
     expect(onConnectionState).toHaveBeenNthCalledWith(2, "retrying");
+  });
+
+  it("连接重新打开后可以继续上报错误", async () => {
+    const onError = vi.fn();
+
+    subscribeToJobSse({
+      jobId: "job-1",
+      enabled: true,
+      queryClient,
+      onConnectionState: vi.fn(),
+      onError,
+      onEventReceived: vi.fn(),
+    });
+
+    await sseOptions?.onError?.(new Error("first"));
+    await sseOptions?.onOpen?.(new Response());
+    await sseOptions?.onError?.(new Error("second"));
+
+    expect(onError).toHaveBeenNthCalledWith(1, new Error("first"));
+    expect(onError).toHaveBeenNthCalledWith(2, new Error("second"));
   });
 });

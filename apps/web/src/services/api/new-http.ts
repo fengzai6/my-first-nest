@@ -45,7 +45,9 @@ const newHttp = createHttpClient({
   },
   onError: (error) => {
     message.error(`HTTP Error: ${error.message || "请求失败"}`);
-    console.error("HTTP Error:", error);
+    console.error("HTTP Error:", {
+      message: error.message,
+    });
   },
   skipRefreshUrls: NO_AUTO_REFRESH_API_LIST,
   errorMessages: {
