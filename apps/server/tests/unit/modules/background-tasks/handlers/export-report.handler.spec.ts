@@ -1,4 +1,7 @@
-import { ExportReportHandler } from '@/modules/background-tasks/handlers/export-report.handler';
+import {
+  ExportReportHandler,
+  IExportReportPayload,
+} from '@/modules/background-tasks/handlers/export-report.handler';
 import { JOB_NAMES } from '@/shared/jobs/constants/job.constants';
 import { JobRegistryService } from '@/shared/jobs/registry/job-registry.service';
 import { IJobContext } from '@/shared/jobs/types/job.types';
@@ -23,7 +26,7 @@ describe('ExportReportHandler', () => {
     expect(handler.name).toBe(JOB_NAMES.EXPORT_REPORT);
 
     const updateProgress = vi.fn(() => Promise.resolve());
-    const ctx: IJobContext = {
+    const ctx: IJobContext<IExportReportPayload> = {
       jobId: 'job-1',
       name: JOB_NAMES.EXPORT_REPORT,
       payload: { title: 'report', steps: 2, stepDelayMs: 100 },

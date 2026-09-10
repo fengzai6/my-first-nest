@@ -56,24 +56,38 @@ export class CacheService {
     const separator = redisStore.keyPrefixSeparator;
     const formatKey = (key: string) =>
       namespace ? `${namespace}${separator}${key}` : key;
+    const ttlMs = ttlSeconds * 1000;
+    const serializedValue = JSON.stringify({
+      value: expectedValue,
+      ...(ttlMs > 0 ? { expires: Date.now() + ttlMs } : {}),
+    });
 
     const result = await client.eval(
       `
-        if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+        local raw = redis.call("GET", KEYS[1])
+        if not raw then
           return 0
         end
 
+        -- Keyv 存的是 {"value":"...","expires":...}，也兼容历史裸字符串
+        if raw ~= ARGV[1] then
+          local ok, data = pcall(cjson.decode, raw)
+          if (not ok) or data["value"] ~= ARGV[1] then
+            return 0
+          end
+        end
+
         redis.call("DEL", KEYS[1])
-        if tonumber(ARGV[2]) > 0 then
-          redis.call("SET", KEYS[2], ARGV[1], "PX", ARGV[2])
+        if tonumber(ARGV[3]) > 0 then
+          redis.call("SET", KEYS[2], ARGV[2], "PX", ARGV[3])
         else
-          redis.call("SET", KEYS[2], ARGV[1])
+          redis.call("SET", KEYS[2], ARGV[2])
         end
         return 1
       `,
       {
         keys: [formatKey(oldKey), formatKey(newKey)],
-        arguments: [expectedValue, String(ttlSeconds * 1000)],
+        arguments: [expectedValue, serializedValue, String(ttlMs)],
       },
     );
 

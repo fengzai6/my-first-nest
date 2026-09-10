@@ -26,6 +26,25 @@ export const JOB_NAMES = {
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES];
 
+export const JOB_REFRESH_MODE = {
+  POLLING: "polling",
+  SSE: "sse",
+} as const;
+
+export type JobRefreshMode =
+  (typeof JOB_REFRESH_MODE)[keyof typeof JOB_REFRESH_MODE];
+
+export const JOB_SSE_EVENT = {
+  SNAPSHOT: "job.snapshot",
+  UPDATED: "job.updated",
+  COMPLETED: "job.completed",
+  FAILED: "job.failed",
+  CANCELLED: "job.cancelled",
+} as const;
+
+export type JobSseEventName =
+  (typeof JOB_SSE_EVENT)[keyof typeof JOB_SSE_EVENT];
+
 export const JOB_TERMINAL_STATUSES: readonly JobStatus[] = [
   JOB_STATUS.COMPLETED,
   JOB_STATUS.FAILED,

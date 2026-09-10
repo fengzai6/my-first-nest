@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.test.ts", "src/**/*.spec.ts", "src/vite-env.d.ts"],
+  "exclude": []
+}

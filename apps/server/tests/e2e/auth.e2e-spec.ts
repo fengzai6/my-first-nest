@@ -2,6 +2,11 @@ import { TestHelper } from './helpers/test-helper';
 import request from 'supertest';
 import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
 
+const getSetCookieHeaders = (headers: Record<string, string | string[]>) => {
+  const setCookie = headers['set-cookie'];
+  return Array.isArray(setCookie) ? setCookie : [];
+};
+
 describe('Auth (e2e)', () => {
   let helper: TestHelper;
 
@@ -83,8 +88,7 @@ describe('Auth (e2e)', () => {
       expect(res.body).toHaveProperty('expiresAt');
 
       // should set refreshToken cookie
-      const cookies = res.headers['set-cookie'] as string[];
-      expect(cookies).toBeDefined();
+      const cookies = getSetCookieHeaders(res.headers);
       expect(cookies.some((c) => c.startsWith('refreshToken='))).toBe(true);
     });
 
@@ -121,8 +125,7 @@ describe('Auth (e2e)', () => {
       expect(res.body).toHaveProperty('expiresAt');
 
       // should set new refreshToken cookie
-      const cookies = res.headers['set-cookie'] as string[];
-      expect(cookies).toBeDefined();
+      const cookies = getSetCookieHeaders(res.headers);
       expect(cookies.some((c) => c.startsWith('refreshToken='))).toBe(true);
     });
 
@@ -153,8 +156,7 @@ describe('Auth (e2e)', () => {
       expect(res.body.message).toBe('Logout successfully');
 
       // should clear refreshToken cookie
-      const cookies = res.headers['set-cookie'] as string[];
-      expect(cookies).toBeDefined();
+      const cookies = getSetCookieHeaders(res.headers);
       expect(cookies.some((c) => c.includes('refreshToken=;'))).toBe(true);
     });
   });

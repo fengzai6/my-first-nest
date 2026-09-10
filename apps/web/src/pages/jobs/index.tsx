@@ -14,8 +14,15 @@ import type {
   ISubmitFlakyRetryDto,
 } from "@/services/dtos/job";
 import { useJobPolling } from "@/services/hooks/use-job-polling";
+import { useJobSse } from "@/services/hooks/use-job-sse";
 import { useJobsList } from "@/services/hooks/use-jobs-list";
-import type { IJobRun, JobStatus } from "@/services/types/job";
+import {
+  JOB_REFRESH_MODE,
+  JOB_TERMINAL_STATUSES,
+  type IJobRun,
+  type JobRefreshMode,
+  type JobStatus,
+} from "@/services/types/job";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Card, message } from "antd";
 import { useState } from "react";
@@ -27,6 +34,10 @@ export const Jobs = () => {
   const [pageSize, setPageSize] = useState(10);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [cancellingJobId, setCancellingJobId] = useState<string | null>(null);
+  const [sseJobIds, setSseJobIds] = useState<string[]>([]);
+  const [refreshMode, setRefreshMode] = useState<JobRefreshMode>(
+    JOB_REFRESH_MODE.SSE,
+  );
 
   const queryClient = useQueryClient();
 
@@ -36,10 +47,30 @@ export const Jobs = () => {
     name: name || undefined,
     status,
   });
-  const jobDetailQuery = useJobPolling(selectedJobId);
+  const pollingDetailQuery = useJobPolling(
+    selectedJobId,
+    refreshMode === JOB_REFRESH_MODE.POLLING,
+  );
+  const sseDetailQuery = useJobSse(
+    selectedJobId,
+    sseJobIds,
+    refreshMode === JOB_REFRESH_MODE.SSE,
+    (jobId) => {
+      setSseJobIds((jobIds) => jobIds.filter((id) => id !== jobId));
+    },
+  );
+
+  const trackJobSse = (job: IJobRun) => {
+    if (JOB_TERMINAL_STATUSES.includes(job.status)) return;
+
+    setSseJobIds((jobIds) =>
+      jobIds.includes(job.id) ? jobIds : [...jobIds, job.id],
+    );
+  };
 
   const handleJobSubmitted = (job: IJobRun) => {
     message.success("任务已提交");
+    trackJobSse(job);
     setSelectedJobId(job.id);
     queryClient.invalidateQueries({ queryKey: ["jobs"] });
   };
@@ -109,20 +140,24 @@ export const Jobs = () => {
     flakyRetryMutation.mutate(data);
   };
 
+  const isSseMode = refreshMode === JOB_REFRESH_MODE.SSE;
+  const jobDetailQuery = isSseMode ? sseDetailQuery : pollingDetailQuery;
+
+  const handleDetailRetry = () => {
+    if (isSseMode) {
+      sseDetailQuery.retry();
+      return;
+    }
+
+    void pollingDetailQuery.refetch();
+  };
+
   return (
     <div className="p-6">
       <JobsPageHeader
         loading={jobsQuery.isFetching}
         onRefresh={() => jobsQuery.refetch()}
         onOpenBoard={handleOpenBoard}
-      />
-
-      <Alert
-        type="info"
-        showIcon
-        className="mb-4"
-        message="轮询与 SSE 是两种学习示例"
-        description="本期前端任务详情使用 GET /api/jobs/:id 轮询；服务端已提供 SSE 事件接口供单独验证，后续再接入前端切换。"
       />
 
       {jobsQuery.isError && (
@@ -168,7 +203,10 @@ export const Jobs = () => {
             loading={jobsQuery.isLoading}
             selectedJobId={selectedJobId}
             cancellingJobId={cancellingJobId}
-            onSelectJob={(job) => setSelectedJobId(job.id)}
+            onSelectJob={(job) => {
+              trackJobSse(job);
+              setSelectedJobId(job.id);
+            }}
             onCancelJob={(job) => cancelMutation.mutate(job.id)}
             onPaginationChange={(nextPage, nextPageSize) => {
               setPage(nextPage);
@@ -184,7 +222,11 @@ export const Jobs = () => {
           loading={jobDetailQuery.isLoading}
           isFetching={jobDetailQuery.isFetching}
           error={jobDetailQuery.error}
-          onRetry={() => jobDetailQuery.refetch()}
+          refreshMode={refreshMode}
+          connectionState={sseDetailQuery.connectionState}
+          lastEventAt={sseDetailQuery.lastEventAt}
+          onRefreshModeChange={setRefreshMode}
+          onRetry={handleDetailRetry}
         />
       </div>
     </div>

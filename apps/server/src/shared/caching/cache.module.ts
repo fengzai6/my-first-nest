@@ -60,7 +60,14 @@ const buildRedisUrl = (redis: {
         });
 
         return {
-          stores: [new Keyv({ store: keyvRedis, namespace: redis.keyPrefix })],
+          // KeyvRedis 自己会加 namespace::，这里再开 useKeyPrefix 会变成 prefix:prefix::key
+          stores: [
+            new Keyv({
+              store: keyvRedis,
+              namespace: redis.keyPrefix,
+              useKeyPrefix: false,
+            }),
+          ],
           ttl,
         };
       },

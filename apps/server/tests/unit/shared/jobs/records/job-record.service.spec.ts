@@ -5,7 +5,10 @@ import {
 } from '@/shared/jobs/constants/job.constants';
 import { JobRun } from '@/shared/jobs/records/entities/job-run.entity';
 import { JobRecordService } from '@/shared/jobs/records/job-record.service';
+import type { IJobSseEvent } from '@/shared/jobs/types/job.types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+type JobEventInput = Omit<IJobSseEvent, 'id'>;
 
 const createRun = (overrides: Partial<JobRun> = {}) => {
   const run = new JobRun();
@@ -52,7 +55,7 @@ const createService = () => {
     findAndCount: vi.fn(),
   };
   const events = {
-    publish: vi.fn(),
+    publish: vi.fn<(event: JobEventInput) => void>(),
   };
 
   const service = new JobRecordService(repository as never, events as never);
@@ -117,13 +120,14 @@ describe('JobRecordService', () => {
 
     await service.updateProgress('job-1', 60);
 
-    expect(events.publish).toHaveBeenCalledWith({
+    const [publishedEvent] = events.publish.mock.calls[0];
+    expect(publishedEvent).toMatchObject({
       event: 'job.updated',
-      data: expect.objectContaining({
+      data: {
         id: 'job-1',
         status: JOB_STATUS.ACTIVE,
         progress: 60,
-      }),
+      },
     });
   });
 
@@ -168,13 +172,14 @@ describe('JobRecordService', () => {
     expect(run.attemptsMade).toBe(3);
     expect(run.errorMessage).toBeNull();
     expect(run.finishedAt).toBeInstanceOf(Date);
-    expect(events.publish).toHaveBeenCalledWith({
+    const [publishedEvent] = events.publish.mock.calls[0];
+    expect(publishedEvent).toMatchObject({
       event: 'job.completed',
-      data: expect.objectContaining({
+      data: {
         id: 'job-1',
         status: JOB_STATUS.COMPLETED,
         progress: 100,
-      }),
+      },
     });
   });
 
@@ -196,12 +201,13 @@ describe('JobRecordService', () => {
         finishedAt: expect.any(Date) as Date,
       }),
     );
-    expect(events.publish).toHaveBeenCalledWith({
+    const [publishedEvent] = events.publish.mock.calls[0];
+    expect(publishedEvent).toMatchObject({
       event: 'job.failed',
-      data: expect.objectContaining({
+      data: {
         id: 'job-1',
         status: JOB_STATUS.FAILED,
-      }),
+      },
     });
   });
 
@@ -218,13 +224,14 @@ describe('JobRecordService', () => {
       attemptsMade: 1,
       errorMessage: 'temp fail',
     });
-    expect(events.publish).toHaveBeenCalledWith({
+    const [publishedEvent] = events.publish.mock.calls[0];
+    expect(publishedEvent).toMatchObject({
       event: 'job.updated',
-      data: expect.objectContaining({
+      data: {
         id: 'job-1',
         status: JOB_STATUS.QUEUED,
         attemptsMade: 1,
-      }),
+      },
     });
   });
 
@@ -238,12 +245,13 @@ describe('JobRecordService', () => {
 
     await service.markCancelledIfCancellable('job-1');
 
-    expect(events.publish).toHaveBeenCalledWith({
+    const [publishedEvent] = events.publish.mock.calls[0];
+    expect(publishedEvent).toMatchObject({
       event: 'job.cancelled',
-      data: expect.objectContaining({
+      data: {
         id: 'job-1',
         status: JOB_STATUS.CANCELLED,
-      }),
+      },
     });
   });
 

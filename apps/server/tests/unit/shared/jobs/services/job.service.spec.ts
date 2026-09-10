@@ -126,7 +126,7 @@ describe('JobService', () => {
         payload: { title: 'report' },
       },
       expect.objectContaining({
-        jobId: 'job-1',
+        jobId: 'job-job-1',
         attempts: 1,
       }),
     );
@@ -157,6 +157,23 @@ describe('JobService', () => {
     expect(queue.enqueue).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({ delayMs: 5000 }),
+    );
+  });
+
+  it('should prefix numeric record id when using it as BullMQ custom job id', async () => {
+    const { service, registry, records, queue } = createService();
+    const run = createRun({ id: '42' });
+
+    registry.has.mockReturnValue(true);
+    records.createQueued.mockResolvedValue(run);
+    queue.enqueue.mockResolvedValue({ id: 'job-42' });
+    records.getViewOrFail.mockResolvedValue(createView({ id: '42' }));
+
+    await service.submit({ name: 'export-report' });
+
+    expect(queue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId: '42' }),
+      expect.objectContaining({ jobId: 'job-42' }),
     );
   });
 

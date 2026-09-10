@@ -12,6 +12,7 @@
     "start": "nest start",
     "start:debug": "nest start --debug --watch",
     "start:prod": "cross-env NODE_ENV=production node dist/src/main",
+    "type-check": "tsc -b",
     "migration:generate": "ts-node database/migration.ts generate",
     "migration:revert": "ts-node database/migration.ts revert",
     "db:init": "ts-node -r tsconfig-paths/register database/manage.ts init",

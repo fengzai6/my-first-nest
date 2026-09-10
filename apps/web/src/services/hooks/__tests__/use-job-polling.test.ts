@@ -10,7 +10,7 @@ import {
   type IJobsPage,
 } from "@/services/types/job";
 import { QueryClient } from "@tanstack/react-query";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const createJob = (overrides: Partial<IJobRun> = {}): IJobRun => ({
   id: "job-1",
@@ -82,6 +82,35 @@ describe("syncJobToJobsListCache", () => {
     expect(queryClient.getQueryData<IJobsPage>(listQueryKey)).toEqual(page);
   });
 
+  it("任务进入当前筛选条件时失效对应列表查询", () => {
+    const queryClient = new QueryClient();
+    const listQueryKey: IJobsListQueryKey = [
+      ...JOBS_LIST_QUERY_KEY,
+      { page: 1, pageSize: 10, status: JOB_STATUS.ACTIVE },
+    ];
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
+
+    queryClient.setQueryData<IJobsPage>(listQueryKey, {
+      list: [createJob({ id: "job-2" })],
+      total: 1,
+      page: 1,
+      pageSize: 10,
+    });
+
+    syncJobToJobsListCache(
+      queryClient,
+      createJob({
+        status: JOB_STATUS.ACTIVE,
+        progress: 45,
+      }),
+    );
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: listQueryKey,
+      exact: true,
+    });
+  });
+
   it("任务离开当前筛选条件时从该列表缓存移除", () => {
     const queryClient = new QueryClient();
     const queuedListQueryKey: IJobsListQueryKey = [
@@ -114,9 +143,7 @@ describe("syncJobToJobsListCache", () => {
 
     syncJobToJobsListCache(queryClient, activeJob);
 
-    expect(
-      queryClient.getQueryData<IJobsPage>(queuedListQueryKey),
-    ).toEqual({
+    expect(queryClient.getQueryData<IJobsPage>(queuedListQueryKey)).toEqual({
       list: [],
       total: 0,
       page: 1,
