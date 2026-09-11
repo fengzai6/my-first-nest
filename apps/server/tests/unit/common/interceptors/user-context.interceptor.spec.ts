@@ -2,6 +2,10 @@ import {
   useRequestUser,
   userContextStorage,
 } from '@/common/context/user-context';
+import {
+  requestContextStorage,
+  type IRequestContext,
+} from '@/common/context/request-context';
 import { UserContextInterceptor } from '@/common/interceptors/user-context.interceptor';
 import { User } from '@/modules/users/entities/user.entity';
 import { CallHandler, ExecutionContext } from '@nestjs/common';
@@ -26,10 +30,20 @@ describe('UserContextInterceptor', () => {
     const next = {
       handle: () => of(useRequestUser().id),
     } as CallHandler;
+    const requestContext: IRequestContext = {
+      requestId: 'request-id',
+      startedAt: 0,
+      method: 'GET',
+      url: '/api/cats',
+      ip: '127.0.0.1',
+    };
 
-    await expect(
-      firstValueFrom(interceptor.intercept(context, next)),
-    ).resolves.toBe('user-id');
+    await requestContextStorage.run(requestContext, async () => {
+      await expect(
+        firstValueFrom(interceptor.intercept(context, next)),
+      ).resolves.toBe('user-id');
+      expect(requestContextStorage.getStore()?.userId).toBe('user-id');
+    });
   });
 
   it('should not leak user context after observable completes', async () => {
@@ -43,8 +57,17 @@ describe('UserContextInterceptor', () => {
     const next = {
       handle: () => of(useRequestUser().id),
     } as CallHandler;
+    const requestContext: IRequestContext = {
+      requestId: 'request-id',
+      startedAt: 0,
+      method: 'GET',
+      url: '/api/cats',
+      ip: '127.0.0.1',
+    };
 
-    await firstValueFrom(interceptor.intercept(context, next));
+    await requestContextStorage.run(requestContext, async () => {
+      await firstValueFrom(interceptor.intercept(context, next));
+    });
 
     expect(userContextStorage.getStore()).toBeUndefined();
   });

@@ -4,6 +4,8 @@ import { SocketGateway } from '@/modules/socket/socket.gateway';
 import { SocketService } from '@/modules/socket/socket.service';
 import { User } from '@/modules/users/entities/user.entity';
 import { UsersService } from '@/modules/users/users.service';
+import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
+import type { ILogWriteOptions } from '@/shared/log/interfaces/log.interface';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
@@ -128,11 +130,20 @@ const createGateway = () => {
   const usersService: MockUsersService = {
     findOne: vi.fn(() => Promise.resolve(createUser({ nickname: 'Feng' }))),
   };
+  const logger = {
+    log: vi.fn<(message: string, options: ILogWriteOptions) => void>(),
+    warn: vi.fn<(message: string, options: ILogWriteOptions) => void>(),
+    error:
+      vi.fn<
+        (message: string, error?: unknown, options?: ILogWriteOptions) => void
+      >(),
+  };
   const gateway = new SocketGateway(
     socketService as unknown as SocketService,
     jwtService as unknown as JwtService,
     createConfigService(),
     usersService as unknown as UsersService,
+    logger as never,
   );
   const serverEmit = vi.fn();
   const server = {
@@ -144,6 +155,7 @@ const createGateway = () => {
   return {
     gateway,
     jwtService,
+    logger,
     server,
     serverEmit,
     socketService,
@@ -163,7 +175,7 @@ describe('SocketGateway', () => {
   });
 
   it('should authenticate socket connection and notify clients', async () => {
-    const { gateway, socketService } = createGateway();
+    const { gateway, logger, socketService } = createGateway();
     const { broadcastEmit, client, emit } = createSocket();
 
     await gateway.handleConnection(client);
@@ -182,6 +194,17 @@ describe('SocketGateway', () => {
       userId: 'user-id',
       username: 'fengzai',
     });
+    expect(logger.log).toHaveBeenCalledWith(
+      'Socket client connected',
+      expect.objectContaining({
+        category: LOG_CATEGORY.SOCKET,
+        context: {
+          socketId: 'socket-id',
+          userId: 'user-id',
+          username: 'fengzai',
+        },
+      }),
+    );
   });
 
   it('should reject connection without token', async () => {
@@ -227,7 +250,7 @@ describe('SocketGateway', () => {
   });
 
   it('should join room for authenticated user', async () => {
-    const { gateway } = createGateway();
+    const { gateway, logger } = createGateway();
     const user = createUser();
     const { client, emit, join, roomEmit } = createSocket({ user });
 
@@ -243,6 +266,10 @@ describe('SocketGateway', () => {
       username: 'fengzai',
     });
     expect(result).toEqual({ success: true });
+    expect(logger.log).toHaveBeenCalledWith(
+      'Socket room joined',
+      expect.objectContaining({ category: LOG_CATEGORY.SOCKET }),
+    );
   });
 
   it('should reject room action without authenticated user', async () => {
@@ -320,7 +347,7 @@ describe('SocketGateway', () => {
   });
 
   it('should reject connection when JWT verification throws', async () => {
-    const { gateway, jwtService } = createGateway();
+    const { gateway, jwtService, logger } = createGateway();
     const { client, disconnect, emit } = createSocket();
 
     jwtService.verify.mockImplementation(() => {
@@ -334,6 +361,16 @@ describe('SocketGateway', () => {
       message: 'Invalid token',
     });
     expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Socket authentication failed',
+      expect.objectContaining({
+        category: LOG_CATEGORY.SOCKET,
+        context: {
+          socketId: 'socket-id',
+          reason: 'jwt malformed',
+        },
+      }),
+    );
   });
 
   it('should reject connection when JWT throws non-Error', async () => {
@@ -365,7 +402,7 @@ describe('SocketGateway', () => {
   });
 
   it('should leave room for authenticated user', async () => {
-    const { gateway } = createGateway();
+    const { gateway, logger } = createGateway();
     const user = createUser();
     const { client, emit, leave, roomEmit } = createSocket({ user });
 
@@ -379,6 +416,10 @@ describe('SocketGateway', () => {
       username: 'fengzai',
     });
     expect(result).toEqual({ success: true });
+    expect(logger.log).toHaveBeenCalledWith(
+      'Socket room left',
+      expect.objectContaining({ category: LOG_CATEGORY.SOCKET }),
+    );
   });
 
   it('should reject leave room without authenticated user', async () => {

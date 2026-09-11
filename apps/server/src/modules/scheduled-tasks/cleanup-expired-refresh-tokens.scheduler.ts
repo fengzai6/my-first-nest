@@ -3,7 +3,9 @@ import {
   JOB_TRIGGER_TYPE,
 } from '@/shared/jobs/constants/job.constants';
 import { JobService } from '@/shared/jobs/services/job.service';
-import { Injectable, Logger } from '@nestjs/common';
+import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
+import { LoggerService } from '@/shared/log/logger.service';
+import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 /**
@@ -12,11 +14,10 @@ import { Cron, CronExpression } from '@nestjs/schedule';
  */
 @Injectable()
 export class CleanupExpiredRefreshTokensScheduler {
-  private readonly logger = new Logger(
-    CleanupExpiredRefreshTokensScheduler.name,
-  );
-
-  constructor(private readonly jobService: JobService) {}
+  constructor(
+    private readonly jobService: JobService,
+    private readonly logger: LoggerService,
+  ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_1AM)
   async handleCleanup() {
@@ -28,8 +29,9 @@ export class CleanupExpiredRefreshTokensScheduler {
       triggerType: JOB_TRIGGER_TYPE.CRON,
     });
 
-    this.logger.log(
-      `[scheduled-tasks] enqueued cleanup-expired-refresh-tokens jobId=${job.id}`,
-    );
+    this.logger.log('Expired refresh token cleanup enqueued', {
+      category: LOG_CATEGORY.SCHEDULED_TASK,
+      context: { jobId: job.id },
+    });
   }
 }

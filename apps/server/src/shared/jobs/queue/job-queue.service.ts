@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
+import { LoggerService } from '@/shared/log/logger.service';
+import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { JobsOptions, Queue } from 'bullmq';
 import { DEFAULT_JOB_QUEUE } from '../constants/job.constants';
@@ -6,11 +8,10 @@ import { IBullJobData } from '../types/job.types';
 
 @Injectable()
 export class JobQueueService {
-  private readonly logger = new Logger(JobQueueService.name);
-
   constructor(
     @InjectQueue(DEFAULT_JOB_QUEUE)
     private readonly queue: Queue<IBullJobData>,
+    private readonly logger: LoggerService,
   ) {}
 
   async enqueue(
@@ -42,9 +43,14 @@ export class JobQueueService {
     }
 
     const job = await this.queue.add(data.name, data, opts);
-    this.logger.log(
-      `Enqueued job name=${data.name} jobId=${data.jobId} bullJobId=${job.id}`,
-    );
+    this.logger.log('Job enqueued', {
+      category: LOG_CATEGORY.JOB,
+      context: {
+        jobId: data.jobId,
+        name: data.name,
+        bullJobId: job.id ?? null,
+      },
+    });
     return job;
   }
 

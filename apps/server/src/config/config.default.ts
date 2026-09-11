@@ -62,5 +62,16 @@ export const defaultConfig = registerAs(
       // 窗口内最大请求数
       limit: Number(process.env.THROTTLER_LIMIT) || 60,
     },
+    log: {
+      retentionDays: parseNumberEnv(process.env.LOG_RETENTION_DAYS, 30),
+      batchSize: parseNumberEnv(process.env.LOG_BATCH_SIZE, 50),
+      flushIntervalMs: parseNumberEnv(process.env.LOG_FLUSH_INTERVAL_MS, 5000),
+      seq: {
+        enabled: process.env.SEQ_ENABLED === 'true',
+        url: process.env.SEQ_URL,
+        apiKey: process.env.SEQ_API_KEY,
+        timeoutMs: parseNumberEnv(process.env.SEQ_TIMEOUT_MS, 5000),
+      },
+    },
   }),
 );

@@ -42,6 +42,19 @@ export const validationSchema = Joi.object({
   THROTTLER_TTL: Joi.number().integer().min(1000).default(60000),
   THROTTLER_LIMIT: Joi.number().integer().min(1).default(60),
 
+  // Logging
+  LOG_RETENTION_DAYS: Joi.number().integer().min(1).default(30),
+  LOG_BATCH_SIZE: Joi.number().integer().min(1).max(500).default(50),
+  LOG_FLUSH_INTERVAL_MS: Joi.number().integer().min(100).default(5000),
+  SEQ_ENABLED: Joi.boolean().default(false),
+  SEQ_URL: Joi.when('SEQ_ENABLED', {
+    is: true,
+    then: Joi.string().uri().required(),
+    otherwise: Joi.string().uri().optional(),
+  }),
+  SEQ_API_KEY: Joi.string().allow(''),
+  SEQ_TIMEOUT_MS: Joi.number().integer().min(100).default(5000),
+
   // Node Environment
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')

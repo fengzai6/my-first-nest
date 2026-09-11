@@ -2,6 +2,8 @@ import {
   ErrorException,
   ErrorExceptionCode,
 } from '@/common/exceptions/error.exception';
+import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
+import type { ILogWriteOptions } from '@/shared/log/interfaces/log.interface';
 import { JobProcessor } from '@/shared/jobs/queue/job.processor';
 import { JobRecordService } from '@/shared/jobs/records/job-record.service';
 import { JobRegistryService } from '@/shared/jobs/registry/job-registry.service';
@@ -33,13 +35,22 @@ const createProcessor = () => {
     markCompleted: vi.fn(() => Promise.resolve()),
     markAttemptFailure: vi.fn(() => Promise.resolve()),
   };
+  const logger = {
+    log: vi.fn<(message: string, options: ILogWriteOptions) => void>(),
+    warn: vi.fn<(message: string, options: ILogWriteOptions) => void>(),
+    error:
+      vi.fn<
+        (message: string, error?: unknown, options?: ILogWriteOptions) => void
+      >(),
+  };
 
   const processor = new JobProcessor(
     registry as unknown as JobRegistryService,
     records as unknown as JobRecordService,
+    logger as never,
   );
 
-  return { processor, registry, records };
+  return { processor, registry, records, logger };
 };
 
 describe('JobProcessor', () => {
@@ -48,7 +59,7 @@ describe('JobProcessor', () => {
   });
 
   it('should mark active, execute handler and complete', async () => {
-    const { processor, registry, records } = createProcessor();
+    const { processor, registry, records, logger } = createProcessor();
     const handle = vi.fn(async (ctx: IJobContext) => {
       await ctx.updateProgress(50);
       return { ok: true };
@@ -78,10 +89,18 @@ describe('JobProcessor', () => {
       1,
     );
     expect(result).toEqual({ ok: true });
+    expect(logger.log).toHaveBeenCalledWith(
+      'Job processing started',
+      expect.objectContaining({ category: LOG_CATEGORY.JOB }),
+    );
+    expect(logger.log).toHaveBeenCalledWith(
+      'Job processing completed',
+      expect.objectContaining({ category: LOG_CATEGORY.JOB }),
+    );
   });
 
   it('should mark retryable failure and rethrow', async () => {
-    const { processor, registry, records } = createProcessor();
+    const { processor, registry, records, logger } = createProcessor();
     const error = new Error('boom');
     registry.get.mockReturnValue({
       name: 'flaky-retry',
@@ -102,6 +121,11 @@ describe('JobProcessor', () => {
       1,
       error,
       false,
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      'Job processing failed',
+      error,
+      expect.objectContaining({ category: LOG_CATEGORY.JOB }),
     );
   });
 
@@ -157,7 +181,7 @@ describe('JobProcessor', () => {
   });
 
   it('should skip execution when activation loses to cancel', async () => {
-    const { processor, registry, records } = createProcessor();
+    const { processor, registry, records, logger } = createProcessor();
     const handle = vi.fn(() => Promise.resolve({ ok: true }));
     registry.get.mockReturnValue({
       name: 'export-report',
@@ -179,5 +203,9 @@ describe('JobProcessor', () => {
       skipped: true,
       reason: 'not-cancellable-or-already-terminal',
     });
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Job processing skipped',
+      expect.objectContaining({ category: LOG_CATEGORY.JOB }),
+    );
   });
 });

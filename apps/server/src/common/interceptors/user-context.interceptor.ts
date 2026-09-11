@@ -1,3 +1,4 @@
+import { requestContextStorage } from '@/common/context/request-context';
 import { userContextStorage } from '@/common/context/user-context';
 import {
   CallHandler,
@@ -19,6 +20,11 @@ import { Observable } from 'rxjs';
 export class UserContextInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest<Request>();
+    const requestContext = requestContextStorage.getStore();
+
+    if (requestContext) {
+      requestContext.userId = request.user?.id;
+    }
 
     return userContextStorage.run(request.user, () => next.handle());
   }

@@ -1,0 +1,97 @@
+import { requestContextStorage } from '@/common/context/request-context';
+import { generateSnowflakeId } from '@/shared/utils/snowflake';
+import { Injectable } from '@nestjs/common';
+import { toClefLogEvent } from './clef';
+import { LOG_CATEGORY, LOG_LEVEL, LogLevel } from './constants/log.constants';
+import type { ILogEvent, ILogWriteOptions } from './interfaces/log.interface';
+import { LogQueueService } from './log-queue.service';
+
+@Injectable()
+export class LoggerService {
+  constructor(private readonly queue: LogQueueService) {}
+
+  log(message: string, options: ILogWriteOptions = {}): void {
+    this.write(LOG_LEVEL.INFO, message, options);
+  }
+
+  warn(message: string, options: ILogWriteOptions = {}): void {
+    this.write(LOG_LEVEL.WARN, message, options);
+  }
+
+  error(
+    message: string,
+    error?: unknown,
+    options: ILogWriteOptions = {},
+  ): void {
+    this.write(LOG_LEVEL.ERROR, message, {
+      ...options,
+      stack: this.resolveValue(options.stack, this.stringifyError(error)),
+    });
+  }
+
+  debug(message: string, options: ILogWriteOptions = {}): void {
+    this.write(LOG_LEVEL.DEBUG, message, options);
+  }
+
+  private write(
+    level: LogLevel,
+    message: string,
+    options: ILogWriteOptions,
+  ): void {
+    const context = requestContextStorage.getStore();
+    const event: ILogEvent = {
+      id: generateSnowflakeId(),
+      level,
+      category: options.category ?? LOG_CATEGORY.BUSINESS,
+      message,
+      context: options.context ?? null,
+      requestId: this.resolveValue(
+        options.requestId,
+        context?.requestId ?? null,
+      ),
+      userId: this.resolveValue(options.userId, context?.userId ?? null),
+      ip: this.resolveValue(options.ip, context?.ip ?? null),
+      method: this.resolveValue(options.method, context?.method ?? null),
+      url: this.resolveValue(options.url, context?.url ?? null),
+      statusCode: options.statusCode ?? null,
+      duration: options.duration ?? null,
+      stack: options.stack ?? null,
+      timestamp: options.timestamp ?? new Date(),
+    };
+
+    process.stdout.write(`${JSON.stringify(toClefLogEvent(event))}\n`);
+
+    try {
+      this.queue.enqueue(event);
+    } catch (error) {
+      process.stderr.write(
+        `Failed to enqueue log: ${
+          error instanceof Error ? error.message : String(error)
+        }\n`,
+      );
+    }
+  }
+
+  private resolveValue<T>(
+    value: T | null | undefined,
+    fallback: T | null,
+  ): T | null {
+    return value !== undefined ? value : fallback;
+  }
+
+  private stringifyError(error: unknown): string | null {
+    if (error === undefined || error === null) {
+      return null;
+    }
+
+    if (error instanceof Error) {
+      return error.stack ?? error.message;
+    }
+
+    try {
+      return JSON.stringify(error) ?? 'Unserializable error';
+    } catch {
+      return 'Unserializable error';
+    }
+  }
+}

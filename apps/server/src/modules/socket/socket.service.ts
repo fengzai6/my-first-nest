@@ -1,10 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
+import { LoggerService } from '@/shared/log/logger.service';
+import { Injectable } from '@nestjs/common';
 import { Socket } from 'socket.io';
 import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class SocketService {
-  private readonly logger = new Logger(SocketService.name);
+  constructor(private readonly logger: LoggerService) {}
 
   // TODO: 当前使用内存 Map，仅适用于单实例部署。多实例需使用 @socket.io/redis-adapter
   private connectedClients = new Map<string, Set<Socket>>();
@@ -14,7 +16,14 @@ export class SocketService {
       this.connectedClients.set(user.id, new Set());
     }
     this.connectedClients.get(user.id)!.add(client);
-    this.logger.log(`Client connected: ${user.username} (${client.id})`);
+    this.logger.log('Socket client connected', {
+      category: LOG_CATEGORY.SOCKET,
+      context: {
+        socketId: client.id,
+        userId: user.id,
+        username: user.username,
+      },
+    });
   }
 
   handleDisconnect(client: Socket, user: User): void {
@@ -25,7 +34,14 @@ export class SocketService {
         this.connectedClients.delete(user.id);
       }
     }
-    this.logger.log(`Client disconnected: ${user.username} (${client.id})`);
+    this.logger.log('Socket client disconnected', {
+      category: LOG_CATEGORY.SOCKET,
+      context: {
+        socketId: client.id,
+        userId: user.id,
+        username: user.username,
+      },
+    });
   }
 
   getConnectedUserIds(): string[] {

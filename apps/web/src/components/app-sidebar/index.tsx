@@ -3,6 +3,7 @@ import {
   ApiOutlined,
   DatabaseOutlined,
   FieldTimeOutlined,
+  FileTextOutlined,
   HomeOutlined,
   SettingOutlined,
   SmileOutlined,
@@ -24,6 +25,8 @@ import {
   useSidebar,
 } from "../ui/sidebar";
 import { NavUser } from "./nav-user";
+import { SpecialRoles } from "@/services/types/user";
+import { useUserStore } from "@/stores/user";
 
 const sidebarGroups = [
   {
@@ -86,6 +89,29 @@ const sidebarGroups = [
 export const AppSidebar = () => {
   const location = useLocation();
   const { state } = useSidebar();
+  const user = useUserStore((state) => state.user);
+  const canViewLogs = user.specialRoles?.some(
+    (role) =>
+      role === SpecialRoles.Developer || role === SpecialRoles.SuperAdmin,
+  );
+
+  const visibleSidebarGroups = canViewLogs
+    ? sidebarGroups.map((group, index) => {
+        if (index !== 0) return group;
+
+        return {
+          ...group,
+          content: [
+            ...group.content,
+            {
+              name: "日志",
+              icon: <FileTextOutlined />,
+              path: "/logs",
+            },
+          ],
+        };
+      })
+    : sidebarGroups;
 
   const getIsActive = useMemo(() => {
     return (path: string) => {
@@ -107,7 +133,7 @@ export const AppSidebar = () => {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        {sidebarGroups.map((item, index) => {
+        {visibleSidebarGroups.map((item, index) => {
           return (
             <SidebarGroup key={index}>
               <SidebarGroupLabel>{item.label}</SidebarGroupLabel>

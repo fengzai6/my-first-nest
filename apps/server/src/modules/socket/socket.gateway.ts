@@ -3,8 +3,9 @@ import { TokenType } from '@/common/constants/auth';
 import { WsExceptionFilter } from '@/common/filters/ws-exception.filter';
 import { WsJwtGuard } from '@/common/guards/ws-jwt.guard';
 import { getConfig } from '@/config/configuration';
+import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
+import { LoggerService } from '@/shared/log/logger.service';
 import {
-  Logger,
   UseFilters,
   UseGuards,
   UsePipes,
@@ -51,18 +52,15 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server<ClientToServerEvents, ServerToClientEvents>;
 
-  private readonly logger = new Logger(SocketGateway.name);
-
   constructor(
     private readonly socketService: SocketService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
+    private readonly logger: LoggerService,
   ) {}
 
   async handleConnection(client: AuthSocket): Promise<void> {
-    this.logger.log(`New client connected: ${client.id}`);
-
     const token = extractWsToken(client);
     if (!token) {
       this.rejectClient(client);
@@ -88,6 +86,14 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.user = user;
 
       this.socketService.handleConnection(client, user);
+      this.logger.log('Socket client connected', {
+        category: LOG_CATEGORY.SOCKET,
+        context: {
+          socketId: client.id,
+          userId: user.id,
+          username: user.username,
+        },
+      });
 
       client.emit('connected', {
         message: `Welcome, ${user.displayName}!`,
@@ -101,9 +107,13 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
         displayName: user.displayName,
       });
     } catch (error) {
-      this.logger.warn(
-        `Authentication failed for client ${client.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
+      this.logger.warn('Socket authentication failed', {
+        category: LOG_CATEGORY.SOCKET,
+        context: {
+          socketId: client.id,
+          reason: error instanceof Error ? error.message : 'Unknown error',
+        },
+      });
       this.rejectClient(client);
     }
   }
@@ -133,7 +143,14 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!user) return { success: false, message: 'Not authenticated' };
 
     await client.join(data.room);
-    this.logger.log(`${user.username} joined room: ${data.room}`);
+    this.logger.log('Socket room joined', {
+      category: LOG_CATEGORY.SOCKET,
+      context: {
+        socketId: client.id,
+        username: user.username,
+        room: data.room,
+      },
+    });
 
     client.emit('room-joined', { room: data.room });
     client.to(data.room).emit('room-user-joined', {
@@ -154,7 +171,14 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!user) return { success: false, message: 'Not authenticated' };
 
     await client.leave(data.room);
-    this.logger.log(`${user.username} left room: ${data.room}`);
+    this.logger.log('Socket room left', {
+      category: LOG_CATEGORY.SOCKET,
+      context: {
+        socketId: client.id,
+        username: user.username,
+        room: data.room,
+      },
+    });
 
     client.emit('room-left', { room: data.room });
     client.to(data.room).emit('room-user-left', {
@@ -173,8 +197,6 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): AckResponse {
     const { user } = client;
     if (!user) return { success: false, message: 'Not authenticated' };
-
-    this.logger.log(`${user.username} -> room ${data.room}: ${data.message}`);
 
     client.to(data.room).emit('room-message', {
       room: data.room,
@@ -224,8 +246,6 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): AckResponse {
     const { user } = client;
     if (!user) return { success: false, message: 'Not authenticated' };
-
-    this.logger.log(`${user.username} broadcast: ${data.message}`);
 
     client.broadcast.emit('broadcast-message', {
       message: data.message,

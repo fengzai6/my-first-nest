@@ -3,6 +3,7 @@ import { Cats } from "@/pages/management/cats";
 import { Home } from "@/pages/home";
 import { Jobs } from "@/pages/jobs";
 import { Login } from "@/pages/login";
+import { Logs } from "@/pages/logs";
 import { Groups } from "@/pages/management/groups";
 import { Roles } from "@/pages/management/roles";
 import { Users } from "@/pages/management/users";
@@ -41,6 +42,10 @@ export const routes: RouteObject[] = [
       {
         path: "jobs",
         element: <Jobs />,
+      },
+      {
+        path: "logs",
+        element: <Logs />,
       },
       {
         path: "settings",

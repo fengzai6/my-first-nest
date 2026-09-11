@@ -9,10 +9,10 @@ export class SpecialRolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.get(
-      SpecialRoles,
+    const requiredRoles = this.reflector.getAllAndOverride(SpecialRoles, [
       context.getHandler(),
-    );
+      context.getClass(),
+    ]);
 
     console.log('requiredSpecialRoles:', requiredRoles);
 
