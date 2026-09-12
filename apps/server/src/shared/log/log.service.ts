@@ -31,6 +31,7 @@ export class LogService {
       .insert()
       .into(LogRecord)
       .values([...events] as QueryDeepPartialEntity<LogRecord>[])
+      // NOTE: 主键冲突静默忽略，job 重试时同一批事件不会重复落库。
       .orIgnore()
       .execute();
   }
@@ -78,6 +79,7 @@ export class LogService {
       });
     }
     if (query.keyword) {
+      // NOTE: ILIKE 走不了索引，会全表扫；只在管理员排查时使用，可接受。
       queryBuilder.andWhere('log.message ILIKE :keyword', {
         keyword: `%${query.keyword}%`,
       });

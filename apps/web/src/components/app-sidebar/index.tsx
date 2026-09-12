@@ -90,6 +90,7 @@ export const AppSidebar = () => {
   const location = useLocation();
   const { state } = useSidebar();
   const user = useUserStore((state) => state.user);
+  // NOTE: 隐藏菜单只是体验优化，不是安全边界：直接访问 /logs 页面能打开，但后端 SpecialRolesGuard 会让接口返回 403。
   const canViewLogs = user.specialRoles?.some(
     (role) =>
       role === SpecialRoles.Developer || role === SpecialRoles.SuperAdmin,

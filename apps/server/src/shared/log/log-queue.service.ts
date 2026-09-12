@@ -88,6 +88,7 @@ export class LogQueueService implements OnModuleDestroy {
         },
       );
     } catch (error) {
+      // NOTE: 回填到缓冲区头部保持顺序，等下次 flush 重试；不抛出，日志失败不能影响业务。
       this.events.unshift(...events);
       process.stderr.write(
         `Failed to enqueue log batch: ${

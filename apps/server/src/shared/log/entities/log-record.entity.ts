@@ -1,6 +1,10 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import { LogLevel } from '../constants/log.constants';
 
+/**
+ * 不继承 BaseEntity：日志只追加不修改，也不软删除（量大，由 CleanupExpiredLogsScheduler 物理清理）。
+ * 复合索引等值列在前、timestamp 在后，同一索引同时覆盖条件筛选和按时间倒序分页。
+ */
 @Entity('log_records')
 @Index('IDX_log_records_timestamp', ['timestamp'])
 @Index('IDX_log_records_level_timestamp', ['level', 'timestamp'])

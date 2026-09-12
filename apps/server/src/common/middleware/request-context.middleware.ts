@@ -7,6 +7,7 @@ export const requestContextMiddleware = (
   _res: Response,
   next: NextFunction,
 ): void => {
+  // NOTE: 只有 HTTP 链路经过这里；cron、BullMQ processor、WebSocket 处理函数里 getStore() 为 undefined，日志的 requestId 等字段会落成 null。
   requestContextStorage.run(
     {
       requestId: randomUUID(),

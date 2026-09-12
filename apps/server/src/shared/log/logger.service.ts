@@ -6,6 +6,9 @@ import { LOG_CATEGORY, LOG_LEVEL, LogLevel } from './constants/log.constants';
 import type { ILogEvent, ILogWriteOptions } from './interfaces/log.interface';
 import { LogQueueService } from './log-queue.service';
 
+/**
+ * 同步写 stdout（CLEF 格式，docker logs 可直接看），再异步入队持久化；入队失败只写 stderr，不影响业务。
+ */
 @Injectable()
 export class LoggerService {
   constructor(private readonly queue: LogQueueService) {}
@@ -40,6 +43,7 @@ export class LoggerService {
   ): void {
     const context = requestContextStorage.getStore();
     const event: ILogEvent = {
+      // NOTE: ID 必须在入队前生成，job 重试时同一事件 ID 不变，落库的 orIgnore 才能去重。
       id: generateSnowflakeId(),
       level,
       category: options.category ?? LOG_CATEGORY.BUSINESS,

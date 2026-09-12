@@ -18,6 +18,7 @@ export class CleanupExpiredLogsScheduler {
     this.retentionDays = getConfig(configService).log.retentionDays;
   }
 
+  // NOTE: now 参数只供测试注入固定时间，@Cron 触发时不传。
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async handleCleanup(now = new Date()): Promise<void> {
     const timestamp = new Date(

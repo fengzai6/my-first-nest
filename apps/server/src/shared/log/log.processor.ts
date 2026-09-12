@@ -15,11 +15,13 @@ export class LogProcessor extends WorkerHost {
   }
 
   async process(job: Job<ILogBatchJobData>): Promise<void> {
+    // NOTE: Date 经 BullMQ 的 JSON 序列化后变成 ISO 字符串，这里还原。
     const events = job.data.events.map((event) => ({
       ...event,
       timestamp: new Date(event.timestamp),
     }));
 
+    // NOTE: 先落库再投 Seq，任一步失败整个 job 按 attempts 重试；落库靠 orIgnore 去重，Seq 无幂等会出现重复事件。
     await this.logs.insertIgnoreConflicts(events);
     await this.seqTransport.send(events);
   }
