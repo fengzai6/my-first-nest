@@ -27,12 +27,14 @@ export const Root = () => {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="overflow-x-hidden overflow-y-auto">
+      <SidebarInset className="h-svh overflow-hidden">
         <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center justify-between gap-2 px-4 shadow-sm backdrop-blur-sm">
           <SidebarTrigger />
           <div className="flex items-center space-x-2"></div>
         </header>
-        <Outlet />
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <Outlet />
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );
