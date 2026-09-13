@@ -1,7 +1,9 @@
+import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
+import type { ILogWriteOptions } from '@/shared/log/interfaces/log.interface';
 import { User } from '@/modules/users/entities/user.entity';
 import { SocketService } from '@/modules/socket/socket.service';
 import { Socket } from 'socket.io';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, MockInstance, vi } from 'vitest';
 
 const createUser = (id = 'user-id') => {
   const user = new User();
@@ -14,10 +16,16 @@ const createSocket = (id: string) => ({ id }) as Socket;
 
 describe('SocketService', () => {
   let service: SocketService;
+  let logger: {
+    log: MockInstance<(message: string, options: ILogWriteOptions) => void>;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new SocketService();
+    logger = {
+      log: vi.fn<(message: string, options: ILogWriteOptions) => void>(),
+    };
+    service = new SocketService(logger as never);
   });
 
   it('should track multiple sockets for one user', () => {
@@ -32,6 +40,17 @@ describe('SocketService', () => {
     expect(service.getConnectedUserIds()).toEqual(['user-id']);
     expect(service.getUserSockets('user-id')).toEqual(
       new Set([socketA, socketB]),
+    );
+    expect(logger.log).toHaveBeenCalledWith(
+      'Socket client connected',
+      expect.objectContaining({
+        category: LOG_CATEGORY.SOCKET,
+        context: {
+          socketId: 'socket-b',
+          userId: 'user-id',
+          username: 'fengzai',
+        },
+      }),
     );
   });
 
@@ -52,6 +71,17 @@ describe('SocketService', () => {
 
     expect(service.isConnected('user-id')).toBe(false);
     expect(service.getUserSockets('user-id')).toBeUndefined();
+    expect(logger.log).toHaveBeenLastCalledWith(
+      'Socket client disconnected',
+      expect.objectContaining({
+        category: LOG_CATEGORY.SOCKET,
+        context: {
+          socketId: 'socket-b',
+          userId: 'user-id',
+          username: 'fengzai',
+        },
+      }),
+    );
   });
 
   it('should ignore disconnect for unknown user', () => {

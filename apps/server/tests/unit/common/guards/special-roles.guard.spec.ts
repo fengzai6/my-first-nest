@@ -11,6 +11,7 @@ import { User } from '@/modules/users/entities/user.entity';
 const createContext = (user?: Pick<User, 'specialRoles'>): ExecutionContext => {
   return {
     getHandler: () => createContext,
+    getClass: () => createContext,
     switchToHttp: () => ({
       getRequest: () => ({
         user,
@@ -25,19 +26,22 @@ describe('SpecialRolesGuard', () => {
   });
 
   it('should allow request when no special role is required', () => {
-    const get = vi.fn().mockReturnValue(undefined);
+    const getAllAndOverride = vi.fn().mockReturnValue(undefined);
     const reflector = {
-      get,
+      getAllAndOverride,
     } as unknown as Reflector;
     const guard = new SpecialRolesGuard(reflector);
 
     expect(guard.canActivate(createContext())).toBe(true);
-    expect(get).toHaveBeenCalledWith(SpecialRoles, expect.any(Function));
+    expect(getAllAndOverride).toHaveBeenCalledWith(SpecialRoles, [
+      expect.any(Function),
+      expect.any(Function),
+    ]);
   });
 
   it('should deny request when user has no required special role', () => {
     const reflector = {
-      get: vi.fn().mockReturnValue([SpecialRolesEnum.SuperAdmin]),
+      getAllAndOverride: vi.fn().mockReturnValue([SpecialRolesEnum.SuperAdmin]),
     } as unknown as Reflector;
     const guard = new SpecialRolesGuard(reflector);
 
@@ -50,13 +54,26 @@ describe('SpecialRolesGuard', () => {
 
   it('should allow request when user has required special role', () => {
     const reflector = {
-      get: vi.fn().mockReturnValue([SpecialRolesEnum.SuperAdmin]),
+      getAllAndOverride: vi.fn().mockReturnValue([SpecialRolesEnum.SuperAdmin]),
     } as unknown as Reflector;
     const guard = new SpecialRolesGuard(reflector);
 
     expect(
       guard.canActivate(
         createContext({ specialRoles: [SpecialRolesEnum.SuperAdmin] }),
+      ),
+    ).toBe(true);
+  });
+
+  it('should allow controller-level special roles', () => {
+    const reflector = {
+      getAllAndOverride: vi.fn().mockReturnValue([SpecialRolesEnum.Developer]),
+    } as unknown as Reflector;
+    const guard = new SpecialRolesGuard(reflector);
+
+    expect(
+      guard.canActivate(
+        createContext({ specialRoles: [SpecialRolesEnum.Developer] }),
       ),
     ).toBe(true);
   });

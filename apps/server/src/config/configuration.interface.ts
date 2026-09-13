@@ -62,6 +62,28 @@ export interface ThrottlerConfig {
   limit: number;
 }
 
+export interface SeqConfig {
+  /** 是否启用 Seq HTTP Push */
+  enabled: boolean;
+  /** Seq 服务器地址 */
+  url?: string;
+  /** Seq API Key */
+  apiKey?: string;
+  /** Seq 请求超时时间，单位毫秒 */
+  timeoutMs: number;
+}
+
+export interface LogConfig {
+  /** 日志保留天数 */
+  retentionDays: number;
+  /** 日志批量写入条数 */
+  batchSize: number;
+  /** 日志批量刷新间隔，单位毫秒 */
+  flushIntervalMs: number;
+  /** Seq 配置 */
+  seq: SeqConfig;
+}
+
 export interface AppConfig {
   /** HTTP 服务配置 */
   server?: ServerConfig;
@@ -77,6 +99,8 @@ export interface AppConfig {
   redis?: RedisConfig;
   /** 全局限流配置 */
   throttler?: ThrottlerConfig;
+  /** 日志配置 */
+  log?: LogConfig;
 }
 
 export type AppConfigForced = {

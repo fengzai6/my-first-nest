@@ -1,5 +1,6 @@
+import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
+import { LoggerService } from '@/shared/log/logger.service';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { DEFAULT_JOB_QUEUE } from '../constants/job.constants';
 import { JobRecordService } from '../records/job-record.service';
@@ -8,11 +9,10 @@ import { IBullJobData, IJobContext } from '../types/job.types';
 
 @Processor(DEFAULT_JOB_QUEUE)
 export class JobProcessor extends WorkerHost {
-  private readonly logger = new Logger(JobProcessor.name);
-
   constructor(
     private readonly registry: JobRegistryService,
     private readonly records: JobRecordService,
+    private readonly logger: LoggerService,
   ) {
     super();
   }
@@ -22,9 +22,16 @@ export class JobProcessor extends WorkerHost {
     const maxAttempts = job.opts.attempts ?? 1;
     const attemptsMade = job.attemptsMade + 1;
 
-    this.logger.log(
-      `Processing jobId=${jobId} name=${name} bullJobId=${job.id} attempt=${attemptsMade}/${maxAttempts}`,
-    );
+    this.logger.log('Job processing started', {
+      category: LOG_CATEGORY.JOB,
+      context: {
+        jobId,
+        name,
+        bullJobId: job.id,
+        attemptsMade,
+        maxAttempts,
+      },
+    });
 
     const activated = await this.records.markActive(
       jobId,
@@ -32,9 +39,10 @@ export class JobProcessor extends WorkerHost {
       attemptsMade,
     );
     if (!activated) {
-      this.logger.warn(
-        `Skip jobId=${jobId} name=${name}: not activatable (cancelled or terminal)`,
-      );
+      this.logger.warn('Job processing skipped', {
+        category: LOG_CATEGORY.JOB,
+        context: { jobId, name, reason: 'not-activatable' },
+      });
       return { skipped: true, reason: 'not-cancellable-or-already-terminal' };
     }
 
@@ -56,7 +64,10 @@ export class JobProcessor extends WorkerHost {
 
       const result = await handler.handle(ctx);
       await this.records.markCompleted(jobId, result, attemptsMade);
-      this.logger.log(`Completed jobId=${jobId} name=${name}`);
+      this.logger.log('Job processing completed', {
+        category: LOG_CATEGORY.JOB,
+        context: { jobId, name, attemptsMade },
+      });
       return result;
     } catch (error) {
       const isFinal = attemptsMade >= maxAttempts;
@@ -67,10 +78,16 @@ export class JobProcessor extends WorkerHost {
         isFinal,
       );
 
-      this.logger.error(
-        `Failed jobId=${jobId} name=${name} attempt=${attemptsMade}/${maxAttempts} final=${isFinal}`,
-        error instanceof Error ? error.stack : undefined,
-      );
+      this.logger.error('Job processing failed', error, {
+        category: LOG_CATEGORY.JOB,
+        context: {
+          jobId,
+          name,
+          attemptsMade,
+          maxAttempts,
+          isFinal,
+        },
+      });
 
       throw error;
     }

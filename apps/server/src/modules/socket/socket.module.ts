@@ -1,5 +1,6 @@
 import { AppConfigModule } from '@/config/config.module';
 import { getConfig } from '@/config/configuration';
+import { WsExceptionFilter } from '@/common/filters/ws-exception.filter';
 import { WsJwtGuard } from '@/common/guards/ws-jwt.guard';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -23,7 +24,7 @@ import { SocketService } from './socket.service';
       inject: [ConfigService],
     }),
   ],
-  providers: [SocketGateway, SocketService, WsJwtGuard],
+  providers: [SocketGateway, SocketService, WsExceptionFilter, WsJwtGuard],
   exports: [SocketService],
 })
 export class SocketModule {}

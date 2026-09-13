@@ -1,10 +1,12 @@
-import { ArgumentsHost, Catch, ExceptionFilter, Logger } from '@nestjs/common';
+import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
+import { LoggerService } from '@/shared/log/logger.service';
+import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
 import { WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 
 @Catch(WsException)
 export class WsExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(WsExceptionFilter.name);
+  constructor(private readonly logger: LoggerService) {}
 
   catch(exception: WsException, host: ArgumentsHost): void {
     const client = host.switchToWs().getClient<Socket>();
@@ -13,7 +15,14 @@ export class WsExceptionFilter implements ExceptionFilter {
     const response =
       typeof error === 'string' ? { status: 'error', message: error } : error;
 
-    this.logger.warn(`WsException: ${JSON.stringify(response)}`);
+    // NOTE: WsException 目前只来自鉴权失败这类客户端问题，不是服务端故障，记 warn 避免混入 error 告警。
+    this.logger.warn('WebSocket exception', {
+      category: LOG_CATEGORY.SOCKET,
+      context: {
+        socketId: client.id,
+        error: response,
+      },
+    });
     client.emit('exception', response);
   }
 }

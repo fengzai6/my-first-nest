@@ -1,4 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
+import { LoggerService } from '@/shared/log/logger.service';
+import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 /**
@@ -7,12 +9,13 @@ import { Cron, CronExpression } from '@nestjs/schedule';
  */
 @Injectable()
 export class HeartbeatScheduler {
-  private readonly logger = new Logger(HeartbeatScheduler.name);
+  constructor(private readonly logger: LoggerService) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
   handleHeartbeat() {
-    this.logger.log(
-      `[scheduled-tasks] heartbeat pid=${process.pid} at=${new Date().toISOString()}`,
-    );
+    this.logger.log('Scheduled heartbeat', {
+      category: LOG_CATEGORY.SCHEDULED_TASK,
+      context: { pid: process.pid },
+    });
   }
 }

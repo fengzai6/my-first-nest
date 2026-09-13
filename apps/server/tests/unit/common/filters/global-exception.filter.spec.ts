@@ -1,9 +1,15 @@
 import { GlobalExceptionsFilter } from '@/common/filters/global-exception.filter';
 import {
+  requestContextStorage,
+  type IRequestContext,
+} from '@/common/context/request-context';
+import {
   ErrorException,
   ErrorExceptionCode,
 } from '@/common/exceptions/error.exception';
-import { ArgumentsHost, BadRequestException, Logger } from '@nestjs/common';
+import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
+import type { ILogWriteOptions } from '@/shared/log/interfaces/log.interface';
+import { ArgumentsHost, BadRequestException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createHost = () => {
@@ -11,7 +17,9 @@ const createHost = () => {
   const status = vi.fn(() => ({ json }));
   const request = {
     method: 'GET',
+    originalUrl: '/api/test',
     url: '/api/test',
+    ip: '127.0.0.1',
   };
   const host = {
     switchToHttp: () => ({
@@ -23,14 +31,27 @@ const createHost = () => {
   return { host, json, status };
 };
 
+const createFilter = () => {
+  const logger = {
+    error:
+      vi.fn<
+        (message: string, error?: unknown, options?: ILogWriteOptions) => void
+      >(),
+  };
+
+  return {
+    filter: new GlobalExceptionsFilter(logger as never),
+    logger,
+  };
+};
+
 describe('GlobalExceptionsFilter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
   });
 
   it('should format custom base exception', () => {
-    const filter = new GlobalExceptionsFilter();
+    const { filter } = createFilter();
     const { host, json, status } = createHost();
 
     filter.catch(new ErrorException(ErrorExceptionCode.USER_NOT_FOUND), host);
@@ -47,7 +68,7 @@ describe('GlobalExceptionsFilter', () => {
   });
 
   it('should join validation exception messages', () => {
-    const filter = new GlobalExceptionsFilter();
+    const { filter } = createFilter();
     const { host, json, status } = createHost();
 
     filter.catch(
@@ -68,10 +89,19 @@ describe('GlobalExceptionsFilter', () => {
   });
 
   it('should expose non-production error message for unknown errors', () => {
-    const filter = new GlobalExceptionsFilter();
+    const { filter, logger } = createFilter();
     const { host, json, status } = createHost();
+    const requestContext: IRequestContext = {
+      requestId: 'request-id',
+      startedAt: 0,
+      method: 'GET',
+      url: '/api/test',
+      ip: '127.0.0.1',
+    };
 
-    filter.catch(new Error('boom'), host);
+    requestContextStorage.run(requestContext, () =>
+      filter.catch(new Error('boom'), host),
+    );
 
     expect(status).toHaveBeenCalledWith(500);
     expect(json).toHaveBeenCalledWith(
@@ -79,6 +109,18 @@ describe('GlobalExceptionsFilter', () => {
         code: 'Error',
         message: 'boom',
       }),
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      'HTTP request failed',
+      expect.any(Error),
+      expect.objectContaining({
+        category: LOG_CATEGORY.HTTP,
+        statusCode: 500,
+        context: { code: 'Error' },
+      }),
+    );
+    expect(logger.error.mock.calls[0]?.[2]?.duration).toEqual(
+      expect.any(Number),
     );
   });
 });

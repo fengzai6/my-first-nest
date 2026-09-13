@@ -13,7 +13,6 @@ import {
   message,
   Modal,
   Space,
-  Table,
   Tag,
   Tooltip,
   Typography,
@@ -22,6 +21,7 @@ import type { ColumnsType } from "antd/es/table";
 import { useEffect, useMemo, useState } from "react";
 
 import { GroupTree } from "@/components/group-tree";
+import { DataTable } from "@/components/data-table";
 import {
   AddGroupMembers,
   CreateGroup,
@@ -326,9 +326,12 @@ export const Groups = () => {
   }
 
   return (
-    <div className="p-6">
-      <Card>
-        <div className="mb-6">
+    <div className="flex min-h-0 flex-1 flex-col p-6">
+      <Card
+        className="flex min-h-0 flex-1 flex-col"
+        classNames={{ body: "flex min-h-0 flex-1 flex-col" }}
+      >
+        <div className="mb-6 shrink-0">
           <div className="mb-4 flex items-center justify-between">
             <Title level={2} className="!mb-0">
               群组管理
@@ -411,20 +414,12 @@ export const Groups = () => {
             )}
           />
         ) : (
-          <Table
+          <DataTable
             columns={columns}
             dataSource={filteredGroups}
             rowKey="id"
             loading={groupsLoading}
-            pagination={{
-              total: filteredGroups.length,
-              pageSize: 10,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) =>
-                `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-            }}
-            scroll={{ x: 1200 }}
+            scrollX={1200}
           />
         )}
       </Card>

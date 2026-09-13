@@ -6,6 +6,7 @@ import { AppConfigModule } from './config/config.module';
 import { modules } from './modules';
 import { RedisCacheModule } from './shared/caching/cache.module';
 import { JobsModule } from './shared/jobs/jobs.module';
+import { LogModule } from './shared/log/log.module';
 import { DatabaseModule } from './shared/database/database.module';
 import { StaticModule } from './shared/static/static.module';
 import { ThrottlerConfigModule } from './shared/throttler/throttler.module';
@@ -16,6 +17,7 @@ import { ThrottlerConfigModule } from './shared/throttler/throttler.module';
     DatabaseModule,
     RedisCacheModule,
     JobsModule,
+    LogModule,
     ThrottlerConfigModule,
     StaticModule,
     ...modules,

@@ -22,7 +22,6 @@ import {
   Popconfirm,
   Space,
   Switch,
-  Table,
   Tag,
   Tooltip,
   Typography,
@@ -30,6 +29,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
 
+import { DataTable } from "@/components/data-table";
 import { GetRoles } from "@/services/api/role";
 import {
   CreateUser,
@@ -353,9 +353,12 @@ export const Users = () => {
   }
 
   return (
-    <div className="p-6">
-      <Card>
-        <div className="mb-6">
+    <div className="flex min-h-0 flex-1 flex-col p-6">
+      <Card
+        className="flex min-h-0 flex-1 flex-col"
+        classNames={{ body: "flex min-h-0 flex-1 flex-col" }}
+      >
+        <div className="mb-6 shrink-0">
           <div className="mb-4 flex items-center justify-between">
             <Title level={2} className="!mb-0">
               用户管理
@@ -395,25 +398,19 @@ export const Users = () => {
           </div>
         </div>
 
-        <Table
+        <DataTable
           columns={columns}
           dataSource={users}
           rowKey="id"
           loading={usersLoading}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (t, range) =>
-              `第 ${range[0]}-${range[1]} 条，共 ${t} 条`,
-            onChange: (nextPage, nextPageSize) => {
-              setPage(nextPage);
-              setPageSize(nextPageSize);
-            },
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          scrollX={1200}
+          onPaginationChange={(nextPage, nextPageSize) => {
+            setPage(nextPage);
+            setPageSize(nextPageSize);
           }}
-          scroll={{ x: 1200 }}
         />
       </Card>
 

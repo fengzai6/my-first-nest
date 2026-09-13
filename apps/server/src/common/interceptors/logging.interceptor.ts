@@ -1,38 +1,38 @@
+import { LoggerService } from '@/shared/log/logger.service';
 import {
   CallHandler,
   ExecutionContext,
   Injectable,
-  Logger,
   NestInterceptor,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { Observable, tap } from 'rxjs';
+import { LOG_CATEGORY } from '../../shared/log/constants/log.constants';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
-  private readonly logger = new Logger(LoggingInterceptor.name);
+  constructor(private readonly logger: LoggerService) {}
 
   intercept(
     context: ExecutionContext,
-    next: CallHandler<any>,
-  ): Observable<any> | Promise<Observable<any>> {
+    next: CallHandler<unknown>,
+  ): Observable<unknown> {
     const request = context.switchToHttp().getRequest<Request>();
-
-    const { method, url } = request;
-
-    this.logger.log(
-      `🚀 \x1b[32m请求开始\x1b[0m \x1b[33m${method}\x1b[0m \x1b[36m${url}\x1b[0m`,
-    );
-
+    const response = context.switchToHttp().getResponse<Response>();
     const startTime = Date.now();
 
     return next.handle().pipe(
-      tap(() => {
-        const duration = Date.now() - startTime;
-
-        this.logger.log(
-          `✅ \x1b[32m请求结束\x1b[0m \x1b[33m${method}\x1b[0m \x1b[36m${url}\x1b[0m - \x1b[35m耗时: ${duration}ms\x1b[0m`,
-        );
+      tap({
+        next: () => {
+          this.logger.log('HTTP request completed', {
+            category: LOG_CATEGORY.HTTP,
+            method: request.method,
+            url: request.originalUrl ?? request.url,
+            ip: request.ip,
+            statusCode: response.statusCode,
+            duration: Date.now() - startTime,
+          });
+        },
       }),
     );
   }

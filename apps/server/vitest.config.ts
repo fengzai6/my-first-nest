@@ -7,6 +7,7 @@ export default defineConfig({
     include: ['tests/**/*.spec.ts', 'tests/**/*.e2e-spec.ts'],
     testTimeout: 30_000,
     fileParallelism: false,
+    maxWorkers: 1,
   },
   resolve: {
     alias: {

@@ -226,22 +226,31 @@ yarn clean        # 清理所有构建产物
     此命令会启动一个 PostgreSQL 数据库容器，并将数据持久化到 `docker内的pg-data` 目录。
 
     ```bash
-    docker-compose -f docker-compose.db.yml up -d
+    docker compose -f docker/docker-compose.db.yml up -d
     ```
 
 3.  **启动 Redis 缓存服务**
-    `docker-compose.app.yml` 和 `docker-compose.local.yml` 已配置 `REDIS_URL`。配置 Redis 连接后，应用启动时会校验 Redis 连通性。
+    `docker/docker-compose.app.yml` 和 `docker/docker-compose.local.yml` 已配置 `REDIS_URL`。配置 Redis 连接后，应用启动时会校验 Redis 连通性。
 
     ```bash
-    docker-compose -f docker-compose.cache.yml up -d
+    docker compose -f docker/docker-compose.cache.yml up -d
     ```
 
-4.  **启动应用服务**
+4.  **启动 Seq 日志服务**
+    Seq 使用 `my-nest-network`，应用容器通过 `http://seq` 投递 CLEF 日志。
+
+    ```bash
+    docker compose -f docker/docker-compose.seq.yml up -d
+    ```
+
+    启动后可访问 `http://localhost:5341` 查询日志，HTTP Push 地址为 `http://seq/ingest/clef`。
+
+5.  **启动应用服务**
     - **方式一：通过 Compose 构建和运行**
       此命令会自动构建前后端，并启动应用容器。
 
       ```bash
-      docker-compose -f docker-compose.app.yml up --build -d
+      docker compose -f docker/docker-compose.app.yml up --build -d
       ```
 
     - **方式二：运行本地已构建的镜像**
@@ -251,7 +260,7 @@ yarn clean        # 清理所有构建产物
       ```
       然后，使用 `local` compose 文件启动它：
       ```bash
-      docker-compose -f docker-compose.local.yml up -d
+      docker compose -f docker/docker-compose.local.yml up -d
       ```
 
 ### 停止服务
@@ -260,15 +269,18 @@ yarn clean        # 清理所有构建产物
 
 ```bash
 # 停止并移除数据库
-docker-compose -f docker-compose.db.yml down
+docker compose -f docker/docker-compose.db.yml down
 
 # 停止并移除 Redis 缓存
-docker-compose -f docker-compose.cache.yml down
+docker compose -f docker/docker-compose.cache.yml down
+
+# 停止并移除 Seq
+docker compose -f docker/docker-compose.seq.yml down
 
 # 停止并移除应用
-docker-compose -f docker-compose.app.yml down
+docker compose -f docker/docker-compose.app.yml down
 # 或者
-docker-compose -f docker-compose.local.yml down
+docker compose -f docker/docker-compose.local.yml down
 ```
 
 ## 项目结构
@@ -311,7 +323,8 @@ my-first-nest/                 # Monorepo 根目录
 ├── docker/                    # 🐳 Docker 配置
 │   ├── docker-compose.app.yml
 │   ├── docker-compose.db.yml
-│   └── docker-compose.local.yml
+│   ├── docker-compose.local.yml
+│   └── docker-compose.seq.yml
 ├── scripts/                   # 📜 脚本文件
 ├── package.json              # 根包配置 (Monorepo 管理)
 ├── AGENTS.md                 # AI Agent 项目规则

@@ -3,6 +3,7 @@ import { Cats } from "@/pages/management/cats";
 import { Home } from "@/pages/home";
 import { Jobs } from "@/pages/jobs";
 import { Login } from "@/pages/login";
+import { Logs } from "@/pages/log";
 import { Groups } from "@/pages/management/groups";
 import { Roles } from "@/pages/management/roles";
 import { Users } from "@/pages/management/users";
@@ -12,6 +13,10 @@ import { Settings } from "@/pages/settings";
 import { SocketDemo } from "@/pages/socket-demo";
 import { Navigate, Outlet, type RouteObject } from "react-router";
 import { AuthGuard } from "./auth-guard";
+import {
+  LOG_ROUTE_ROLES,
+  SpecialRoleGuard,
+} from "./special-role-guard";
 
 export const routes: RouteObject[] = [
   {
@@ -41,6 +46,15 @@ export const routes: RouteObject[] = [
       {
         path: "jobs",
         element: <Jobs />,
+      },
+      {
+        element: <SpecialRoleGuard roles={LOG_ROUTE_ROLES} />,
+        children: [
+          {
+            path: "logs",
+            element: <Logs />,
+          },
+        ],
       },
       {
         path: "settings",

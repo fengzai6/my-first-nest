@@ -1,21 +1,16 @@
+import { requestContextStorage } from '@/common/context/request-context';
+import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
+import { LoggerService } from '@/shared/log/logger.service';
 import {
   ArgumentsHost,
   Catch,
   ExceptionFilter,
   HttpException,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { IsProduction } from '../constants/environment';
 import { BaseException } from '../exceptions/base.exception';
-
-/**
- * TODO: 日志系统代办
- * 将日志系统与异常过滤器结合，将异常信息记录到日志系统中
- * 制作成接口，以便在 UI 中展示
- * 接口权限控制仅限 developer Role 使用
- */
 
 /**
  * 全局异常过滤器
@@ -23,7 +18,7 @@ import { BaseException } from '../exceptions/base.exception';
  */
 @Catch()
 export class GlobalExceptionsFilter implements ExceptionFilter {
-  private readonly logger = new Logger(GlobalExceptionsFilter.name);
+  constructor(private readonly logger: LoggerService) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -73,11 +68,17 @@ export class GlobalExceptionsFilter implements ExceptionFilter {
       responseBody.code = exception.name;
     }
 
-    // 记录错误日志
-    this.logger.error(
-      `[${request.method}] ${request.url} ${responseBody.statusCode} Code: ${responseBody.code} Message: ${responseBody.message}`,
-      exception instanceof Error ? exception.stack : undefined,
-    );
+    const context = requestContextStorage.getStore();
+
+    this.logger.error('HTTP request failed', exception, {
+      category: LOG_CATEGORY.HTTP,
+      method: request.method,
+      url: request.originalUrl ?? request.url,
+      ip: request.ip,
+      statusCode: responseBody.statusCode,
+      duration: context ? Date.now() - context.startedAt : null,
+      context: { code: responseBody.code },
+    });
 
     response.status(responseBody.statusCode).json(responseBody);
   }

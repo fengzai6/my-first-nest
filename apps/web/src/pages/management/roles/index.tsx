@@ -15,7 +15,6 @@ import {
   Modal,
   Popconfirm,
   Space,
-  Table,
   Tag,
   Tooltip,
   Typography,
@@ -23,6 +22,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
 
+import { DataTable } from "@/components/data-table";
 import { GetPermissions } from "@/services/api/permission";
 import {
   CreateRole,
@@ -244,9 +244,12 @@ export const Roles = () => {
   }
 
   return (
-    <div className="p-6">
-      <Card>
-        <div className="mb-6">
+    <div className="flex min-h-0 flex-1 flex-col p-6">
+      <Card
+        className="flex min-h-0 flex-1 flex-col"
+        classNames={{ body: "flex min-h-0 flex-1 flex-col" }}
+      >
+        <div className="mb-6 shrink-0">
           <div className="mb-4 flex items-center justify-between">
             <Title level={2} className="!mb-0">
               角色管理
@@ -285,20 +288,12 @@ export const Roles = () => {
           </div>
         </div>
 
-        <Table
+        <DataTable
           columns={columns}
           dataSource={filteredRoles}
           rowKey="id"
           loading={rolesLoading}
-          pagination={{
-            total: filteredRoles.length,
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) =>
-              `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-          }}
-          scroll={{ x: 1200 }}
+          scrollX={1200}
         />
       </Card>
 
