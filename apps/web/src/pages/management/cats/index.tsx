@@ -14,7 +14,6 @@ import {
   Modal,
   Popconfirm,
   Space,
-  Table,
   Tag,
   Tooltip,
   Typography,
@@ -28,6 +27,7 @@ import {
   GetCats,
   UpdateCatOwner,
 } from "@/services/api/cat";
+import { DataTable } from "@/components/data-table";
 import { GetUsers } from "@/services/api/user";
 import type { IUpdateCatOwnerDto } from "@/services/dtos/cat";
 import type { ICat } from "@/services/types/cat";
@@ -192,9 +192,12 @@ export const Cats = () => {
   }
 
   return (
-    <div className="p-6">
-      <Card>
-        <div className="mb-6">
+    <div className="flex min-h-0 flex-1 flex-col p-6">
+      <Card
+        className="flex min-h-0 flex-1 flex-col"
+        classNames={{ body: "flex min-h-0 flex-1 flex-col" }}
+      >
+        <div className="mb-6 shrink-0">
           <div className="mb-4 flex items-center justify-between">
             <Title level={2} className="!mb-0">
               猫咪管理
@@ -233,19 +236,11 @@ export const Cats = () => {
           </div>
         </div>
 
-        <Table
+        <DataTable
           columns={columns}
           dataSource={filteredCats}
           rowKey="id"
           loading={isLoading}
-          pagination={{
-            total: filteredCats.length,
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) =>
-              `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-          }}
         />
       </Card>
 

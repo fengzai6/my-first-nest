@@ -1,10 +1,11 @@
 import { JobStatusTag } from "@/components/jobs/job-status-tag";
+import { DataTable } from "@/components/data-table";
 import {
   JOB_CANCELLABLE_STATUSES,
   type IJobRun,
 } from "@/services/types/job";
 import { EyeOutlined, StopOutlined } from "@ant-design/icons";
-import { Button, Popconfirm, Progress, Space, Table, Tooltip, Typography } from "antd";
+import { Button, Popconfirm, Progress, Space, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 
 const { Text } = Typography;
@@ -129,28 +130,22 @@ export const JobListTable = ({
   ];
 
   return (
-    <Table
+    <DataTable
       columns={columns}
       dataSource={jobs}
       rowKey="id"
       loading={loading}
-      scroll={{ x: 1100 }}
+      page={page}
+      pageSize={pageSize}
+      total={total}
+      scrollX={1100}
       rowClassName={(record) =>
         record.id === selectedJobId ? "bg-blue-50" : "cursor-pointer"
       }
       onRow={(record) => ({
         onClick: () => onSelectJob(record),
       })}
-      pagination={{
-        current: page,
-        pageSize,
-        total,
-        showSizeChanger: true,
-        showQuickJumper: true,
-        showTotal: (totalCount, range) =>
-          `第 ${range[0]}-${range[1]} 条，共 ${totalCount} 条`,
-        onChange: onPaginationChange,
-      }}
+      onPaginationChange={onPaginationChange}
     />
   );
 };

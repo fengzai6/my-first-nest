@@ -5,6 +5,7 @@ import {
   ReloadOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
+import { DataTable } from "@/components/data-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
@@ -16,7 +17,6 @@ import {
   message,
   Space,
   Statistic,
-  Table,
   Tag,
   Tooltip,
   Typography,
@@ -482,13 +482,14 @@ export const CacheCapabilities = () => {
             </Space.Compact>
           </Space>
 
-          <Table
+          <DataTable
             size="small"
             rowKey="field"
             columns={hashColumns}
             dataSource={getHashRows(hashQuery.data)}
             loading={hashQuery.isLoading}
-            pagination={false}
+            fitHeight={false}
+            showPagination={false}
           />
         </div>
       </Card>
