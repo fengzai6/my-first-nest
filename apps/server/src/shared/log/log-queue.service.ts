@@ -6,6 +6,8 @@ import type { Queue } from 'bullmq';
 import { LOG_QUEUE } from './constants/log.constants';
 import type { ILogBatchJobData, ILogEvent } from './interfaces/log.interface';
 
+const MAX_BUFFERED_EVENTS = 5000;
+
 @Injectable()
 export class LogQueueService implements OnModuleDestroy {
   private readonly events: ILogEvent[] = [];
@@ -14,6 +16,7 @@ export class LogQueueService implements OnModuleDestroy {
   private flushTimer: NodeJS.Timeout | null = null;
   private isFlushing = false;
   private flushPromise: Promise<void> | null = null;
+  private isShuttingDown = false;
 
   constructor(
     @InjectQueue(LOG_QUEUE.NAME)
@@ -26,6 +29,10 @@ export class LogQueueService implements OnModuleDestroy {
   }
 
   enqueue(event: ILogEvent): void {
+    if (this.isShuttingDown) {
+      return;
+    }
+
     this.events.push(event);
 
     if (this.events.length >= this.batchSize) {
@@ -64,8 +71,20 @@ export class LogQueueService implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
+    this.isShuttingDown = true;
     this.clearFlushTimer();
+
     await this.flush();
+
+    if (this.events.length === 0) {
+      return;
+    }
+
+    const droppedCount = this.events.length;
+    this.events.length = 0;
+    process.stderr.write(
+      `Dropped ${droppedCount} buffered log events during shutdown because the queue remained unavailable\n`,
+    );
   }
 
   private async flushBatch(): Promise<void> {
@@ -89,12 +108,24 @@ export class LogQueueService implements OnModuleDestroy {
       );
     } catch (error) {
       // NOTE: 回填到缓冲区头部保持顺序，等下次 flush 重试；不抛出，日志失败不能影响业务。
-      this.events.unshift(...events);
+      const availableSlots = Math.max(
+        MAX_BUFFERED_EVENTS - this.events.length,
+        0,
+      );
+      const retainedEvents = events.slice(0, availableSlots);
+      const droppedCount = events.length - retainedEvents.length;
+
+      this.events.unshift(...retainedEvents);
       process.stderr.write(
         `Failed to enqueue log batch: ${
           error instanceof Error ? error.message : String(error)
         }\n`,
       );
+      if (droppedCount > 0) {
+        process.stderr.write(
+          `Dropped ${droppedCount} buffered log events after reaching the ${MAX_BUFFERED_EVENTS} event limit\n`,
+        );
+      }
     }
   }
 

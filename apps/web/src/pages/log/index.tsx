@@ -153,7 +153,9 @@ export const Logs = () => {
       <LogDetailDrawer
         log={detailQuery.data}
         loading={detailQuery.isLoading}
+        error={detailQuery.error}
         open={selectedLogId !== null}
+        onRetry={() => detailQuery.refetch()}
         onClose={handleCloseDetail}
       />
     </div>

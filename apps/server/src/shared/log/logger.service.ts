@@ -41,35 +41,36 @@ export class LoggerService {
     message: string,
     options: ILogWriteOptions,
   ): void {
-    const context = requestContextStorage.getStore();
-    const event: ILogEvent = {
-      // NOTE: ID 必须在入队前生成，job 重试时同一事件 ID 不变，落库的 orIgnore 才能去重。
-      id: generateSnowflakeId(),
-      level,
-      category: options.category ?? LOG_CATEGORY.BUSINESS,
-      message,
-      context: options.context ?? null,
-      requestId: this.resolveValue(
-        options.requestId,
-        context?.requestId ?? null,
-      ),
-      userId: this.resolveValue(options.userId, context?.userId ?? null),
-      ip: this.resolveValue(options.ip, context?.ip ?? null),
-      method: this.resolveValue(options.method, context?.method ?? null),
-      url: this.resolveValue(options.url, context?.url ?? null),
-      statusCode: options.statusCode ?? null,
-      duration: options.duration ?? null,
-      stack: options.stack ?? null,
-      timestamp: options.timestamp ?? new Date(),
-    };
-
-    process.stdout.write(`${JSON.stringify(toClefLogEvent(event))}\n`);
+    let event: ILogEvent;
 
     try {
+      const context = requestContextStorage.getStore();
+      event = {
+        // NOTE: ID 必须在入队前生成，job 重试时同一事件 ID 不变，落库的 orIgnore 才能去重。
+        id: generateSnowflakeId(),
+        level,
+        category: options.category ?? LOG_CATEGORY.BUSINESS,
+        message,
+        context: options.context ?? null,
+        requestId: this.resolveValue(
+          options.requestId,
+          context?.requestId ?? null,
+        ),
+        userId: this.resolveValue(options.userId, context?.userId ?? null),
+        ip: this.resolveValue(options.ip, context?.ip ?? null),
+        method: this.resolveValue(options.method, context?.method ?? null),
+        url: this.resolveValue(options.url, context?.url ?? null),
+        statusCode: options.statusCode ?? null,
+        duration: options.duration ?? null,
+        stack: options.stack ?? null,
+        timestamp: options.timestamp ?? new Date(),
+      };
+
+      process.stdout.write(`${JSON.stringify(toClefLogEvent(event))}\n`);
       this.queue.enqueue(event);
     } catch (error) {
       process.stderr.write(
-        `Failed to enqueue log: ${
+        `Failed to create or enqueue log: ${
           error instanceof Error ? error.message : String(error)
         }\n`,
       );

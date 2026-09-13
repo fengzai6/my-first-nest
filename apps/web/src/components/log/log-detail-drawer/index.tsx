@@ -1,6 +1,6 @@
 import { LogLevelTag } from "@/components/log/log-level-tag";
 import type { ILogRecord } from "@/services/types/log";
-import { Descriptions, Drawer, Space, Spin, Typography } from "antd";
+import { Alert, Button, Descriptions, Drawer, Space, Spin, Typography } from "antd";
 
 const { Paragraph, Text } = Typography;
 
@@ -18,14 +18,18 @@ const renderText = (value?: string | number | null) =>
 interface ILogDetailDrawerProps {
   log?: ILogRecord;
   loading?: boolean;
+  error?: Error | null;
   open: boolean;
+  onRetry?: () => void;
   onClose: () => void;
 }
 
 export const LogDetailDrawer = ({
   log,
   loading,
+  error,
   open,
+  onRetry,
   onClose,
 }: ILogDetailDrawerProps) => {
   return (
@@ -37,7 +41,23 @@ export const LogDetailDrawer = ({
     >
       {loading && <Spin />}
 
-      {!loading && log && (
+      {!loading && error && (
+        <Alert
+          type="error"
+          showIcon
+          message="日志详情加载失败"
+          description={error.message}
+          action={
+            onRetry ? (
+              <Button size="small" onClick={onRetry}>
+                重试
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
+
+      {!loading && !error && log && (
         <Space direction="vertical" size="large" className="w-full">
           <Descriptions size="small" bordered column={1}>
             <Descriptions.Item label="日志 ID">

@@ -1,7 +1,13 @@
 import { useElementHeight } from "@/hooks/use-element-height";
 import { Pagination, Table } from "antd";
 import type { ColumnsType, TableProps } from "antd/es/table";
+import type { SorterResult } from "antd/es/table/interface";
 import { useEffect, useRef, useState } from "react";
+import {
+  clampPage,
+  getPaginatedDataSource,
+  sortDataSource,
+} from "./utils";
 
 interface IDataTableProps<T> {
   columns: ColumnsType<T>;
@@ -42,12 +48,27 @@ export const DataTable = <T extends object>({
   const [tableHeaderHeight, setTableHeaderHeight] = useState(0);
   const [internalPage, setInternalPage] = useState(1);
   const [internalPageSize, setInternalPageSize] = useState(10);
-  const page = controlledPage ?? internalPage;
+  const [sorter, setSorter] = useState<
+    SorterResult<T> | SorterResult<T>[]
+  >({});
+  const requestedPage = controlledPage ?? internalPage;
   const pageSize = controlledPageSize ?? internalPageSize;
-  const paginatedData =
-    onPaginationChange || !showPagination
-    ? dataSource
-    : dataSource.slice((page - 1) * pageSize, page * pageSize);
+  const page = controlledPage
+    ? requestedPage
+    : clampPage(requestedPage, pageSize, dataSource.length);
+  const sortedData = sortDataSource(dataSource, columns, sorter);
+  let paginatedData = dataSource;
+  if (!onPaginationChange) {
+    paginatedData = showPagination
+      ? getPaginatedDataSource(sortedData, page, pageSize)
+      : sortedData;
+  }
+
+  useEffect(() => {
+    if (!controlledPage && internalPage !== page) {
+      setInternalPage(page);
+    }
+  }, [controlledPage, internalPage, page]);
 
   const handlePaginationChange = (nextPage: number, nextPageSize: number) => {
     if (onPaginationChange) {
@@ -90,6 +111,7 @@ export const DataTable = <T extends object>({
         size={size}
         rowClassName={rowClassName}
         onRow={onRow}
+        onChange={(_, __, nextSorter) => setSorter(nextSorter)}
         scroll={
           fitHeight
             ? {

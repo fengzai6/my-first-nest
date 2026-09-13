@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { beforeEach, describe, expect, it, MockInstance, vi } from 'vitest';
 
 type MockQueryBuilder = {
+  addOrderBy: MockInstance<(column: string, order: string) => MockQueryBuilder>;
   andWhere: MockInstance<
     (
       condition: string,
@@ -42,6 +43,7 @@ const createRecord = (): LogRecord => ({
 
 const createQueryBuilder = (): MockQueryBuilder => {
   const queryBuilder = {
+    addOrderBy: vi.fn(),
     andWhere: vi.fn(),
     getManyAndCount: vi.fn(),
     orderBy: vi.fn(),
@@ -49,6 +51,7 @@ const createQueryBuilder = (): MockQueryBuilder => {
     take: vi.fn(),
   } as MockQueryBuilder;
 
+  queryBuilder.addOrderBy.mockReturnValue(queryBuilder);
   queryBuilder.andWhere.mockReturnValue(queryBuilder);
   queryBuilder.orderBy.mockReturnValue(queryBuilder);
   queryBuilder.skip.mockReturnValue(queryBuilder);
@@ -123,6 +126,7 @@ describe('LogService', () => {
       { keyword: '%token%' },
     );
     expect(queryBuilder.orderBy).toHaveBeenCalledWith('log.timestamp', 'DESC');
+    expect(queryBuilder.addOrderBy).toHaveBeenCalledWith('log.id', 'DESC');
     expect(queryBuilder.skip).toHaveBeenCalledWith(20);
     expect(queryBuilder.take).toHaveBeenCalledWith(20);
     expect(result).toEqual({
@@ -143,6 +147,7 @@ describe('LogService', () => {
     await service.list({});
 
     expect(queryBuilder.andWhere).not.toHaveBeenCalled();
+    expect(queryBuilder.addOrderBy).toHaveBeenCalledWith('log.id', 'DESC');
     expect(queryBuilder.skip).toHaveBeenCalledWith(0);
     expect(queryBuilder.take).toHaveBeenCalledWith(20);
   });

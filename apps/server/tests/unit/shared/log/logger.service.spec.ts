@@ -5,6 +5,7 @@ import {
 import { LOG_CATEGORY, LOG_LEVEL } from '@/shared/log/constants/log.constants';
 import { LoggerService } from '@/shared/log/logger.service';
 import { initSnowflake, resetSnowflake } from '@/shared/utils/snowflake';
+import * as snowflake from '@/shared/utils/snowflake';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createLogger = () => {
@@ -73,7 +74,21 @@ describe('LoggerService', () => {
 
     expect(() => logger.log('request completed')).not.toThrow();
     expect(String(stderr.mock.calls[0]?.[0])).toContain(
-      'Failed to enqueue log',
+      'Failed to create or enqueue log',
+    );
+  });
+
+  it('does not let event construction failures escape to the caller', () => {
+    const { logger, queue } = createLogger();
+    const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+    vi.spyOn(snowflake, 'generateSnowflakeId').mockImplementation(() => {
+      throw new Error('clock moved backwards');
+    });
+
+    expect(() => logger.log('request completed')).not.toThrow();
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(String(stderr.mock.calls[0]?.[0])).toContain(
+      'Failed to create or enqueue log',
     );
   });
 

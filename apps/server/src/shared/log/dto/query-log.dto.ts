@@ -6,13 +6,27 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
+  ValidateBy,
 } from 'class-validator';
 import { LOG_LEVEL, LogLevel } from '../constants/log.constants';
 
 const LOG_LEVEL_VALUES = Object.values(LOG_LEVEL);
+const MAX_POSTGRES_BIGINT = 9223372036854775807n;
+
+const IsPostgresBigint = () =>
+  ValidateBy({
+    name: 'isPostgresBigint',
+    validator: {
+      validate: (value: unknown) =>
+        typeof value === 'string' &&
+        /^\d+$/.test(value) &&
+        BigInt(value) <= MAX_POSTGRES_BIGINT,
+    },
+  });
 
 export class QueryLogDto {
   @ApiPropertyOptional({
@@ -32,7 +46,8 @@ export class QueryLogDto {
   @ApiPropertyOptional({ description: '用户 ID' })
   @IsOptional()
   @IsString()
-  @MaxLength(64)
+  @Matches(/^\d+$/)
+  @IsPostgresBigint()
   userId?: string;
 
   @ApiPropertyOptional({ description: '请求 ID' })

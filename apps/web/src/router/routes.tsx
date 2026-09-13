@@ -13,6 +13,10 @@ import { Settings } from "@/pages/settings";
 import { SocketDemo } from "@/pages/socket-demo";
 import { Navigate, Outlet, type RouteObject } from "react-router";
 import { AuthGuard } from "./auth-guard";
+import {
+  LOG_ROUTE_ROLES,
+  SpecialRoleGuard,
+} from "./special-role-guard";
 
 export const routes: RouteObject[] = [
   {
@@ -44,8 +48,13 @@ export const routes: RouteObject[] = [
         element: <Jobs />,
       },
       {
-        path: "logs",
-        element: <Logs />,
+        element: <SpecialRoleGuard roles={LOG_ROUTE_ROLES} />,
+        children: [
+          {
+            path: "logs",
+            element: <Logs />,
+          },
+        ],
       },
       {
         path: "settings",

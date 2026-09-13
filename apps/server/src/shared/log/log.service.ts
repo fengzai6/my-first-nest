@@ -87,6 +87,8 @@ export class LogService {
 
     const [items, total] = await queryBuilder
       .orderBy('log.timestamp', 'DESC')
+      // NOTE: 同一毫秒内多条日志需要唯一列兜底，避免 offset 分页重复或漏记。
+      .addOrderBy('log.id', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
       .getManyAndCount();

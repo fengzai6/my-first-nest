@@ -49,8 +49,24 @@ export const validationSchema = Joi.object({
   SEQ_ENABLED: Joi.boolean().default(false),
   SEQ_URL: Joi.when('SEQ_ENABLED', {
     is: true,
-    then: Joi.string().uri().required(),
-    otherwise: Joi.string().uri().optional(),
+    then: Joi.when('SEQ_API_KEY', {
+      is: Joi.string().min(1).required(),
+      then: Joi.string()
+        .uri({ scheme: ['https'] })
+        .required(),
+      otherwise: Joi.string()
+        .uri({ scheme: ['http', 'https'] })
+        .required(),
+    }),
+    otherwise: Joi.when('SEQ_API_KEY', {
+      is: Joi.string().min(1).required(),
+      then: Joi.string()
+        .uri({ scheme: ['https'] })
+        .optional(),
+      otherwise: Joi.string()
+        .uri({ scheme: ['http', 'https'] })
+        .optional(),
+    }),
   }),
   SEQ_API_KEY: Joi.string().allow(''),
   SEQ_TIMEOUT_MS: Joi.number().integer().min(100).default(5000),
