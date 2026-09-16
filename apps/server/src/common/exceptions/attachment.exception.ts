@@ -49,7 +49,7 @@ export const AttachmentExceptionMap: Record<
     code: AttachmentExceptionCode.INVALID_SIGNATURE,
   },
   [AttachmentExceptionCode.IN_USE]: {
-    message: '已绑定的头像附件不能通过通用接口修改或删除',
+    message: '已绑定的附件不能通过通用接口修改或删除',
     status: HttpStatus.CONFLICT,
     code: AttachmentExceptionCode.IN_USE,
   },

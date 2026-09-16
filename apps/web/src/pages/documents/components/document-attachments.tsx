@@ -1,25 +1,35 @@
 import { FileOutlined } from "@ant-design/icons";
-import { Image, Spin } from "antd";
+import { Image, List, Spin, Typography } from "antd";
 import { useEffect, useState } from "react";
 
-import { GetAttachmentSignedUrl } from "@/services/api/attachment";
+import { GetDocumentAttachmentSignedUrl } from "@/services/api/document";
 import {
   ATTACHMENT_VISIBILITY,
   type IAttachment,
-  type IAttachmentSignedUrl,
 } from "@/services/types/attachment";
 
-interface IAttachmentPreviewProps {
-  attachment: IAttachment;
-  getSignedUrl?: (attachmentId: string) => Promise<IAttachmentSignedUrl>;
+const { Text } = Typography;
+
+interface IDocumentAttachmentsProps {
+  documentId: string;
+  attachments: IAttachment[];
 }
+
+const formatFileSize = (size: number) => {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+};
 
 const isImage = (mimeType: string) => mimeType.startsWith("image/");
 
-export const AttachmentPreview = ({
+const DocumentAttachmentPreview = ({
+  documentId,
   attachment,
-  getSignedUrl,
-}: IAttachmentPreviewProps) => {
+}: {
+  documentId: string;
+  attachment: IAttachment;
+}) => {
   const [previewUrl, setPreviewUrl] = useState(attachment.url);
   const [loading, setLoading] = useState(false);
 
@@ -35,11 +45,7 @@ export const AttachmentPreview = ({
     let cancelled = false;
     setLoading(true);
 
-    const requestSignedUrl =
-      getSignedUrl ??
-      ((attachmentId: string) => GetAttachmentSignedUrl(attachmentId));
-
-    requestSignedUrl(attachment.id)
+    GetDocumentAttachmentSignedUrl(documentId, attachment.id)
       .then(({ url }) => {
         if (!cancelled) setPreviewUrl(url);
       })
@@ -58,7 +64,7 @@ export const AttachmentPreview = ({
     attachment.mimeType,
     attachment.url,
     attachment.visibility,
-    getSignedUrl,
+    documentId,
   ]);
 
   if (!isImage(attachment.mimeType)) {
@@ -81,6 +87,39 @@ export const AttachmentPreview = ({
       height={48}
       className="rounded object-cover"
       preview={{ mask: "预览" }}
+    />
+  );
+};
+
+export const DocumentAttachments = ({
+  documentId,
+  attachments,
+}: IDocumentAttachmentsProps) => {
+  if (attachments.length === 0) {
+    return <Text type="secondary">暂无附件</Text>;
+  }
+
+  return (
+    <List
+      size="small"
+      bordered
+      dataSource={attachments}
+      renderItem={(attachment) => (
+        <List.Item>
+          <List.Item.Meta
+            avatar={
+              <DocumentAttachmentPreview
+                documentId={documentId}
+                attachment={attachment}
+              />
+            }
+            title={attachment.originalName}
+            description={
+              <Text type="secondary">{formatFileSize(attachment.size)}</Text>
+            }
+          />
+        </List.Item>
+      )}
     />
   );
 };

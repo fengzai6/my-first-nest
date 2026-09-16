@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   EntityManager,
   FindOptionsWhere,
+  In,
   IsNull,
   Not,
   Repository,
@@ -121,6 +122,105 @@ export class AttachmentsService {
     return attachments.map((attachment) => this.toView(attachment));
   }
 
+  async countActiveByBusiness(
+    bizType: string,
+    bizIds: string[],
+  ): Promise<Map<string, number>> {
+    if (bizIds.length === 0) return new Map();
+
+    const rows = await this.attachmentRepository
+      .createQueryBuilder('attachment')
+      .select('attachment.bizId', 'bizId')
+      .addSelect('COUNT(*)', 'count')
+      .where('attachment.bizType = :bizType', { bizType })
+      .andWhere('attachment.bizId IN (:...bizIds)', { bizIds })
+      .andWhere('attachment.deletedAt IS NULL')
+      .groupBy('attachment.bizId')
+      .getRawMany<{ bizId: string; count: string }>();
+
+    return new Map(rows.map((row) => [row.bizId, Number(row.count)]));
+  }
+
+  async syncDocumentAttachments(
+    documentId: string,
+    attachmentIds: string[],
+    manager: EntityManager,
+  ): Promise<void> {
+    const repository = manager.getRepository(Attachment);
+    const uniqueIds = [...new Set(attachmentIds)];
+    const existing = await repository.find({
+      where: {
+        bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
+        bizId: documentId,
+        deletedAt: IsNull(),
+      },
+    });
+
+    const requested =
+      uniqueIds.length === 0
+        ? []
+        : await repository.find({ where: { id: In(uniqueIds) } });
+
+    if (requested.length !== uniqueIds.length) {
+      throw new AttachmentException(AttachmentExceptionCode.NOT_FOUND);
+    }
+
+    for (const attachment of requested) {
+      const isCurrentDocument =
+        attachment.bizType === ATTACHMENT_BIZ_TYPE.DOCUMENT &&
+        attachment.bizId === documentId;
+      if (attachment.bizType && !isCurrentDocument) {
+        throw new AttachmentException(AttachmentExceptionCode.IN_USE);
+      }
+
+      this.validateFile(
+        {
+          mimetype: attachment.mimeType,
+          size: attachment.size,
+        } as Express.Multer.File,
+        MAX_ATTACHMENT_SIZE,
+        ATTACHMENT_MIME_TYPES,
+      );
+    }
+
+    const requestedIdSet = new Set(uniqueIds);
+    const removed = existing.filter(
+      (attachment) => !requestedIdSet.has(attachment.id),
+    );
+    const added = requested.filter(
+      (attachment) =>
+        attachment.bizType !== ATTACHMENT_BIZ_TYPE.DOCUMENT ||
+        attachment.bizId !== documentId,
+    );
+
+    for (const attachment of added) {
+      attachment.bizType = ATTACHMENT_BIZ_TYPE.DOCUMENT;
+      attachment.bizId = documentId;
+    }
+
+    if (added.length > 0) {
+      await repository.save(added);
+    }
+    if (removed.length > 0) {
+      await repository.softRemove(removed);
+    }
+  }
+
+  async softRemoveByBusiness(
+    bizType: string,
+    bizId: string,
+    manager: EntityManager,
+  ): Promise<void> {
+    const repository = manager.getRepository(Attachment);
+    const attachments = await repository.find({
+      where: { bizType, bizId, deletedAt: IsNull() },
+    });
+
+    if (attachments.length > 0) {
+      await repository.softRemove(attachments);
+    }
+  }
+
   async findOne(id: string, manager?: EntityManager): Promise<Attachment> {
     const repository =
       manager?.getRepository(Attachment) ?? this.attachmentRepository;
@@ -144,6 +244,14 @@ export class AttachmentsService {
     this.assertCanAccessPrivate(attachment, user);
 
     return this.signatureService.createSignedUrl(attachment.id, user.id);
+  }
+
+  async createSignedUrlForUser(
+    attachmentId: string,
+    userId: string,
+  ): Promise<{ url: string; expiresAt: number }> {
+    await this.findOne(attachmentId);
+    return this.signatureService.createSignedUrl(attachmentId, userId);
   }
 
   async getContent(
@@ -197,7 +305,7 @@ export class AttachmentsService {
     const attachment = await this.findOne(id);
     const user = useRequestUser();
     this.assertCanManage(attachment, user);
-    this.assertNotBoundAvatar(attachment);
+    this.assertNotBoundBusiness(attachment);
 
     await this.attachmentRepository.softRemove(attachment);
   }
@@ -218,6 +326,14 @@ export class AttachmentsService {
 
     if (attachment.uploadedBy?.id !== user.id && !this.isSuperAdmin(user)) {
       throw new AttachmentException(AttachmentExceptionCode.FORBIDDEN);
+    }
+
+    const isCurrentAvatar =
+      attachment.bizType === ATTACHMENT_BIZ_TYPE.USER_AVATAR &&
+      attachment.bizId === userId;
+
+    if (attachment.bizType && !isCurrentAvatar) {
+      throw new AttachmentException(AttachmentExceptionCode.IN_USE);
     }
 
     this.validateFile(
@@ -295,6 +411,12 @@ export class AttachmentsService {
 
   private assertNotBoundAvatar(attachment: Attachment) {
     if (attachment.bizType === ATTACHMENT_BIZ_TYPE.USER_AVATAR) {
+      throw new AttachmentException(AttachmentExceptionCode.IN_USE);
+    }
+  }
+
+  private assertNotBoundBusiness(attachment: Attachment) {
+    if (attachment.bizType) {
       throw new AttachmentException(AttachmentExceptionCode.IN_USE);
     }
   }

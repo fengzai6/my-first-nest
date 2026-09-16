@@ -438,4 +438,94 @@ describe('AttachmentsService', () => {
     ]);
     expect(transactionalRepository.save).toHaveBeenCalledWith(attachment);
   });
+
+  it('binds, keeps, and soft removes document attachments as one set', async () => {
+    const { service } = createService();
+    const { manager, repository } = createManager();
+    const kept = createAttachment({
+      id: 'kept-id',
+      bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
+      bizId: 'document-id',
+    });
+    const removed = createAttachment({
+      id: 'removed-id',
+      bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
+      bizId: 'document-id',
+    });
+    const added = createAttachment({ id: 'added-id' });
+
+    repository.find
+      .mockResolvedValueOnce([kept, removed])
+      .mockResolvedValueOnce([kept, added]);
+
+    await service.syncDocumentAttachments(
+      'document-id',
+      ['kept-id', 'added-id'],
+      manager,
+    );
+
+    expect(added.bizType).toBe(ATTACHMENT_BIZ_TYPE.DOCUMENT);
+    expect(added.bizId).toBe('document-id');
+    expect(repository.save).toHaveBeenCalledWith([added]);
+    expect(repository.softRemove).toHaveBeenCalledWith([removed]);
+  });
+
+  it('rejects binding an attachment owned by another business object', async () => {
+    const { service } = createService();
+    const { manager, repository } = createManager();
+
+    repository.find
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        createAttachment({
+          bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
+          bizId: 'user-id',
+        }),
+      ]);
+
+    await expect(
+      service.syncDocumentAttachments(
+        'document-id',
+        ['attachment-id'],
+        manager,
+      ),
+    ).rejects.toMatchObject({
+      code: AttachmentExceptionCode.IN_USE,
+    });
+  });
+
+  it('issues a document-scoped signed url without checking the uploader', async () => {
+    const { service, repository, createSignedUrl } = createService();
+    repository.findOne.mockResolvedValue(
+      createAttachment({ uploadedBy: createUser({ id: 'uploader-id' }) }),
+    );
+
+    await expect(
+      service.createSignedUrlForUser('attachment-id', 'document-reader-id'),
+    ).resolves.toMatchObject({
+      url: expect.stringContaining('/api/attachments/content/attachment-id'),
+    });
+    expect(createSignedUrl).toHaveBeenCalledWith(
+      'attachment-id',
+      'document-reader-id',
+    );
+  });
+
+  it('rejects generic deletion for any bound attachment', async () => {
+    const { service, repository } = createService();
+    const user = createUser();
+    repository.findOne.mockResolvedValue(
+      createAttachment({
+        uploadedBy: user,
+        bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
+        bizId: 'document-id',
+      }),
+    );
+
+    await userContextStorage.run(user, async () => {
+      await expect(service.remove('attachment-id')).rejects.toMatchObject({
+        code: AttachmentExceptionCode.IN_USE,
+      });
+    });
+  });
 });

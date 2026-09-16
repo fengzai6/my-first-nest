@@ -2,6 +2,7 @@ import { AuthModule } from './auth/auth.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { BenchmarkModule } from './benchmark/benchmark.module';
 import { CatsModule } from './cats/cats.module';
+import { DocumentsModule } from './documents/documents.module';
 import { BackgroundTasksModule } from './background-tasks/background-tasks.module';
 import { GroupsModule } from './groups/groups.module';
 import { PermissionsModule } from './permissions/permissions.module';
@@ -15,6 +16,7 @@ export const modules = [
   AttachmentsModule,
   BenchmarkModule,
   CatsModule,
+  DocumentsModule,
   BackgroundTasksModule,
   GroupsModule,
   PermissionsModule,

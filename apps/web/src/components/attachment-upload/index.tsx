@@ -3,14 +3,12 @@ import { Button, List, message, Space, Typography, Upload } from "antd";
 import type { UploadProps } from "antd";
 import { useRef } from "react";
 
-import {
-  DeleteAttachment,
-  UploadAttachment,
-} from "@/services/api/attachment";
+import { DeleteAttachment, UploadAttachment } from "@/services/api/attachment";
 import {
   ATTACHMENT_VISIBILITY,
   type AttachmentVisibility,
   type IAttachment,
+  type IAttachmentSignedUrl,
 } from "@/services/types/attachment";
 import { AttachmentPreview } from "./attachment-preview";
 
@@ -26,6 +24,7 @@ interface IAttachmentUploadProps {
   maxSize?: number;
   accept?: string;
   disabled?: boolean;
+  getSignedUrl?: (attachmentId: string) => Promise<IAttachmentSignedUrl>;
   onChange?: (attachments: IAttachment[]) => void;
 }
 
@@ -42,6 +41,7 @@ export const AttachmentUpload = ({
   maxSize = MAX_ATTACHMENT_SIZE,
   accept,
   disabled,
+  getSignedUrl,
   onChange,
 }: IAttachmentUploadProps) => {
   const valueRef = useRef(value);
@@ -87,7 +87,17 @@ export const AttachmentUpload = ({
   };
 
   const handleDelete = async (attachment: IAttachment) => {
-    await DeleteAttachment(attachment.id);
+    if (!attachment.bizType) {
+      try {
+        await DeleteAttachment(attachment.id);
+      } catch (error) {
+        message.error(
+          error instanceof Error ? error.message : "附件删除失败，请稍后重试",
+        );
+        return;
+      }
+    }
+
     const nextValue = valueRef.current.filter(
       (item) => item.id !== attachment.id,
     );
@@ -130,10 +140,17 @@ export const AttachmentUpload = ({
               ]}
             >
               <List.Item.Meta
-                avatar={<AttachmentPreview attachment={attachment} />}
+                avatar={
+                  <AttachmentPreview
+                    attachment={attachment}
+                    getSignedUrl={getSignedUrl}
+                  />
+                }
                 title={attachment.originalName}
                 description={
-                  <Text type="secondary">{formatFileSize(attachment.size)}</Text>
+                  <Text type="secondary">
+                    {formatFileSize(attachment.size)}
+                  </Text>
                 }
               />
             </List.Item>
