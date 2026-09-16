@@ -1,12 +1,18 @@
 import { RoleCode } from '@/common/constants/roles';
 import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
 import { ApiProperty, OmitType, PartialType } from '@nestjs/swagger';
-import { IsArray, IsEnum, IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsArray, IsEnum, IsOptional, IsString } from 'class-validator';
 import { CreateUserDto } from './create-user.dto';
 
 export class UpdateUserDto extends PartialType(
   OmitType(CreateUserDto, ['password', 'roles'] as const),
-) {}
+) {
+  @ApiPropertyOptional({ description: '新头像附件 ID' })
+  @IsOptional()
+  @IsString()
+  avatarAttachmentId?: string;
+}
 
 export class UpdateUserRolesDto {
   @ApiProperty({

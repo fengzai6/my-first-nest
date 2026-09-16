@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { hash, verify } from 'argon2';
 import {
+  DataSource,
   FindOptionsRelations,
   FindOptionsWhere,
   ILike,
@@ -18,6 +19,7 @@ import {
   Repository,
 } from 'typeorm';
 import { PermissionsService } from '../permissions/permissions.service';
+import { AttachmentsService } from '../attachments/attachments.service';
 import { Role } from '../roles/entities/role.entity';
 import { RolesService } from '../roles/roles.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -37,9 +39,11 @@ import { User } from './entities/user.entity';
 export class UsersService {
   constructor(
     @InjectRepository(User) private userRepository: Repository<User>,
+    private readonly dataSource: DataSource,
     private readonly rolesService: RolesService,
     private readonly permissionsService: PermissionsService,
     private readonly configService: ConfigService,
+    private readonly attachmentsService: AttachmentsService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -146,7 +150,8 @@ export class UsersService {
       'DEFAULT_ADMIN_USERNAME',
     );
 
-    const sanitized: UpdateUserDto = { ...updateUserDto };
+    const { avatarAttachmentId, ...updatableUserDto } = updateUserDto;
+    const sanitized: UpdateUserDto = { ...updatableUserDto };
 
     if (user.username === defaultAdminUsername) {
       delete sanitized.username;
@@ -172,9 +177,23 @@ export class UsersService {
       }
     }
 
-    const updatedUser = this.userRepository.merge(user, { ...sanitized });
+    return this.dataSource.transaction(async (manager) => {
+      const repository = manager.getRepository(User);
+      const updatedUser = repository.merge(user, { ...sanitized });
+      const savedUser = await repository.save(updatedUser);
 
-    return this.userRepository.save(updatedUser);
+      if (!avatarAttachmentId) {
+        return savedUser;
+      }
+
+      savedUser.avatar = await this.attachmentsService.bindUserAvatar(
+        id,
+        avatarAttachmentId,
+        manager,
+      );
+
+      return repository.save(savedUser);
+    });
   }
 
   async updateUserSpecialRoles(

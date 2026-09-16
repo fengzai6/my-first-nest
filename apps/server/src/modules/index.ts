@@ -1,4 +1,5 @@
 import { AuthModule } from './auth/auth.module';
+import { AttachmentsModule } from './attachments/attachments.module';
 import { BenchmarkModule } from './benchmark/benchmark.module';
 import { CatsModule } from './cats/cats.module';
 import { BackgroundTasksModule } from './background-tasks/background-tasks.module';
@@ -11,6 +12,7 @@ import { UsersModule } from './users/users.module';
 
 export const modules = [
   AuthModule,
+  AttachmentsModule,
   BenchmarkModule,
   CatsModule,
   BackgroundTasksModule,

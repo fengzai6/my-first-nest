@@ -1,10 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Form, Input, Select, Space, Switch } from "antd";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
 import type { ICreateUserDto, IUpdateUserDto } from "@/services/dtos/user";
+import { AvatarUpload } from "@/components/avatar-upload";
 import type { IRole } from "@/services/types/role";
 import type { IUser } from "@/services/types/user";
 
@@ -55,6 +56,7 @@ export const UserForm: React.FC<IUserFormProps> = ({
   loading = false,
 }) => {
   const isEdit = !!user;
+  const [avatarAttachmentId, setAvatarAttachmentId] = useState<string>();
   const schema = isEdit ? updateUserSchema : createUserSchema;
 
   const {
@@ -80,6 +82,8 @@ export const UserForm: React.FC<IUserFormProps> = ({
 
   // 当用户数据变化时重置表单
   useEffect(() => {
+    setAvatarAttachmentId(undefined);
+
     if (isEdit && user) {
       reset({
         username: user.username,
@@ -97,11 +101,24 @@ export const UserForm: React.FC<IUserFormProps> = ({
   }, [user, isEdit, reset]);
 
   const onFormSubmit = (data: CreateUserFormData | UpdateUserFormData) => {
-    onSubmit(data);
+    onSubmit({
+      ...data,
+      ...(isEdit && avatarAttachmentId ? { avatarAttachmentId } : {}),
+    });
   };
 
   return (
     <Form layout="vertical" onFinish={handleSubmit(onFormSubmit)}>
+      {isEdit && (
+        <Form.Item label="头像">
+          <AvatarUpload
+            value={{ avatarUrl: user?.avatar }}
+            disabled={loading}
+            onChange={({ attachmentId }) => setAvatarAttachmentId(attachmentId)}
+          />
+        </Form.Item>
+      )}
+
       <Form.Item
         label="用户名"
         validateStatus={errors.username ? "error" : ""}

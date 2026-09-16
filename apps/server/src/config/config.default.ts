@@ -73,5 +73,14 @@ export const defaultConfig = registerAs(
         timeoutMs: parseNumberEnv(process.env.SEQ_TIMEOUT_MS, 5000),
       },
     },
+    upload: {
+      dir: process.env.UPLOAD_DIR || 'uploads',
+      urlPrefix: process.env.UPLOAD_URL_PREFIX || '/api/attachments/content',
+      signedUrlExpiresIn: parseNumberEnv(
+        process.env.UPLOAD_SIGNED_URL_EXPIRES_IN,
+        300,
+      ),
+      secret: process.env.UPLOAD_SIGNATURE_SECRET,
+    },
   }),
 );
