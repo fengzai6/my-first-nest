@@ -70,4 +70,21 @@ export class BackgroundTasksController {
       createdBy: user.id,
     });
   }
+
+  @Post('cleanup-attachments')
+  @ApiOperation({
+    summary: '手动触发附件物理清理',
+    description:
+      '删除超过保留期的软删除附件和从未绑定的孤儿附件，最多重试 3 次',
+  })
+  cleanupAttachments(@UserInfo() user: User) {
+    return this.jobService.submit({
+      name: JOB_NAMES.CLEANUP_ATTACHMENTS,
+      payload: {},
+      attempts: 3,
+      backoffMs: 2000,
+      triggerType: JOB_TRIGGER_TYPE.MANUAL,
+      createdBy: user.id,
+    });
+  }
 }

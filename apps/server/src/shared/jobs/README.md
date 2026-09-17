@@ -39,6 +39,13 @@ export class CleanupHandler implements IJobHandler {
 - `GET /api/jobs/:id/events` 单任务 SSE 事件流
 - `POST /api/jobs/:id/cancel` 取消 queued/delayed
 
+## 附件物理清理
+
+- 每天 03:00 自动提交 `cleanup-attachments`
+- 手动接口：`POST /api/background-tasks/cleanup-attachments`
+- 候选：超过保留期的软删除附件、从未绑定的孤儿附件
+- 结果：`deletedMetadataCount`、`missingFileCount`、`failedCount`、`scannedCount`、`reachedSafetyLimit`
+
 ## SSE 事件流
 
 `GET /api/jobs/:id/events` 是轮询之外的第二种学习示例，本期先提供服务端能力，前端暂不接入。
@@ -59,19 +66,19 @@ data: {"id":"...","status":"active","progress":50}
 
 ## 任务中心 vs Bull Board
 
-| 视图 | 数据源 | 用途 |
-|------|--------|------|
+| 视图         | 数据源                | 用途                                                          |
+| ------------ | --------------------- | ------------------------------------------------------------- |
 | 前端任务中心 | PostgreSQL `job_runs` | 展示业务任务生命周期、payload、result、errorMessage、触发类型 |
-| Bull Board | BullMQ queue | 观察队列内部 waiting/active/completed/failed 状态 |
+| Bull Board   | BullMQ queue          | 观察队列内部 waiting/active/completed/failed 状态             |
 
 Bull Board 挂载在 `/admin/queues`，用于队列可观测性学习，不能替代业务任务中心。
 
 ## 轮询 vs SSE
 
-| 方式 | 优点 | 缺点 | 适用 |
-|------|------|------|------|
+| 方式 | 优点               | 缺点             | 适用     |
+| ---- | ------------------ | ---------------- | -------- |
 | 轮询 | 实现简单、兼容性好 | 有延迟、多余请求 | 通用默认 |
-| SSE | 实时、服务端推送 | 连接管理更复杂 | 进度场景 |
+| SSE  | 实时、服务端推送   | 连接管理更复杂   | 进度场景 |
 
 前端任务中心本期使用 `GET /api/jobs/:id` 轮询。SSE 后端接口保留，可用 curl 单独验证：
 
@@ -84,12 +91,12 @@ curl -N \
 
 ## 与 @nestjs/schedule 的边界
 
-| | scheduled-tasks | shared/jobs |
-|--|---------------|-------------|
-| 定位 | 轻量进程内 cron | 完整任务系统 |
-| 进度/结果 | 无 | `job_runs` |
-| 重试 | 需自管 | BullMQ attempts |
-| 多实例 | 可能重复执行 | 队列消费 |
+|           | scheduled-tasks | shared/jobs     |
+| --------- | --------------- | --------------- |
+| 定位      | 轻量进程内 cron | 完整任务系统    |
+| 进度/结果 | 无              | `job_runs`      |
+| 重试      | 需自管          | BullMQ attempts |
+| 多实例    | 可能重复执行    | 队列消费        |
 
 ## Redis
 

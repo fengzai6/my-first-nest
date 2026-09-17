@@ -31,12 +31,28 @@
 
 业务附件查询不提供通用 HTTP 接口。业务模块先完成业务对象权限校验，再调用 `AttachmentsService.findByBusiness()`。
 
+## 物理清理
+
+附件清理任务处理两类候选：
+
+- 已软删除且 `deletedAt` 超过保留期的附件。
+- 从未绑定业务且 `createdAt` 超过保留期的孤儿附件。
+
+先删除物理文件，再硬删除附件元数据。文件不存在视为清理成功；单条失败不会中断整批，失败记录保留到下一次任务重试。
+
+- `ATTACHMENT_CLEANUP_RETENTION_DAYS`：保留天数，默认 `7`，最小 `1`。
+- `ATTACHMENT_CLEANUP_BATCH_SIZE`：单次查询最大条数，默认 `100`，范围 `1-1000`。
+- 自动触发：每天 `03:00` 提交 `cleanup-attachments`。
+- 手动触发：`POST /api/background-tasks/cleanup-attachments`。
+
+同名任务已有 `queued`、`delayed` 或 `active` 记录时，自动触发会跳过。清理任务不提供回收站和人工恢复。
+
 ## API
 
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| POST | `/api/attachments` | 上传一个或多个附件 |
-| GET | `/api/attachments/:id/signed-url` | 获取私有附件签名 URL |
-| GET | `/api/attachments/content/:id` | 读取公开附件或签名附件内容 |
-| PATCH | `/api/attachments/:id` | 更新未绑定附件的可见性 |
-| DELETE | `/api/attachments/:id` | 软删除未绑定附件 |
+| 方法   | 路径                              | 说明                       |
+| ------ | --------------------------------- | -------------------------- |
+| POST   | `/api/attachments`                | 上传一个或多个附件         |
+| GET    | `/api/attachments/:id/signed-url` | 获取私有附件签名 URL       |
+| GET    | `/api/attachments/content/:id`    | 读取公开附件或签名附件内容 |
+| PATCH  | `/api/attachments/:id`            | 更新未绑定附件的可见性     |
+| DELETE | `/api/attachments/:id`            | 软删除未绑定附件           |

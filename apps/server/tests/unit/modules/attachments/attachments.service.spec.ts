@@ -8,6 +8,7 @@ import {
   ATTACHMENT_VISIBILITY,
 } from '@/modules/attachments/constants/attachment.constants';
 import { AttachmentsService } from '@/modules/attachments/attachments.service';
+import { AttachmentCleanupService } from '@/modules/attachments/services/attachment-cleanup.service';
 import { User } from '@/modules/users/entities/user.entity';
 import { Readable } from 'stream';
 import { EntityManager, FindOperator } from 'typeorm';
@@ -118,6 +119,10 @@ const createService = () => {
     getExpiresIn: vi.fn(() => 300),
     getUrlPrefix: vi.fn(() => '/api/attachments/content'),
   } as unknown as AttachmentSignatureService;
+  const cleanupExpiredAttachments = vi.fn();
+  const cleanupService = {
+    cleanupExpiredAttachments,
+  } as unknown as AttachmentCleanupService;
 
   return {
     repository,
@@ -125,10 +130,12 @@ const createService = () => {
     createSignedUrl,
     verifySignature,
     signatureService,
+    cleanupExpiredAttachments,
     service: new AttachmentsService(
       repository as never,
       storage,
       signatureService,
+      cleanupService,
     ),
   };
 };
@@ -474,14 +481,12 @@ describe('AttachmentsService', () => {
     const { service } = createService();
     const { manager, repository } = createManager();
 
-    repository.find
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        createAttachment({
-          bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
-          bizId: 'user-id',
-        }),
-      ]);
+    repository.find.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      createAttachment({
+        bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
+        bizId: 'user-id',
+      }),
+    ]);
 
     await expect(
       service.syncDocumentAttachments(
@@ -527,5 +532,20 @@ describe('AttachmentsService', () => {
         code: AttachmentExceptionCode.IN_USE,
       });
     });
+  });
+
+  it('delegates attachment cleanup to the cleanup service', async () => {
+    const { service, cleanupExpiredAttachments } = createService();
+    const result = {
+      deletedMetadataCount: 1,
+      missingFileCount: 0,
+      failedCount: 0,
+      scannedCount: 1,
+      reachedSafetyLimit: false,
+    };
+    cleanupExpiredAttachments.mockResolvedValue(result);
+
+    await expect(service.cleanupExpiredAttachments()).resolves.toBe(result);
+    expect(cleanupExpiredAttachments).toHaveBeenCalledTimes(1);
   });
 });

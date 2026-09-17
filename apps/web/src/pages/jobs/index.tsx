@@ -5,6 +5,7 @@ import { JobTriggerPanel } from "@/components/jobs/job-trigger-panel";
 import { JobsPageHeader } from "@/components/jobs/jobs-page-header";
 import {
   SubmitCleanupExpiredRefreshTokens,
+  SubmitCleanupAttachments,
   SubmitExportReport,
   SubmitFlakyRetry,
 } from "@/services/api/background-tasks";
@@ -93,6 +94,12 @@ export const Jobs = () => {
     onError: (error: Error) => message.error(error.message || "提交失败"),
   });
 
+  const cleanupAttachmentsMutation = useMutation({
+    mutationFn: SubmitCleanupAttachments,
+    onSuccess: handleJobSubmitted,
+    onError: (error: Error) => message.error(error.message || "提交失败"),
+  });
+
   const cancelMutation = useMutation({
     mutationFn: CancelJob,
     onMutate: (jobId: string) => setCancellingJobId(jobId),
@@ -110,7 +117,8 @@ export const Jobs = () => {
   const triggerLoading =
     exportReportMutation.isPending ||
     flakyRetryMutation.isPending ||
-    cleanupMutation.isPending;
+    cleanupMutation.isPending ||
+    cleanupAttachmentsMutation.isPending;
 
   const handleNameChange = (nextName: string) => {
     setName(nextName);
@@ -181,6 +189,7 @@ export const Jobs = () => {
           onSubmitExportReport={handleSubmitExportReport}
           onSubmitFlakyRetry={handleSubmitFlakyRetry}
           onSubmitCleanup={() => cleanupMutation.mutate()}
+          onSubmitCleanupAttachments={() => cleanupAttachmentsMutation.mutate()}
         />
 
         <Card

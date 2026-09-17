@@ -2,8 +2,20 @@ import type {
   ISubmitExportReportDto,
   ISubmitFlakyRetryDto,
 } from "@/services/dtos/job";
-import { ClearOutlined, FileExcelOutlined, ThunderboltOutlined } from "@ant-design/icons";
-import { Button, Card, Form, Input, InputNumber, Space, Typography } from "antd";
+import {
+  ClearOutlined,
+  FileExcelOutlined,
+  ThunderboltOutlined,
+} from "@ant-design/icons";
+import {
+  Button,
+  Card,
+  Form,
+  Input,
+  InputNumber,
+  Space,
+  Typography,
+} from "antd";
 
 const { Text } = Typography;
 
@@ -12,6 +24,7 @@ interface IJobTriggerPanelProps {
   onSubmitExportReport: (data: ISubmitExportReportDto) => void;
   onSubmitFlakyRetry: (data: ISubmitFlakyRetryDto) => void;
   onSubmitCleanup: () => void;
+  onSubmitCleanupAttachments: () => void;
 }
 
 export const JobTriggerPanel = ({
@@ -19,13 +32,18 @@ export const JobTriggerPanel = ({
   onSubmitExportReport,
   onSubmitFlakyRetry,
   onSubmitCleanup,
+  onSubmitCleanupAttachments,
 }: IJobTriggerPanelProps) => {
   return (
     <Card title="手动触发" className="h-full">
       <Space direction="vertical" size="large" className="w-full">
         <Form
           layout="vertical"
-          initialValues={{ title: "monthly-report", steps: 5, stepDelayMs: 500 }}
+          initialValues={{
+            title: "monthly-report",
+            steps: 5,
+            stepDelayMs: 500,
+          }}
           onFinish={onSubmitExportReport}
         >
           <Text strong>export-report</Text>
@@ -76,6 +94,15 @@ export const JobTriggerPanel = ({
           block
         >
           清理过期 refresh token
+        </Button>
+
+        <Button
+          icon={<ClearOutlined />}
+          loading={loading}
+          onClick={onSubmitCleanupAttachments}
+          block
+        >
+          清理附件
         </Button>
       </Space>
     </Card>

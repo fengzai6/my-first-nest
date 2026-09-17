@@ -4,7 +4,7 @@ import {
 } from '@/common/exceptions/error.exception';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { FindOptionsWhere, In, Repository } from 'typeorm';
 import { JobEventsService } from '../events/job-events.service';
 import { resolveJobSseEventName } from '../events/job-sse.util';
 import {
@@ -216,6 +216,15 @@ export class JobRecordService {
 
   async getViewOrFail(jobId: string): Promise<IJobRunView> {
     return this.toView(await this.getEntityOrFail(jobId));
+  }
+
+  async hasActiveOrPending(name: string): Promise<boolean> {
+    return this.jobRunRepository.exists({
+      where: {
+        name,
+        status: In([JOB_STATUS.QUEUED, JOB_STATUS.DELAYED, JOB_STATUS.ACTIVE]),
+      },
+    });
   }
 
   async list(query: IListJobsQuery) {
