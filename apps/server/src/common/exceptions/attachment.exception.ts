@@ -9,6 +9,7 @@ export const AttachmentExceptionCode = {
   FORBIDDEN: 'ATTACHMENT_FORBIDDEN',
   INVALID_SIGNATURE: 'ATTACHMENT_INVALID_SIGNATURE',
   IN_USE: 'ATTACHMENT_IN_USE',
+  ALREADY_BOUND: 'ATTACHMENT_ALREADY_BOUND',
 } as const;
 
 export type AttachmentExceptionCode =
@@ -52,6 +53,11 @@ export const AttachmentExceptionMap: Record<
     message: '已绑定的头像附件不能通过通用接口修改或删除',
     status: HttpStatus.CONFLICT,
     code: AttachmentExceptionCode.IN_USE,
+  },
+  [AttachmentExceptionCode.ALREADY_BOUND]: {
+    message: '附件已绑定其他业务，不能重复绑定',
+    status: HttpStatus.CONFLICT,
+    code: AttachmentExceptionCode.ALREADY_BOUND,
   },
 };
 

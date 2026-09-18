@@ -80,12 +80,16 @@ const createRepository = (): MockRepository => ({
 
 const createService = () => {
   const repository = createRepository();
+  const transactionRepository = createRepository();
+  const manager = {
+    getRepository: vi.fn(() => transactionRepository),
+  };
+  const transaction = vi.fn(
+    (callback: (transactionManager: typeof manager) => unknown) =>
+      callback(manager),
+  );
   const dataSource = {
-    transaction: vi.fn((callback: (manager: never) => unknown) =>
-      callback({
-        getRepository: vi.fn(() => repository),
-      } as never),
-    ),
+    transaction,
   } as unknown as DataSource;
   const findByCodes = vi.fn();
   const findByUser = vi.fn();
@@ -112,6 +116,9 @@ const createService = () => {
 
   return {
     repository,
+    transactionRepository,
+    manager,
+    transaction,
     rolesService,
     permissionsService,
     configService,
@@ -213,7 +220,7 @@ describe('UsersService', () => {
   });
 
   it('should remove username update for default admin user', async () => {
-    const { repository, service } = createService();
+    const { repository, transactionRepository, service } = createService();
     const admin = createUser({ username: 'admin' });
 
     repository.findOne.mockResolvedValue(admin);
@@ -224,7 +231,10 @@ describe('UsersService', () => {
     });
 
     expect(repository.exists).not.toHaveBeenCalled();
-    expect(repository.merge).toHaveBeenCalledWith(admin, { nickname: 'Admin' });
+    expect(transactionRepository.findOne).not.toHaveBeenCalled();
+    expect(transactionRepository.merge).toHaveBeenCalledWith(admin, {
+      nickname: 'Admin',
+    });
     expect(result.username).toBe('admin');
     expect(result.nickname).toBe('Admin');
   });
@@ -244,7 +254,13 @@ describe('UsersService', () => {
   });
 
   it('should bind avatar attachment and save the returned public url', async () => {
-    const { repository, bindUserAvatar, service } = createService();
+    const {
+      repository,
+      transactionRepository,
+      manager,
+      bindUserAvatar,
+      service,
+    } = createService();
     const user = createUser();
 
     repository.findOne.mockResolvedValue(user);
@@ -254,13 +270,20 @@ describe('UsersService', () => {
       avatarAttachmentId: 'avatar-id',
     });
 
+    expect(transactionRepository.findOne).toHaveBeenCalledWith({
+      where: { id: 'user-id' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    expect(
+      transactionRepository.findOne.mock.invocationCallOrder[0],
+    ).toBeLessThan(bindUserAvatar.mock.invocationCallOrder[0]);
     expect(bindUserAvatar).toHaveBeenCalledWith(
       'user-id',
       'avatar-id',
-      expect.anything(),
+      manager,
     );
     expect(result.avatar).toBe('/api/attachments/content/avatar-id');
-    expect(repository.save).toHaveBeenCalledTimes(2);
+    expect(transactionRepository.save).toHaveBeenCalledTimes(2);
   });
 
   it('should update user roles from role codes', async () => {

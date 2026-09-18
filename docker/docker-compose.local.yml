@@ -15,7 +15,7 @@ services:
       DEFAULT_ADMIN_USERNAME: admin
       DEFAULT_ADMIN_PASSWORD: admin1234
       JWT_SECRET: my-first-nest-jwt-secret
-      UPLOAD_SIGNATURE_SECRET: my-first-nest-upload-signature-secret
+      UPLOAD_SIGNATURE_SECRET: ${UPLOAD_SIGNATURE_SECRET:-my-first-nest-local-upload-signature-secret}
       UPLOAD_DIR: /app/uploads
       # 若同时启动了 docker-compose.cache.yml，会通过 my-nest-network 解析到 redis 服务
       REDIS_URL: redis://redis:6379
