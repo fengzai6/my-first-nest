@@ -3,6 +3,7 @@ import { Transform } from 'class-transformer';
 import type { TransformFnParams } from 'class-transformer';
 import {
   IsBoolean,
+  IsIn,
   IsNumberString,
   IsOptional,
   IsString,
@@ -37,4 +38,12 @@ export class ContentAttachmentDto {
   @IsString()
   @MaxLength(256)
   signature?: string;
+
+  @ApiPropertyOptional({
+    description: '签名作用域：user 或 admin，默认 user',
+    enum: ['user', 'admin'],
+  })
+  @IsOptional()
+  @IsIn(['user', 'admin'])
+  scope?: 'user' | 'admin' = 'user';
 }

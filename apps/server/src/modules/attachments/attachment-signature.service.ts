@@ -2,6 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { AppConfigForced } from '@/config/configuration.interface';
 
+export const ATTACHMENT_SIGNATURE_SCOPE = {
+  USER: 'user',
+  ADMIN: 'admin',
+} as const;
+
+export type AttachmentSignatureScope =
+  (typeof ATTACHMENT_SIGNATURE_SCOPE)[keyof typeof ATTACHMENT_SIGNATURE_SCOPE];
+
 @Injectable()
 export class AttachmentSignatureService {
   private readonly secret: string;
@@ -21,13 +29,15 @@ export class AttachmentSignatureService {
   createSignedUrl(
     attachmentId: string,
     userId: string,
+    scope: AttachmentSignatureScope = ATTACHMENT_SIGNATURE_SCOPE.USER,
   ): { url: string; expiresAt: number } {
     const expiresAt = Date.now() + this.expiresIn * 1000;
-    const signature = this.sign(attachmentId, userId, expiresAt);
+    const signature = this.sign(attachmentId, userId, expiresAt, scope);
     const params = new URLSearchParams({
       expiresAt: String(expiresAt),
       userId,
       signature,
+      scope,
     });
 
     return {
@@ -41,12 +51,13 @@ export class AttachmentSignatureService {
     userId: string,
     expiresAt: number,
     signature: string,
+    scope: AttachmentSignatureScope = ATTACHMENT_SIGNATURE_SCOPE.USER,
   ): boolean {
     if (!Number.isSafeInteger(expiresAt) || expiresAt <= Date.now()) {
       return false;
     }
 
-    const expected = this.sign(attachmentId, userId, expiresAt);
+    const expected = this.sign(attachmentId, userId, expiresAt, scope);
     const expectedBuffer = Buffer.from(expected);
     const actualBuffer = Buffer.from(signature);
 
@@ -65,9 +76,14 @@ export class AttachmentSignatureService {
     return this.urlPrefix;
   }
 
-  private sign(attachmentId: string, userId: string, expiresAt: number) {
+  private sign(
+    attachmentId: string,
+    userId: string,
+    expiresAt: number,
+    scope: AttachmentSignatureScope,
+  ) {
     return createHmac('sha256', this.secret)
-      .update(`${attachmentId}.${userId}.${expiresAt}`)
+      .update(`${attachmentId}.${userId}.${expiresAt}.${scope}`)
       .digest('base64url');
   }
 }

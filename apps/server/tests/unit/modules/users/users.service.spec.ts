@@ -10,6 +10,7 @@ import { PermissionsService } from '@/modules/permissions/permissions.service';
 import { AttachmentsService } from '@/modules/attachments/attachments.service';
 import { Role } from '@/modules/roles/entities/role.entity';
 import { RolesService } from '@/modules/roles/roles.service';
+import { UpdateUserDto } from '@/modules/users/dto/update-user.dto';
 import { User } from '@/modules/users/entities/user.entity';
 import { UsersService } from '@/modules/users/users.service';
 
@@ -261,6 +262,24 @@ describe('UsersService', () => {
     );
     expect(result.avatar).toBe('/api/attachments/content/avatar-id');
     expect(repository.save).toHaveBeenCalledTimes(2);
+  });
+
+  it('should ignore a direct avatar update from the profile payload', async () => {
+    const { repository, service } = createService();
+    const user = createUser();
+    user.avatar = '/old-avatar';
+
+    repository.findOne.mockResolvedValue(user);
+
+    const result = await service.update('user-id', {
+      avatar: '/malicious-avatar',
+      nickname: 'New nickname',
+    } as unknown as UpdateUserDto);
+
+    expect(repository.merge).toHaveBeenCalledWith(user, {
+      nickname: 'New nickname',
+    });
+    expect(result.avatar).toBe('/old-avatar');
   });
 
   it('should update user roles from role codes', async () => {

@@ -5,6 +5,7 @@ import {
   FieldTimeOutlined,
   FileTextOutlined,
   HomeOutlined,
+  PaperClipOutlined,
   SettingOutlined,
   SmileOutlined,
   UserOutlined,
@@ -27,6 +28,7 @@ import {
 import { NavUser } from "./nav-user";
 import { SpecialRoles } from "@/services/types/user";
 import { useUserStore } from "@/stores/user";
+import { useUserPermissionContext } from "@/components/root/user-permission-context";
 
 const sidebarGroups = [
   {
@@ -95,14 +97,35 @@ export const AppSidebar = () => {
   const location = useLocation();
   const { state } = useSidebar();
   const user = useUserStore((state) => state.user);
+  const { permissions } = useUserPermissionContext();
+  const canReadAttachments = permissions.includes("attachment:read");
   // NOTE: 隐藏菜单只是体验优化，不是安全边界：直接访问 /logs 页面能打开，但后端 SpecialRolesGuard 会让接口返回 403。
   const canViewLogs = user.specialRoles?.some(
     (role) =>
       role === SpecialRoles.Developer || role === SpecialRoles.SuperAdmin,
   );
 
-  const visibleSidebarGroups = canViewLogs
-    ? sidebarGroups.map((group, index) => {
+  const visibleSidebarGroups = sidebarGroups.map((group, index) => {
+    if (group.label === "后台管理") {
+      return {
+        ...group,
+        content: [
+          ...group.content,
+          ...(canReadAttachments
+            ? [
+                {
+                  name: "附件管理",
+                  icon: <PaperClipOutlined />,
+                  path: "/management/attachments",
+                },
+              ]
+            : []),
+        ],
+      };
+    }
+
+    return canViewLogs
+      ? (() => {
         if (index !== 0) return group;
 
         return {
@@ -116,8 +139,9 @@ export const AppSidebar = () => {
             },
           ],
         };
-      })
-    : sidebarGroups;
+      })()
+      : group;
+  });
 
   const getIsActive = useMemo(() => {
     return (path: string) => {

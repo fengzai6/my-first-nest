@@ -39,6 +39,19 @@ export class PermissionsService {
     return this.permissionRepository.find(criteria);
   }
 
+  hasUserPermission(userId: string, code: PermissionCodeType) {
+    return this.permissionRepository.exists({
+      where: {
+        code,
+        roles: {
+          users: {
+            id: userId,
+          },
+        },
+      },
+    });
+  }
+
   findOne(id: string) {
     return this.permissionRepository.findOneBy({ id });
   }

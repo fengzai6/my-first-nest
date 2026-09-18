@@ -82,4 +82,50 @@ describe('AttachmentSignatureService', () => {
       ),
     ).toBe(false);
   });
+
+  it('creates an admin scoped signature that cannot be verified as user scope', () => {
+    const service = createService();
+    const { url } = service.createSignedUrl(
+      'attachment-id',
+      'admin-id',
+      'admin',
+    );
+    const parsed = new URL(url, 'http://localhost');
+
+    expect(parsed.searchParams.get('scope')).toBe('admin');
+    expect(
+      service.verifySignature(
+        'attachment-id',
+        'admin-id',
+        Number(parsed.searchParams.get('expiresAt')),
+        parsed.searchParams.get('signature') ?? '',
+        'user',
+      ),
+    ).toBe(false);
+    expect(
+      service.verifySignature(
+        'attachment-id',
+        'admin-id',
+        Number(parsed.searchParams.get('expiresAt')),
+        parsed.searchParams.get('signature') ?? '',
+        'admin',
+      ),
+    ).toBe(true);
+  });
+
+  it('rejects scope tampering', () => {
+    const service = createService();
+    const { url } = service.createSignedUrl('attachment-id', 'user-id', 'user');
+    const parsed = new URL(url, 'http://localhost');
+
+    expect(
+      service.verifySignature(
+        'attachment-id',
+        'user-id',
+        Number(parsed.searchParams.get('expiresAt')),
+        parsed.searchParams.get('signature') ?? '',
+        'admin',
+      ),
+    ).toBe(false);
+  });
 });

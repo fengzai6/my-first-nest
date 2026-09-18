@@ -1,10 +1,17 @@
+import { PermissionCode } from '@/common/constants/permissions';
 import { UserInfo } from '@/common/decorators/jwt-auth.decorator';
+import { Permission } from '@/common/decorators/permission.decorator';
+import {
+  AttachmentException,
+  AttachmentExceptionCode,
+} from '@/common/exceptions/attachment.exception';
+import { AttachmentsManagementPermissionGuard } from '@/modules/attachments/attachments-management-permission.guard';
 import {
   JOB_NAMES,
   JOB_TRIGGER_TYPE,
 } from '@/shared/jobs/constants/job.constants';
 import { JobService } from '@/shared/jobs/services/job.service';
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User } from '../users/entities/user.entity';
 import { ExportReportDto } from './dto/export-report.dto';
@@ -72,12 +79,23 @@ export class BackgroundTasksController {
   }
 
   @Post('cleanup-attachments')
+  @Permission(PermissionCode.ATTACHMENT_MANAGE)
+  @UseGuards(AttachmentsManagementPermissionGuard)
   @ApiOperation({
     summary: '手动触发附件物理清理',
     description:
       '删除超过保留期的软删除附件和从未绑定的孤儿附件，最多重试 3 次',
   })
-  cleanupAttachments(@UserInfo() user: User) {
+  async cleanupAttachments(@UserInfo() user: User) {
+    const hasActiveOrPending = await this.jobService.hasActiveOrPending(
+      JOB_NAMES.CLEANUP_ATTACHMENTS,
+    );
+    if (hasActiveOrPending) {
+      throw new AttachmentException(
+        AttachmentExceptionCode.CLEANUP_ALREADY_RUNNING,
+      );
+    }
+
     return this.jobService.submit({
       name: JOB_NAMES.CLEANUP_ATTACHMENTS,
       payload: {},

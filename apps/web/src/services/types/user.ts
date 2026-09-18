@@ -7,6 +7,11 @@ export const SpecialRoles = {
 
 export type SpecialRoles = (typeof SpecialRoles)[keyof typeof SpecialRoles];
 
+export const ATTACHMENT_MANAGEMENT_PERMISSIONS = {
+  READ: "attachment:read",
+  MANAGE: "attachment:manage",
+} as const;
+
 export interface IUserRole extends IBase {
   name: string;
   code: string;

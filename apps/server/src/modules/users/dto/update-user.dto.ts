@@ -6,7 +6,7 @@ import { IsArray, IsEnum, IsOptional, IsString } from 'class-validator';
 import { CreateUserDto } from './create-user.dto';
 
 export class UpdateUserDto extends PartialType(
-  OmitType(CreateUserDto, ['password', 'roles'] as const),
+  OmitType(CreateUserDto, ['password', 'roles', 'avatar'] as const),
 ) {
   @ApiPropertyOptional({ description: '新头像附件 ID' })
   @IsOptional()

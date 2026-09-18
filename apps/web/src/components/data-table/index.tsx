@@ -22,6 +22,7 @@ interface IDataTableProps<T> {
   fitHeight?: boolean;
   showPagination?: boolean;
   rowClassName?: TableProps<T>["rowClassName"];
+  rowSelection?: TableProps<T>["rowSelection"];
   onRow?: TableProps<T>["onRow"];
   onPaginationChange?: (page: number, pageSize: number) => void;
 }
@@ -39,6 +40,7 @@ export const DataTable = <T extends object>({
   fitHeight = true,
   showPagination = true,
   rowClassName,
+  rowSelection,
   onRow,
   onPaginationChange,
 }: IDataTableProps<T>) => {
@@ -110,6 +112,7 @@ export const DataTable = <T extends object>({
         loading={loading}
         size={size}
         rowClassName={rowClassName}
+        rowSelection={rowSelection}
         onRow={onRow}
         onChange={(_, __, nextSorter) => setSorter(nextSorter)}
         scroll={

@@ -7,6 +7,7 @@ import {
   ATTACHMENT_BIZ_TYPE,
   ATTACHMENT_VISIBILITY,
 } from '@/modules/attachments/constants/attachment.constants';
+import { UpdateAttachmentDto } from '@/modules/attachments/dto/update-attachment.dto';
 import { AttachmentsService } from '@/modules/attachments/attachments.service';
 import { AttachmentCleanupService } from '@/modules/attachments/services/attachment-cleanup.service';
 import { User } from '@/modules/users/entities/user.entity';
@@ -242,6 +243,48 @@ describe('AttachmentsService', () => {
     });
   });
 
+  it('allows admin scope to read a deleted attachment', async () => {
+    const { repository, verifySignature, service } = createService();
+    const attachment = createAttachment({
+      deletedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
+    repository.findOne.mockResolvedValue(attachment);
+    verifySignature.mockReturnValue(true);
+
+    await expect(
+      service.getContent(
+        attachment.id,
+        String(Date.now() + 300_000),
+        'admin-id',
+        'signature',
+        'admin',
+      ),
+    ).resolves.toMatchObject({ attachment });
+  });
+
+  it('rejects user scope for a deleted attachment', async () => {
+    const { repository, service } = createService();
+    repository.findOne.mockImplementation((options) => {
+      const withDeleted = (options as { withDeleted?: boolean }).withDeleted;
+      if (!withDeleted) return Promise.resolve(null);
+      return Promise.resolve(
+        createAttachment({
+          deletedAt: new Date('2026-09-01T00:00:00.000Z'),
+        }),
+      );
+    });
+
+    await expect(
+      service.getContent(
+        'attachment-id',
+        String(Date.now() + 300_000),
+        'user-id',
+        'signature',
+        'user',
+      ),
+    ).rejects.toMatchObject({ code: AttachmentExceptionCode.NOT_FOUND });
+  });
+
   it('rejects signed url requests from another ordinary user', async () => {
     const { repository, service } = createService();
     const uploader = createUser();
@@ -348,6 +391,32 @@ describe('AttachmentsService', () => {
         code: AttachmentExceptionCode.IN_USE,
       });
     });
+  });
+
+  it('rejects business binding fields when updating a bound attachment', async () => {
+    const { repository, service } = createService();
+    const user = createUser();
+
+    repository.findOne.mockResolvedValue(
+      createAttachment({
+        uploadedBy: user,
+        bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
+        bizId: 'document-id',
+      }),
+    );
+
+    await userContextStorage.run(user, async () => {
+      await expect(
+        service.update('attachment-id', {
+          visibility: ATTACHMENT_VISIBILITY.PUBLIC,
+          bizId: 'invalid-biz-id',
+        } as UpdateAttachmentDto),
+      ).rejects.toMatchObject({
+        code: AttachmentExceptionCode.IN_USE,
+      });
+    });
+
+    expect(repository.save).not.toHaveBeenCalled();
   });
 
   it('rejects deleting a bound avatar through the generic delete flow', async () => {
@@ -505,11 +574,12 @@ describe('AttachmentsService', () => {
       createAttachment({ uploadedBy: createUser({ id: 'uploader-id' }) }),
     );
 
-    await expect(
-      service.createSignedUrlForUser('attachment-id', 'document-reader-id'),
-    ).resolves.toMatchObject({
-      url: expect.stringContaining('/api/attachments/content/attachment-id'),
-    });
+    const result = await service.createSignedUrlForUser(
+      'attachment-id',
+      'document-reader-id',
+    );
+
+    expect(result.url).toContain('/api/attachments/content/attachment-id');
     expect(createSignedUrl).toHaveBeenCalledWith(
       'attachment-id',
       'document-reader-id',

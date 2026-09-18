@@ -29,11 +29,12 @@ describe('AttachmentsController', () => {
       originalName: 'report\r\nX-Injected: yes.pdf',
       mimeType: 'application/octet-stream',
     } as Attachment;
+    const getContent = vi.fn().mockResolvedValue({
+      attachment,
+      content: { stream: Readable.from('content') },
+    });
     const service = {
-      getContent: vi.fn().mockResolvedValue({
-        attachment,
-        content: { stream: Readable.from('content') },
-      }),
+      getContent,
     } as unknown as AttachmentsService;
     const controller = new AttachmentsController(
       service,
@@ -41,7 +42,11 @@ describe('AttachmentsController', () => {
     );
     const { headers, response } = createResponse();
 
-    await controller.getContent('attachment-id', { download: true }, response);
+    await controller.getContent(
+      'attachment-id',
+      { download: true, scope: 'admin' },
+      response,
+    );
 
     expect(headers.get('Content-Type')).toBe('application/octet-stream');
     expect(headers.get('Content-Disposition')).toBe(
@@ -49,5 +54,12 @@ describe('AttachmentsController', () => {
     );
     expect(headers.get('Content-Disposition')).not.toContain('\r');
     expect(headers.get('Content-Disposition')).not.toContain('\n');
+    expect(getContent).toHaveBeenCalledWith(
+      'attachment-id',
+      undefined,
+      undefined,
+      undefined,
+      'admin',
+    );
   });
 });

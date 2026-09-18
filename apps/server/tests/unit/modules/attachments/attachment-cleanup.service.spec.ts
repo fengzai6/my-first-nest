@@ -2,7 +2,7 @@ import { AttachmentCleanupService } from '@/modules/attachments/services/attachm
 import { ATTACHMENT_BIZ_TYPE } from '@/modules/attachments/constants/attachment.constants';
 import { Attachment } from '@/modules/attachments/entities/attachment.entity';
 import { ConfigService } from '@nestjs/config';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { Repository } from 'typeorm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type MockQueryBuilder = {

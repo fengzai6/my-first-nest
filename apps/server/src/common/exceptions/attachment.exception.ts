@@ -9,6 +9,7 @@ export const AttachmentExceptionCode = {
   FORBIDDEN: 'ATTACHMENT_FORBIDDEN',
   INVALID_SIGNATURE: 'ATTACHMENT_INVALID_SIGNATURE',
   IN_USE: 'ATTACHMENT_IN_USE',
+  CLEANUP_ALREADY_RUNNING: 'ATTACHMENT_CLEANUP_ALREADY_RUNNING',
 } as const;
 
 export type AttachmentExceptionCode =
@@ -52,6 +53,11 @@ export const AttachmentExceptionMap: Record<
     message: '已绑定的附件不能通过通用接口修改或删除',
     status: HttpStatus.CONFLICT,
     code: AttachmentExceptionCode.IN_USE,
+  },
+  [AttachmentExceptionCode.CLEANUP_ALREADY_RUNNING]: {
+    message: '附件清理任务正在执行，请稍后再试',
+    status: HttpStatus.CONFLICT,
+    code: AttachmentExceptionCode.CLEANUP_ALREADY_RUNNING,
   },
 };
 

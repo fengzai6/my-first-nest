@@ -16,6 +16,10 @@ import {
 } from 'typeorm';
 import { AttachmentSignatureService } from './attachment-signature.service';
 import {
+  ATTACHMENT_SIGNATURE_SCOPE,
+  AttachmentSignatureScope,
+} from './attachment-signature.service';
+import {
   ATTACHMENT_BIZ_TYPE,
   ATTACHMENT_MIME_TYPES,
   ATTACHMENT_STORAGE_PROVIDER,
@@ -231,12 +235,17 @@ export class AttachmentsService {
     }
   }
 
-  async findOne(id: string, manager?: EntityManager): Promise<Attachment> {
+  async findOne(
+    id: string,
+    manager?: EntityManager,
+    withDeleted = false,
+  ): Promise<Attachment> {
     const repository =
       manager?.getRepository(Attachment) ?? this.attachmentRepository;
     const attachment = await repository.findOne({
       where: { id },
       relations: { uploadedBy: true },
+      ...(withDeleted ? { withDeleted: true } : {}),
     });
 
     if (!attachment) {
@@ -269,8 +278,13 @@ export class AttachmentsService {
     expiresAt?: string,
     userId?: string,
     signature?: string,
+    scope: AttachmentSignatureScope = ATTACHMENT_SIGNATURE_SCOPE.USER,
   ): Promise<{ attachment: Attachment; content: IReadableStoredFile }> {
-    const attachment = await this.findOne(id);
+    const attachment = await this.findOne(
+      id,
+      undefined,
+      scope === ATTACHMENT_SIGNATURE_SCOPE.ADMIN,
+    );
 
     if (attachment.visibility === ATTACHMENT_VISIBILITY.PUBLIC) {
       return {
@@ -288,6 +302,7 @@ export class AttachmentsService {
       userId,
       Number(expiresAt),
       signature,
+      scope,
     );
 
     if (!valid) {
@@ -306,7 +321,17 @@ export class AttachmentsService {
     this.assertCanManage(attachment, user);
     this.assertNotBoundAvatar(attachment);
 
-    const updated = this.attachmentRepository.merge(attachment, dto);
+    if (
+      attachment.bizType &&
+      (Object.hasOwn(dto, 'bizType') || Object.hasOwn(dto, 'bizId'))
+    ) {
+      throw new AttachmentException(AttachmentExceptionCode.IN_USE);
+    }
+
+    const updated = this.attachmentRepository.merge(
+      attachment,
+      dto.visibility ? { visibility: dto.visibility } : {},
+    );
 
     return this.toView(await this.attachmentRepository.save(updated));
   }
