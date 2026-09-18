@@ -56,3 +56,5 @@
 | GET    | `/api/attachments/content/:id`    | 读取公开附件或签名附件内容 |
 | PATCH  | `/api/attachments/:id`            | 更新未绑定附件的可见性     |
 | DELETE | `/api/attachments/:id`            | 软删除未绑定附件           |
+
+`GET /api/attachments/content/:id` 默认返回 `Content-Disposition: inline`，适合图片等预览场景。传入 `download=1` 时返回 `Content-Disposition: attachment; filename*=UTF-8''<encoded originalName>`，并继续使用附件元数据中的 `Content-Type`。下载参数不会改变公开/私有附件的访问规则：公开附件无需签名，私有附件仍必须携带完整且有效的签名参数。

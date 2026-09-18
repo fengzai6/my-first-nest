@@ -41,6 +41,12 @@ import {
   IAttachmentStorage,
 } from './interfaces/attachment-storage.interface';
 
+export const encodeRFC5987ValueChars = (value: string) =>
+  encodeURIComponent(value).replace(
+    /['()*]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+
 @ApiTags('Attachments - 附件')
 @ApiBearerAuth()
 @Controller('attachments')
@@ -120,7 +126,7 @@ export class AttachmentsController {
     response.setHeader('Content-Type', attachment.mimeType);
     response.setHeader(
       'Content-Disposition',
-      `inline; filename*=UTF-8''${encodeURIComponent(attachment.originalName)}`,
+      `${query.download ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeRFC5987ValueChars(attachment.originalName)}`,
     );
     content.stream.pipe(response);
   }

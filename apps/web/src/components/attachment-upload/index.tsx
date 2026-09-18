@@ -1,7 +1,7 @@
 import { DeleteOutlined, UploadOutlined } from "@ant-design/icons";
 import { Button, List, message, Space, Typography, Upload } from "antd";
 import type { UploadProps } from "antd";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { DeleteAttachment, UploadAttachment } from "@/services/api/attachment";
 import {
@@ -44,6 +44,8 @@ export const AttachmentUpload = ({
   getSignedUrl,
   onChange,
 }: IAttachmentUploadProps) => {
+  const [pendingCount, setPendingCount] = useState(0);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const valueRef = useRef(value);
   const pendingCountRef = useRef(0);
   valueRef.current = value;
@@ -68,6 +70,7 @@ export const AttachmentUpload = ({
     }
 
     pendingCountRef.current += 1;
+    setPendingCount((current) => current + 1);
 
     try {
       const attachments = await UploadAttachment({
@@ -83,27 +86,35 @@ export const AttachmentUpload = ({
       onError?.(error as Error);
     } finally {
       pendingCountRef.current -= 1;
+      setPendingCount((current) => current - 1);
     }
   };
 
   const handleDelete = async (attachment: IAttachment) => {
-    if (!attachment.bizType) {
-      try {
+    setDeletingIds((current) => new Set(current).add(attachment.id));
+
+    try {
+      if (!attachment.bizType) {
         await DeleteAttachment(attachment.id);
-      } catch (error) {
-        message.error(
-          error instanceof Error ? error.message : "附件删除失败，请稍后重试",
-        );
-        return;
       }
+
+      const nextValue = valueRef.current.filter(
+        (item) => item.id !== attachment.id,
+      );
+
+      valueRef.current = nextValue;
+      onChange?.(nextValue);
+    } catch (error) {
+      message.error(
+        error instanceof Error ? error.message : "附件删除失败，请稍后重试",
+      );
+    } finally {
+      setDeletingIds((current) => {
+        const next = new Set(current);
+        next.delete(attachment.id);
+        return next;
+      });
     }
-
-    const nextValue = valueRef.current.filter(
-      (item) => item.id !== attachment.id,
-    );
-
-    valueRef.current = nextValue;
-    onChange?.(nextValue);
   };
 
   return (
@@ -115,7 +126,11 @@ export const AttachmentUpload = ({
         showUploadList={false}
         disabled={disabled || value.length >= maxCount}
       >
-        <Button icon={<UploadOutlined />} disabled={disabled}>
+        <Button
+          icon={<UploadOutlined />}
+          disabled={disabled || value.length >= maxCount}
+          loading={pendingCount > 0}
+        >
           上传附件
         </Button>
       </Upload>
@@ -135,6 +150,7 @@ export const AttachmentUpload = ({
                   aria-label={`删除 ${attachment.originalName}`}
                   icon={<DeleteOutlined />}
                   disabled={disabled}
+                  loading={deletingIds.has(attachment.id)}
                   onClick={() => void handleDelete(attachment)}
                 />,
               ]}
@@ -149,7 +165,10 @@ export const AttachmentUpload = ({
                 title={attachment.originalName}
                 description={
                   <Text type="secondary">
-                    {formatFileSize(attachment.size)}
+                    {formatFileSize(attachment.size)} ·{" "}
+                    {attachment.visibility === ATTACHMENT_VISIBILITY.PUBLIC
+                      ? "公开"
+                      : "私有"}
                   </Text>
                 }
               />
