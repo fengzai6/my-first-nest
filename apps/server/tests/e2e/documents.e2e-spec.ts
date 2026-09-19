@@ -6,6 +6,26 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TestHelper } from './helpers/test-helper';
 
+interface IUploadedAttachmentResponse {
+  id: string;
+}
+
+interface IDocumentAttachmentResponse {
+  id: string;
+  url: string;
+}
+
+interface IDocumentResponse {
+  id: string;
+  owner: { id: string };
+  attachments: IDocumentAttachmentResponse[];
+}
+
+interface ISignedUrlResponse {
+  url: string;
+  expiresAt: number;
+}
+
 describe('Documents (e2e)', () => {
   let helper: TestHelper;
   let accessToken: string;
@@ -72,6 +92,9 @@ describe('Documents (e2e)', () => {
 
   it('creates a document with an uploaded private attachment', async () => {
     const upload = await uploadAttachment();
+    const uploadedAttachment = (
+      upload.body as IUploadedAttachmentResponse[]
+    )[0];
 
     const created = await request(helper.getHttpServer())
       .post('/api/documents')
@@ -79,39 +102,45 @@ describe('Documents (e2e)', () => {
       .send({
         title: '附件闭环',
         content: '测试正文',
-        attachmentIds: [upload.body[0].id],
+        attachmentIds: [uploadedAttachment.id],
       })
       .expect(200);
+    const createdDocument = created.body as IDocumentResponse;
 
-    expect(created.body.attachments).toHaveLength(1);
-    expect(created.body.attachments[0]).toMatchObject({
-      id: upload.body[0].id,
+    expect(createdDocument.attachments).toHaveLength(1);
+    expect(createdDocument.attachments[0]).toMatchObject({
+      id: uploadedAttachment.id,
       bizType: 'document',
-      bizId: created.body.id,
+      bizId: createdDocument.id,
     });
   });
 
   it('lets the document owner get a private attachment signed url', async () => {
     const upload = await uploadAttachment();
+    const uploadedAttachment = (
+      upload.body as IUploadedAttachmentResponse[]
+    )[0];
     const created = await request(helper.getHttpServer())
       .post('/api/documents')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         title: '签名',
         content: '正文',
-        attachmentIds: [upload.body[0].id],
+        attachmentIds: [uploadedAttachment.id],
       })
       .expect(200);
+    const createdDocument = created.body as IDocumentResponse;
 
     const response = await request(helper.getHttpServer())
       .get(
-        `/api/documents/${created.body.id}/attachments/${upload.body[0].id}/signed-url`,
+        `/api/documents/${createdDocument.id}/attachments/${uploadedAttachment.id}/signed-url`,
       )
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
+    const signedUrl = response.body as ISignedUrlResponse;
 
-    expect(response.body.url).toContain('/api/attachments/content/');
-    expect(response.body.expiresAt).toEqual(expect.any(Number));
+    expect(signedUrl.url).toContain('/api/attachments/content/');
+    expect(signedUrl.expiresAt).toEqual(expect.any(Number));
   });
 
   it('downloads a private attachment with a signed url and encoded filename', async () => {
@@ -120,25 +149,30 @@ describe('Documents (e2e)', () => {
       filename: originalName,
       contentType: 'application/pdf',
     });
+    const uploadedAttachment = (
+      upload.body as IUploadedAttachmentResponse[]
+    )[0];
     const created = await request(helper.getHttpServer())
       .post('/api/documents')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         title: '下载',
         content: '正文',
-        attachmentIds: [upload.body[0].id],
+        attachmentIds: [uploadedAttachment.id],
       })
       .expect(200);
+    const createdDocument = created.body as IDocumentResponse;
 
     const signed = await request(helper.getHttpServer())
       .get(
-        `/api/documents/${created.body.id}/attachments/${upload.body[0].id}/signed-url`,
+        `/api/documents/${createdDocument.id}/attachments/${uploadedAttachment.id}/signed-url`,
       )
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
+    const signedUrl = signed.body as ISignedUrlResponse;
 
     const response = await request(helper.getHttpServer())
-      .get(signed.body.url)
+      .get(signedUrl.url)
       .query({ download: '1' })
       .expect(200);
 
@@ -155,18 +189,22 @@ describe('Documents (e2e)', () => {
       contentType: 'application/pdf',
       visibility: 'public',
     });
+    const uploadedAttachment = (
+      upload.body as IUploadedAttachmentResponse[]
+    )[0];
     const created = await request(helper.getHttpServer())
       .post('/api/documents')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         title: '公开下载',
         content: '正文',
-        attachmentIds: [upload.body[0].id],
+        attachmentIds: [uploadedAttachment.id],
       })
       .expect(200);
+    const createdDocument = created.body as IDocumentResponse;
 
     const response = await request(helper.getHttpServer())
-      .get(created.body.attachments[0].url)
+      .get(createdDocument.attachments[0].url)
       .query({ download: '1' })
       .expect(200);
 
@@ -182,25 +220,30 @@ describe('Documents (e2e)', () => {
       filename: originalName,
       contentType: 'application/pdf',
     });
+    const uploadedAttachment = (
+      upload.body as IUploadedAttachmentResponse[]
+    )[0];
     const created = await request(helper.getHttpServer())
       .post('/api/documents')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         title: '预览',
         content: '正文',
-        attachmentIds: [upload.body[0].id],
+        attachmentIds: [uploadedAttachment.id],
       })
       .expect(200);
+    const createdDocument = created.body as IDocumentResponse;
 
     const signed = await request(helper.getHttpServer())
       .get(
-        `/api/documents/${created.body.id}/attachments/${upload.body[0].id}/signed-url`,
+        `/api/documents/${createdDocument.id}/attachments/${uploadedAttachment.id}/signed-url`,
       )
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
+    const signedUrl = signed.body as ISignedUrlResponse;
 
     const response = await request(helper.getHttpServer())
-      .get(signed.body.url)
+      .get(signedUrl.url)
       .expect(200);
 
     expect(response.headers['content-disposition']).toBe(
@@ -210,24 +253,28 @@ describe('Documents (e2e)', () => {
 
   it('rejects private downloads without a complete signature', async () => {
     const upload = await uploadAttachment();
+    const uploadedAttachment = (
+      upload.body as IUploadedAttachmentResponse[]
+    )[0];
     const created = await request(helper.getHttpServer())
       .post('/api/documents')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         title: '签名校验',
         content: '正文',
-        attachmentIds: [upload.body[0].id],
+        attachmentIds: [uploadedAttachment.id],
       })
       .expect(200);
+    const createdDocument = created.body as IDocumentResponse;
 
     await request(helper.getHttpServer())
-      .get(`/api/attachments/content/${upload.body[0].id}`)
+      .get(`/api/attachments/content/${uploadedAttachment.id}`)
       .query({ download: '1' })
       .expect(403);
 
     await request(helper.getHttpServer())
-      .get(`/api/attachments/content/${upload.body[0].id}`)
-      .query({ download: '1', userId: created.body.owner.id })
+      .get(`/api/attachments/content/${uploadedAttachment.id}`)
+      .query({ download: '1', userId: createdDocument.owner.id })
       .expect(403);
   });
 
@@ -289,34 +336,42 @@ describe('Documents (e2e)', () => {
     const firstUpload = await uploadAttachment();
     const secondUpload = await uploadAttachment();
     const thirdUpload = await uploadAttachment();
+    const firstAttachment = (
+      firstUpload.body as IUploadedAttachmentResponse[]
+    )[0];
+    const secondAttachment = (
+      secondUpload.body as IUploadedAttachmentResponse[]
+    )[0];
+    const thirdAttachment = (
+      thirdUpload.body as IUploadedAttachmentResponse[]
+    )[0];
     const created = await request(helper.getHttpServer())
       .post('/api/documents')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         title: '附件更新',
         content: '正文',
-        attachmentIds: [firstUpload.body[0].id, secondUpload.body[0].id],
+        attachmentIds: [firstAttachment.id, secondAttachment.id],
       })
       .expect(200);
+    const createdDocument = created.body as IDocumentResponse;
 
     const updated = await request(helper.getHttpServer())
-      .patch(`/api/documents/${created.body.id}`)
+      .patch(`/api/documents/${createdDocument.id}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
-        attachmentIds: [secondUpload.body[0].id, thirdUpload.body[0].id],
+        attachmentIds: [secondAttachment.id, thirdAttachment.id],
       })
       .expect(200);
+    const updatedDocument = updated.body as IDocumentResponse;
 
-    const updatedAttachments = (
-      updated.body as { attachments: Array<{ id: string }> }
-    ).attachments;
-    expect(updatedAttachments.map((item) => item.id)).toEqual(
-      expect.arrayContaining([secondUpload.body[0].id, thirdUpload.body[0].id]),
+    expect(updatedDocument.attachments.map((item) => item.id)).toEqual(
+      expect.arrayContaining([secondAttachment.id, thirdAttachment.id]),
     );
-    expect(updated.body.attachments).toHaveLength(2);
+    expect(updatedDocument.attachments).toHaveLength(2);
 
     const removed = await helper.dataSource.getRepository(Attachment).findOne({
-      where: { id: firstUpload.body[0].id },
+      where: { id: firstAttachment.id },
       withDeleted: true,
     });
     expect(removed?.deletedAt).toBeInstanceOf(Date);
@@ -324,13 +379,16 @@ describe('Documents (e2e)', () => {
 
   it('returns 409 for an attachment already bound to another business object', async () => {
     const upload = await uploadAttachment();
+    const uploadedAttachment = (
+      upload.body as IUploadedAttachmentResponse[]
+    )[0];
     await request(helper.getHttpServer())
       .post('/api/documents')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         title: '首次绑定',
         content: '正文',
-        attachmentIds: [upload.body[0].id],
+        attachmentIds: [uploadedAttachment.id],
       })
       .expect(200);
 
@@ -340,34 +398,70 @@ describe('Documents (e2e)', () => {
       .send({
         title: '重复绑定',
         content: '正文',
-        attachmentIds: [upload.body[0].id],
+        attachmentIds: [uploadedAttachment.id],
       })
       .expect(409);
   });
 
   it('returns 409 for generic deletion of a document attachment', async () => {
     const upload = await uploadAttachment();
+    const uploadedAttachment = (
+      upload.body as IUploadedAttachmentResponse[]
+    )[0];
     const created = await request(helper.getHttpServer())
       .post('/api/documents')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         title: '通用删除',
         content: '正文',
-        attachmentIds: [upload.body[0].id],
+        attachmentIds: [uploadedAttachment.id],
       })
       .expect(200);
+    const createdDocument = created.body as IDocumentResponse;
 
     await request(helper.getHttpServer())
-      .delete(`/api/attachments/${upload.body[0].id}`)
+      .delete(`/api/attachments/${uploadedAttachment.id}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(409);
 
     const attachment = await helper.dataSource
       .getRepository(Attachment)
       .findOne({
-        where: { id: upload.body[0].id },
+        where: { id: uploadedAttachment.id },
       });
-    expect(attachment?.bizId).toBe(created.body.id);
+    expect(attachment?.bizId).toBe(createdDocument.id);
+  });
+
+  it('returns 409 when generic update includes a business binding field', async () => {
+    const upload = await uploadAttachment();
+    const uploadedAttachment = (
+      upload.body as IUploadedAttachmentResponse[]
+    )[0];
+    const created = await request(helper.getHttpServer())
+      .post('/api/documents')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        title: '通用更新',
+        content: '正文',
+        attachmentIds: [uploadedAttachment.id],
+      })
+      .expect(200);
+    const createdDocument = created.body as IDocumentResponse;
+
+    await request(helper.getHttpServer())
+      .patch(`/api/attachments/${uploadedAttachment.id}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        visibility: 'public',
+        bizId: 'invalid-biz-id',
+      })
+      .expect(409);
+
+    const attachment = await helper.dataSource
+      .getRepository(Attachment)
+      .findOne({ where: { id: uploadedAttachment.id } });
+    expect(attachment?.bizId).toBe(createdDocument.id);
+    expect(attachment?.visibility).toBe('private');
   });
 
   it('rolls back the document when an attachment cannot be bound', async () => {
@@ -390,29 +484,33 @@ describe('Documents (e2e)', () => {
 
   it('soft deletes the document and its attachment metadata', async () => {
     const upload = await uploadAttachment();
+    const uploadedAttachment = (
+      upload.body as IUploadedAttachmentResponse[]
+    )[0];
     const created = await request(helper.getHttpServer())
       .post('/api/documents')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         title: '删除',
         content: '正文',
-        attachmentIds: [upload.body[0].id],
+        attachmentIds: [uploadedAttachment.id],
       })
       .expect(200);
+    const createdDocument = created.body as IDocumentResponse;
 
     await request(helper.getHttpServer())
-      .delete(`/api/documents/${created.body.id}`)
+      .delete(`/api/documents/${createdDocument.id}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
 
     const document = await helper.dataSource.getRepository(Document).findOne({
-      where: { id: created.body.id },
+      where: { id: createdDocument.id },
       withDeleted: true,
     });
     const attachment = await helper.dataSource
       .getRepository(Attachment)
       .findOne({
-        where: { id: upload.body[0].id },
+        where: { id: uploadedAttachment.id },
         withDeleted: true,
       });
 

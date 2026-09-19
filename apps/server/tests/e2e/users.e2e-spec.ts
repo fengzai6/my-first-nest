@@ -96,6 +96,27 @@ describe('Users (e2e)', () => {
     });
   });
 
+  describe('PATCH /api/account/profile', () => {
+    it('should ignore a direct avatar update', async () => {
+      const before = await request(helper.getHttpServer())
+        .get('/api/account/profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const updated = await request(helper.getHttpServer())
+        .patch('/api/account/profile')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          avatar: '/malicious-avatar',
+          nickname: 'Updated Profile',
+        })
+        .expect(200);
+
+      expect(updated.body.nickname).toBe('Updated Profile');
+      expect(updated.body.avatar).toBe(before.body.avatar);
+    });
+  });
+
   describe('PATCH /api/users/:id/password', () => {
     it('should update user password', async () => {
       await request(helper.getHttpServer())

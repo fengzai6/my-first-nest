@@ -12,8 +12,10 @@ import { NotFound } from "@/pages/not-found";
 import { Register } from "@/pages/register";
 import { Settings } from "@/pages/settings";
 import { SocketDemo } from "@/pages/socket-demo";
+import { AttachmentsManagement } from "@/pages/management/attachments";
 import { Navigate, Outlet, type RouteObject } from "react-router";
 import { AuthGuard } from "./auth-guard";
+import { PermissionGuard } from "./permission-guard";
 import {
   LOG_ROUTE_ROLES,
   SpecialRoleGuard,
@@ -88,6 +90,14 @@ export const routes: RouteObject[] = [
           {
             path: "cats",
             element: <Cats />,
+          },
+          {
+            path: "attachments",
+            element: (
+              <PermissionGuard permissions={["attachment:read"]}>
+                <AttachmentsManagement />
+              </PermissionGuard>
+            ),
           },
         ],
       },

@@ -152,6 +152,7 @@ export class UsersService {
 
     const { avatarAttachmentId, ...updatableUserDto } = updateUserDto;
     const sanitized: UpdateUserDto = { ...updatableUserDto };
+    delete (sanitized as UpdateUserDto & { avatar?: string }).avatar;
 
     if (user.username === defaultAdminUsername) {
       delete sanitized.username;

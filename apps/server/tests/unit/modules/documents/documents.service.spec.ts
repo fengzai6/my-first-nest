@@ -83,21 +83,24 @@ const createService = () => {
     createQueryBuilder: vi.fn(),
   };
 
+  const transaction = vi.fn(
+    async (run: (manager: EntityManager) => Promise<unknown>) =>
+      run({
+        getRepository: vi.fn(() => managerRepository),
+      } as unknown as EntityManager),
+  );
   const dataSource = {
-    transaction: vi.fn(
-      async (run: (manager: EntityManager) => Promise<unknown>) =>
-        run({
-          getRepository: vi.fn(() => managerRepository),
-        } as unknown as EntityManager),
-    ),
-  };
+    transaction,
+  } as unknown as DataSource;
 
+  const findByUser = vi.fn();
   const rolesService = {
-    findByUser: vi.fn(),
-  };
+    findByUser,
+  } as unknown as RolesService;
 
+  const syncDocumentAttachments = vi.fn();
   const attachmentsService = {
-    syncDocumentAttachments: vi.fn(),
+    syncDocumentAttachments,
     softRemoveByBusiness: vi.fn(),
     findByBusiness: vi.fn().mockResolvedValue([]),
     countActiveByBusiness: vi.fn().mockResolvedValue(new Map()),
@@ -107,10 +110,13 @@ const createService = () => {
 
   return {
     dataSource,
+    transaction,
     documentsRepository,
     managerRepository,
     rolesService,
+    findByUser,
     attachmentsService,
+    syncDocumentAttachments,
     service: new DocumentsService(
       documentsRepository as unknown as Repository<Document>,
       dataSource as unknown as DataSource,
@@ -128,10 +134,10 @@ describe('DocumentsService', () => {
   it('creates a document and binds attachments in one transaction', async () => {
     const {
       service,
-      dataSource,
+      transaction,
       documentsRepository,
       managerRepository,
-      attachmentsService,
+      syncDocumentAttachments,
     } = createService();
     const user = createUser();
     const document = createDocument({ owner: user });
@@ -148,8 +154,8 @@ describe('DocumentsService', () => {
       user,
     );
 
-    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-    expect(attachmentsService.syncDocumentAttachments).toHaveBeenCalledWith(
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(syncDocumentAttachments).toHaveBeenCalledWith(
       'document-id',
       ['attachment-id'],
       expect.anything(),
@@ -158,19 +164,17 @@ describe('DocumentsService', () => {
   });
 
   it('rejects another ordinary user before returning a document', async () => {
-    const { service, documentsRepository, rolesService, attachmentsService } =
+    const { service, documentsRepository, findByUser, attachmentsService } =
       createService();
     const owner = createUser({ id: 'owner-id' });
     const other = createUser({ id: 'other-id' });
     documentsRepository.findOne.mockResolvedValue(createDocument({ owner }));
-    rolesService.findByUser.mockResolvedValue([
-      createRole(RoleCode.USER),
-    ] as never);
+    findByUser.mockResolvedValue([createRole(RoleCode.USER)]);
 
     await expect(service.findOne('document-id', other)).rejects.toMatchObject({
       code: DocumentExceptionCode.FORBIDDEN,
     });
-    expect(attachmentsService.findByBusiness).not.toHaveBeenCalled();
+    expect(attachmentsService.findByBusiness.mock.calls).toHaveLength(0);
   });
 
   it('soft removes the document and its attachments in one transaction', async () => {
@@ -196,28 +200,26 @@ describe('DocumentsService', () => {
   });
 
   it('allows an admin to read another user document', async () => {
-    const { service, documentsRepository, rolesService, attachmentsService } =
+    const { service, documentsRepository, findByUser, attachmentsService } =
       createService();
     const owner = createUser({ id: 'owner-id' });
     const admin = createUser({ id: 'admin-id' });
     const document = createDocument({ owner });
 
     documentsRepository.findOne.mockResolvedValue(document);
-    rolesService.findByUser.mockResolvedValue([
-      createRole(RoleCode.ADMIN),
-    ] as never);
+    findByUser.mockResolvedValue([createRole(RoleCode.ADMIN)]);
 
     await expect(service.findOne('document-id', admin)).resolves.toMatchObject({
       id: 'document-id',
     });
-    expect(attachmentsService.findByBusiness).toHaveBeenCalledWith(
+    expect(attachmentsService.findByBusiness.mock.calls).toContainEqual([
       ATTACHMENT_BIZ_TYPE.DOCUMENT,
       'document-id',
-    );
+    ]);
   });
 
   it('allows a super admin to read another user document', async () => {
-    const { service, documentsRepository, rolesService } = createService();
+    const { service, documentsRepository, findByUser } = createService();
     const owner = createUser({ id: 'owner-id' });
     const superAdmin = createUser({
       id: 'super-admin-id',
@@ -231,7 +233,7 @@ describe('DocumentsService', () => {
     ).resolves.toMatchObject({
       id: 'document-id',
     });
-    expect(rolesService.findByUser).not.toHaveBeenCalled();
+    expect(findByUser).not.toHaveBeenCalled();
   });
 
   it('soft removes all attachments when update receives an empty array', async () => {

@@ -63,8 +63,10 @@ describe('attachment cleanup validation', () => {
   it('uses attachment cleanup defaults', () => {
     const result = validationSchema.validate({ ...baseEnv });
 
-    expect(result.value.ATTACHMENT_CLEANUP_RETENTION_DAYS).toBe(7);
-    expect(result.value.ATTACHMENT_CLEANUP_BATCH_SIZE).toBe(100);
+    const value = result.value as Record<string, unknown>;
+
+    expect(value.ATTACHMENT_CLEANUP_RETENTION_DAYS).toBe(7);
+    expect(value.ATTACHMENT_CLEANUP_BATCH_SIZE).toBe(100);
   });
 });
 

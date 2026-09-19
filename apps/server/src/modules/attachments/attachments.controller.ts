@@ -122,6 +122,7 @@ export class AttachmentsController {
       query.expiresAt,
       query.userId,
       query.signature,
+      query.scope,
     );
 
     response.setHeader('Content-Type', attachment.mimeType);

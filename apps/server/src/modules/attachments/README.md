@@ -31,6 +31,22 @@
 
 业务附件查询不提供通用 HTTP 接口。业务模块先完成业务对象权限校验，再调用 `AttachmentsService.findByBusiness()`。
 
+## 管理入口
+
+- `GET /api/attachments/management`
+- `GET /api/attachments/management/:id`
+- `GET /api/attachments/management/:id/signed-url`
+- `PATCH /api/attachments/management/:id/visibility`
+- `POST /api/attachments/management/:id/soft-delete`
+- `PATCH /api/attachments/management/bulk/visibility`
+- `POST /api/attachments/management/bulk/soft-delete`
+- `POST /api/attachments/management/cleanup`
+- `GET /api/attachments/management/cleanup/latest`
+
+管理员签名作用域为 `admin`，可以读取正常、未绑定和已软删除附件。普通签名作用域为 `user`，不能读取已软删除附件。已绑定附件不能在管理页修改可见性或删除。
+
+批量修改和批量软删除单次最多 100 条，逐条返回成功或失败结果；部分失败不回滚已成功项。管理接口不返回 `storageKey` 或物理路径。
+
 ## 物理清理
 
 附件清理任务处理两类候选：
@@ -43,9 +59,9 @@
 - `ATTACHMENT_CLEANUP_RETENTION_DAYS`：保留天数，默认 `7`，最小 `1`。
 - `ATTACHMENT_CLEANUP_BATCH_SIZE`：单次查询最大条数，默认 `100`，范围 `1-1000`。
 - 自动触发：每天 `03:00` 提交 `cleanup-attachments`。
-- 手动触发：`POST /api/background-tasks/cleanup-attachments`。
+- 手动触发：`POST /api/background-tasks/cleanup-attachments` 或 `POST /api/attachments/management/cleanup`。
 
-同名任务已有 `queued`、`delayed` 或 `active` 记录时，自动触发会跳过。清理任务不提供回收站和人工恢复。
+同名任务已有 `queued`、`delayed` 或 `active` 记录时，自动和手动触发都会跳过或返回冲突。清理任务不提供回收站和人工恢复。
 
 ## API
 
@@ -58,3 +74,5 @@
 | DELETE | `/api/attachments/:id`            | 软删除未绑定附件           |
 
 `GET /api/attachments/content/:id` 默认返回 `Content-Disposition: inline`，适合图片等预览场景。传入 `download=1` 时返回 `Content-Disposition: attachment; filename*=UTF-8''<encoded originalName>`，并继续使用附件元数据中的 `Content-Type`。下载参数不会改变公开/私有附件的访问规则：公开附件无需签名，私有附件仍必须携带完整且有效的签名参数。
+
+管理接口需要 `attachment:read` 或 `attachment:manage` 权限。签名 URL 的 `scope=admin` 仅由管理接口签发，普通内容访问使用 `scope=user`。
