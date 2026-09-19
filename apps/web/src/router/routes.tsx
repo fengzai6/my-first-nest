@@ -1,4 +1,5 @@
 import { CacheCapabilities } from "@/pages/cache-capabilities";
+import { Documents } from "@/pages/documents";
 import { Cats } from "@/pages/management/cats";
 import { Home } from "@/pages/home";
 import { Jobs } from "@/pages/jobs";
@@ -42,6 +43,10 @@ export const routes: RouteObject[] = [
       {
         path: "cache-capabilities",
         element: <CacheCapabilities />,
+      },
+      {
+        path: "documents",
+        element: <Documents />,
       },
       {
         path: "jobs",

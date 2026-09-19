@@ -14,6 +14,7 @@ const notes: DefaultTheme.SidebarMulti = {
         { text: 'Redis 缓存', link: '/notes/redis-cache' },
         { text: '日志系统', link: '/notes/logging' },
         { text: '附件上传', link: '/notes/attachments' },
+        { text: '资料文档附件', link: '/notes/documents' },
       ],
     },
   ],

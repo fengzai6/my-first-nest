@@ -48,6 +48,11 @@ const sidebarGroups = [
         path: "/cache-capabilities",
       },
       {
+        name: "资料文档",
+        icon: <FileTextOutlined />,
+        path: "/documents",
+      },
+      {
         name: "任务中心",
         icon: <FieldTimeOutlined />,
         path: "/jobs",

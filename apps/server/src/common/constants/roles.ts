@@ -1,4 +1,5 @@
 import { CreatePermissionDto } from '@/modules/permissions/dto/create-permission.dto';
+import { DOCUMENTS_PERMISSIONS } from './permissions/documents.permission';
 import { PERMISSIONS } from './permissions';
 import { USERS_PERMISSIONS } from './permissions/users.permission';
 
@@ -25,6 +26,6 @@ export const DEFAULT_ROLES: RoleDefinition[] = [
     name: 'user',
     description: '用户',
     code: RoleCode.USER,
-    permissions: [...USERS_PERMISSIONS],
+    permissions: [...USERS_PERMISSIONS, ...DOCUMENTS_PERMISSIONS],
   },
 ];

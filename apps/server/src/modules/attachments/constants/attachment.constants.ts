@@ -17,6 +17,7 @@ export type AttachmentStorageProvider =
 
 export const ATTACHMENT_BIZ_TYPE = {
   USER_AVATAR: 'user-avatar',
+  DOCUMENT: 'document',
 } as const;
 
 export const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
