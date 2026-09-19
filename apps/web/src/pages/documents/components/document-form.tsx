@@ -1,17 +1,23 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button, Form, Input, Select, Space } from "antd";
+import { Button, Form, Input, Select, Space, Typography } from "antd";
 import { Controller, useForm } from "react-hook-form";
+import { useState } from "react";
 import { z } from "zod";
 
 import { AttachmentUpload } from "@/components/attachment-upload";
-import { GetAttachmentSignedUrl } from "@/services/api/attachment";
-import { GetDocumentAttachmentSignedUrl } from "@/services/api/document";
 import type {
   ICreateDocumentDto,
   IUpdateDocumentDto,
 } from "@/services/dtos/document";
-import type { IAttachment } from "@/services/types/attachment";
+import {
+  ATTACHMENT_VISIBILITY,
+  type AttachmentVisibility,
+  type IAttachment,
+} from "@/services/types/attachment";
 import { DOCUMENT_STATUS, type IDocument } from "@/services/types/document";
+import { getDocumentFormAttachmentSignedUrl } from "./document-attachment-signature";
+
+const { Text } = Typography;
 
 const documentSchema = z.object({
   title: z.string().min(1, "请输入文档标题").max(200, "标题不能超过200个字符"),
@@ -37,6 +43,8 @@ export const DocumentForm = ({
   onSubmit,
   onCancel,
 }: IDocumentFormProps) => {
+  const [newAttachmentVisibility, setNewAttachmentVisibility] =
+    useState<AttachmentVisibility>(ATTACHMENT_VISIBILITY.PRIVATE);
   const {
     control,
     handleSubmit,
@@ -120,29 +128,48 @@ export const DocumentForm = ({
       </Form.Item>
 
       <Form.Item label="附件">
-        <Controller
-          name="attachments"
-          control={control}
-          render={({ field }) => (
-            <AttachmentUpload
-              value={field.value}
-              onChange={field.onChange}
-              disabled={loading}
-              getSignedUrl={
-                document
-                  ? (attachment) =>
-                      attachment.bizType === "document" &&
-                      attachment.bizId === document.id
-                        ? GetDocumentAttachmentSignedUrl(
-                            document.id,
-                            attachment.id,
-                          )
-                        : GetAttachmentSignedUrl(attachment.id)
-                  : undefined
-              }
-            />
-          )}
-        />
+        <Space direction="vertical" className="w-full" size="small">
+          <Text type="secondary">以下可见性仅应用于后续上传的附件</Text>
+          <Select
+            value={newAttachmentVisibility}
+            onChange={setNewAttachmentVisibility}
+            disabled={loading}
+            className="w-full"
+            options={[
+              {
+                value: ATTACHMENT_VISIBILITY.PRIVATE,
+                label: "私有附件",
+              },
+              {
+                value: ATTACHMENT_VISIBILITY.PUBLIC,
+                label: "公开附件",
+              },
+            ]}
+          />
+          <Controller
+            name="attachments"
+            control={control}
+            render={({ field }) => (
+              <AttachmentUpload
+                value={field.value}
+                onChange={field.onChange}
+                disabled={loading}
+                visibility={newAttachmentVisibility}
+                getSignedUrl={
+                  document
+                    ? (attachment) => {
+                        return getDocumentFormAttachmentSignedUrl(
+                          document.id,
+                          attachment,
+                          attachment.id,
+                        );
+                      }
+                    : undefined
+                }
+              />
+            )}
+          />
+        </Space>
       </Form.Item>
 
       <Form.Item className="mt-6 mb-0">

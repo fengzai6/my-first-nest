@@ -1,6 +1,6 @@
 import { FileOutlined } from "@ant-design/icons";
 import { Image, Spin } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 import { GetAttachmentSignedUrl } from "@/services/api/attachment";
 import {
@@ -16,6 +16,9 @@ interface IAttachmentPreviewProps {
 
 const isImage = (mimeType: string) => mimeType.startsWith("image/");
 
+const defaultGetSignedUrl = (attachment: IAttachment) =>
+  GetAttachmentSignedUrl(attachment.id);
+
 export const AttachmentPreview = ({
   attachment,
   getSignedUrl,
@@ -23,24 +26,24 @@ export const AttachmentPreview = ({
   const [previewUrl, setPreviewUrl] = useState(attachment.url);
   const [loading, setLoading] = useState(false);
 
+  const requestSignedUrl = useEffectEvent((attachment: IAttachment) => {
+    const request = getSignedUrl ?? defaultGetSignedUrl;
+
+    return request(attachment);
+  });
+
   useEffect(() => {
     if (
       !isImage(attachment.mimeType) ||
       attachment.visibility === ATTACHMENT_VISIBILITY.PUBLIC
     ) {
-      setLoading(false);
       setPreviewUrl(attachment.url);
+      setLoading(false);
       return;
     }
 
     let cancelled = false;
     setLoading(true);
-
-    const requestSignedUrl: (
-      attachment: IAttachment,
-    ) => Promise<IAttachmentSignedUrl> =
-      getSignedUrl ??
-      ((attachment: IAttachment) => GetAttachmentSignedUrl(attachment.id));
 
     requestSignedUrl(attachment)
       .then(({ url }) => {

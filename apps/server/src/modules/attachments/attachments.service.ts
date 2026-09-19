@@ -38,6 +38,7 @@ import {
   AttachmentCleanupService,
   ICleanupAttachmentsResult,
 } from './services/attachment-cleanup.service';
+import { normalizeMultipartFilename } from './utils/normalize-multipart-filename';
 
 export interface IAttachmentView {
   id: string;
@@ -90,7 +91,7 @@ export class AttachmentsService {
         const { key } = await this.storage.save(file);
         savedKeys.push(key);
         const attachment = this.attachmentRepository.create({
-          originalName: file.originalname,
+          originalName: normalizeMultipartFilename(file.originalname),
           storageKey: key,
           mimeType: file.mimetype,
           size: file.size,
