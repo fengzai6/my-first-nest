@@ -24,7 +24,7 @@ interface IAttachmentUploadProps {
   maxSize?: number;
   accept?: string;
   disabled?: boolean;
-  getSignedUrl?: (attachmentId: string) => Promise<IAttachmentSignedUrl>;
+  getSignedUrl?: (attachment: IAttachment) => Promise<IAttachmentSignedUrl>;
   onChange?: (attachments: IAttachment[]) => void;
 }
 

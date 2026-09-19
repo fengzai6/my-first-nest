@@ -15,7 +15,7 @@ import { RolesService } from '@/modules/roles/roles.service';
 import { User } from '@/modules/users/entities/user.entity';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import {
   DOCUMENT_STATUS,
   DocumentStatus,
@@ -72,6 +72,7 @@ export class DocumentsService {
         document.id,
         dto.attachmentIds ?? [],
         manager,
+        user,
       );
 
       return document.id;
@@ -85,7 +86,9 @@ export class DocumentsService {
     const pageSize = queryDto.pageSize ?? 20;
     const query = this.documentRepository
       .createQueryBuilder('document')
-      .leftJoinAndSelect('document.owner', 'owner');
+      .leftJoinAndSelect('document.owner', 'owner')
+      .withDeleted()
+      .andWhere('document.deletedAt IS NULL');
 
     if (queryDto.status) {
       query.andWhere('document.status = :status', {
@@ -97,7 +100,7 @@ export class DocumentsService {
         keyword: `%${queryDto.keyword}%`,
       });
     }
-    if (!(await this.isAdmin(user.id)) && !this.isSuperAdmin(user)) {
+    if (!this.isSuperAdmin(user) && !(await this.isAdmin(user.id))) {
       query.andWhere('owner.id = :userId', { userId: user.id });
     }
 
@@ -119,8 +122,8 @@ export class DocumentsService {
           title: document.title,
           status: document.status,
           owner: {
-            id: document.owner.id,
-            displayName: document.owner.displayName,
+            id: document.owner?.id ?? '',
+            displayName: document.owner?.displayName ?? '已删除用户',
           },
           attachmentCount: counts.get(document.id) ?? 0,
           createdAt: document.createdAt,
@@ -161,6 +164,7 @@ export class DocumentsService {
           id,
           attachmentIds,
           manager,
+          user,
         );
       }
     });
@@ -204,8 +208,9 @@ export class DocumentsService {
 
   private async findOneEntity(id: string, user: User): Promise<Document> {
     const document = await this.documentRepository.findOne({
-      where: { id },
+      where: { id, deletedAt: IsNull() },
       relations: { owner: true },
+      withDeleted: true,
     });
 
     if (!document) {
@@ -243,8 +248,8 @@ export class DocumentsService {
       content: document.content,
       status: document.status,
       owner: {
-        id: document.owner.id,
-        displayName: document.owner.displayName,
+        id: document.owner?.id ?? '',
+        displayName: document.owner?.displayName ?? '已删除用户',
       },
       attachments,
       createdAt: document.createdAt,

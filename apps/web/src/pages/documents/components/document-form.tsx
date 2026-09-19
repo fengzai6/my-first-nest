@@ -157,15 +157,11 @@ export const DocumentForm = ({
                 visibility={newAttachmentVisibility}
                 getSignedUrl={
                   document
-                    ? (attachmentId) => {
-                        const attachment = field.value.find(
-                          (item) => item.id === attachmentId,
-                        );
-
+                    ? (attachment) => {
                         return getDocumentFormAttachmentSignedUrl(
                           document.id,
-                          attachment ?? { bizType: null, bizId: null },
-                          attachmentId,
+                          attachment,
+                          attachment.id,
                         );
                       }
                     : undefined
