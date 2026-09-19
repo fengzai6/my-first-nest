@@ -2,7 +2,7 @@ import { getConfig } from '@/config/configuration';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { FindOptionsWhere, IsNull, Not, Repository } from 'typeorm';
 import { Attachment } from '../entities/attachment.entity';
 import {
   ATTACHMENT_STORAGE,
@@ -193,12 +193,13 @@ export class AttachmentCleanupService {
       }
 
       const fileRemoved = await this.storage.remove(claimed.storageKey);
-      const result = await this.attachmentRepository.delete({
+      const deleteWhere: FindOptionsWhere<Attachment> = {
         id: claimed.id,
         deletedAt: Not(IsNull()),
-        bizType: IsNull(),
-        bizId: IsNull(),
-      });
+        bizType: claimed.bizType === null ? IsNull() : claimed.bizType,
+        bizId: claimed.bizId === null ? IsNull() : claimed.bizId,
+      };
+      const result = await this.attachmentRepository.delete(deleteWhere);
 
       if (result.affected === 0) {
         return {

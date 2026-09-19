@@ -165,6 +165,39 @@ describe('AttachmentCleanupService', () => {
     });
   });
 
+  it('hard deletes a soft-deleted bound attachment using the claim binding snapshot', async () => {
+    const {
+      service,
+      storage,
+      queryBuilder,
+      transactionRepository,
+      repository,
+    } = createService();
+    const attachment = createAttachment({
+      bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
+      bizId: 'document-id',
+    });
+
+    queryBuilder.getMany
+      .mockResolvedValueOnce([attachment])
+      .mockResolvedValueOnce([]);
+    transactionRepository.findOne.mockResolvedValue(attachment);
+    storage.remove.mockResolvedValue(true);
+
+    const result = await service.cleanupExpiredAttachments(
+      new Date('2026-09-16T03:00:00.000Z'),
+    );
+
+    expect(repository.delete).toHaveBeenCalledWith({
+      id: attachment.id,
+      deletedAt: Not(IsNull()),
+      bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
+      bizId: 'document-id',
+    });
+    expect(result.deletedMetadataCount).toBe(1);
+    expect(result.failedCount).toBe(0);
+  });
+
   it('persists an orphan cleanup claim before removing the file', async () => {
     const {
       service,
@@ -390,7 +423,7 @@ describe('AttachmentCleanupService', () => {
     expect(result.deletedMetadataCount).toBe(0);
   });
 
-  it('does not count metadata as deleted when the attachment is protected after the cleanup claim', async () => {
+  it('uses the claimed orphan snapshot when the attachment is rebound after the cleanup claim', async () => {
     const {
       service,
       storage,
