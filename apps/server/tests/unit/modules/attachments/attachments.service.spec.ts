@@ -75,10 +75,12 @@ const createManager = () => {
 const createUser = ({
   id = 'user-id',
   specialRoles = [],
+  isActive = true,
 }: Partial<User> = {}) => {
   const user = new User();
   user.id = id;
   user.specialRoles = specialRoles;
+  user.isActive = isActive;
   return user;
 };
 
@@ -339,6 +341,41 @@ describe('AttachmentsService', () => {
       'admin-id',
       'attachment:read',
     );
+  });
+
+  it('rejects admin scope for a disabled signing user without reading the file', async () => {
+    const {
+      hasUserPermission,
+      repository,
+      storage,
+      userRepository,
+      verifySignature,
+      service,
+    } = createService();
+    const attachment = createAttachment({
+      deletedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
+    repository.findOne.mockResolvedValue(attachment);
+    userRepository.findOneBy.mockResolvedValue(null);
+    verifySignature.mockReturnValue(true);
+
+    await expect(
+      service.getContent(
+        attachment.id,
+        String(Date.now() + 300_000),
+        'disabled-admin-id',
+        'signature',
+        'admin',
+      ),
+    ).rejects.toMatchObject({
+      code: AttachmentExceptionCode.NOT_FOUND,
+    });
+    expect(userRepository.findOneBy).toHaveBeenCalledWith({
+      id: 'disabled-admin-id',
+      isActive: true,
+    });
+    expect(hasUserPermission).not.toHaveBeenCalled();
+    expect(storage.read).not.toHaveBeenCalled();
   });
 
   it('rejects admin scope after the signing user loses attachment read permission', async () => {

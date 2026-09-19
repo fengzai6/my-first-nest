@@ -3,6 +3,27 @@ import { describe, expect, it, vi } from "vitest";
 import { createAttachmentSignedUrlCache } from "./attachment-signed-url-cache";
 
 describe("createAttachmentSignedUrlCache", () => {
+  it("reuses an in-flight request", async () => {
+    let resolveRequest!: (value: { url: string; expiresAt: number }) => void;
+    const request = vi.fn(
+      () =>
+        new Promise<{ url: string; expiresAt: number }>((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+    const cache = createAttachmentSignedUrlCache(request);
+
+    const first = cache.get();
+    const second = cache.get();
+
+    expect(request).toHaveBeenCalledTimes(1);
+
+    resolveRequest({ url: "/signed", expiresAt: Date.now() + 300_000 });
+
+    await expect(first).resolves.toMatchObject({ url: "/signed" });
+    await expect(second).resolves.toMatchObject({ url: "/signed" });
+  });
+
   it("reuses a signed url before the safety margin expires", async () => {
     const now = 1_000_000;
     const request = vi.fn().mockResolvedValue({

@@ -336,7 +336,10 @@ export class AttachmentsService {
     }
 
     if (scope === ATTACHMENT_SIGNATURE_SCOPE.ADMIN) {
-      const currentUser = await this.userRepository.findOneBy({ id: userId });
+      const currentUser = await this.userRepository.findOneBy({
+        id: userId,
+        isActive: true,
+      });
       const canRead =
         currentUser &&
         (this.isSuperAdmin(currentUser) ||

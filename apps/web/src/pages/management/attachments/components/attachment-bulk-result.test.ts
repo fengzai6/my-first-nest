@@ -3,16 +3,16 @@ import { describe, expect, it } from "vitest";
 import { getBulkFailureLines, getRemainingSelectionIds } from "./attachment-bulk-result";
 
 describe("attachment bulk results", () => {
-  it("keeps failed ids selected and removes successful ids", () => {
+  it("keeps failed and newly selected ids while removing successful ids", () => {
     const remaining = getRemainingSelectionIds(
-      ["a", "b", "c"],
+      ["a", "b", "c", "d"],
       {
         succeeded: ["a", "c"],
         failed: [{ id: "b", reason: "已绑定" }],
       },
     );
 
-    expect(remaining).toEqual(["b"]);
+    expect(remaining).toEqual(["b", "d"]);
   });
 
   it("formats each failure reason", () => {

@@ -10,7 +10,11 @@ export const createAttachmentSignedUrlCache = (
   let expiresAt = 0;
 
   return {
-    get() {
+    get: () => {
+      if (cached && expiresAt === 0) {
+        return cached;
+      }
+
       if (cached && expiresAt - now() > EXPIRY_SAFETY_MARGIN_MS) {
         return cached;
       }

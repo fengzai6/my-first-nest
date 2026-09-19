@@ -4,8 +4,8 @@ export const getRemainingSelectionIds = (
   selectedIds: string[],
   result: IAttachmentBulkResult,
 ) => {
-  const failedIds = new Set(result.failed.map((item) => item.id));
-  return selectedIds.filter((id) => failedIds.has(id));
+  const succeededIds = new Set(result.succeeded);
+  return selectedIds.filter((id) => !succeededIds.has(id));
 };
 
 export const getBulkFailureLines = (

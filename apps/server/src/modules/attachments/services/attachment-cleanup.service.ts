@@ -159,7 +159,7 @@ export class AttachmentCleanupService {
     failed: boolean;
   }> {
     try {
-      return await this.attachmentRepository.manager.transaction(
+      const claimed = await this.attachmentRepository.manager.transaction(
         async (manager) => {
           const repository = manager.getRepository(Attachment);
           const locked = await repository.findOne({
@@ -169,23 +169,37 @@ export class AttachmentCleanupService {
           });
 
           if (!locked) {
-            return { deleted: true, missing: false, failed: false };
+            return null;
           }
 
           if (!this.isCleanupCandidate(locked, cutoff)) {
-            return { deleted: false, missing: false, failed: false };
+            return null;
           }
 
-          const fileRemoved = await this.storage.remove(locked.storageKey);
-          const result = await repository.delete(locked.id);
+          if (!locked.deletedAt) {
+            await repository.update(locked.id, { deletedAt: cutoff });
+          }
 
-          return {
-            deleted: Boolean(result.affected),
-            missing: !fileRemoved,
-            failed: false,
-          };
+          return locked;
         },
       );
+
+      if (!claimed) {
+        return {
+          deleted: false,
+          missing: false,
+          failed: false,
+        };
+      }
+
+      const fileRemoved = await this.storage.remove(claimed.storageKey);
+      const result = await this.attachmentRepository.delete(claimed.id);
+
+      return {
+        deleted: Boolean(result.affected),
+        missing: !fileRemoved,
+        failed: false,
+      };
     } catch {
       return {
         deleted: false,

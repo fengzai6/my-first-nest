@@ -171,7 +171,7 @@ export const DocumentAttachments = ({
       dataSource={attachments}
       renderItem={(attachment) => (
         <DocumentAttachmentItem
-          key={attachment.id}
+          key={`${documentId}:${attachment.id}`}
           documentId={documentId}
           attachment={attachment}
         />

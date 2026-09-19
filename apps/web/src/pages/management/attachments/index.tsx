@@ -188,11 +188,8 @@ export const AttachmentsManagement = () => {
             loading={isBulkLoading}
             onChangeLoading={setIsBulkLoading}
             onFinished={(result) => {
-              setSelectedRowKeys(
-                getRemainingSelectionIds(
-                  selectedRowKeys.map(String),
-                  result,
-                ),
+              setSelectedRowKeys((current) =>
+                getRemainingSelectionIds(current.map(String), result),
               );
               refresh();
             }}
