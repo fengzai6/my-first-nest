@@ -236,7 +236,7 @@ describe('AttachmentCleanupService', () => {
     expect(result.deletedMetadataCount).toBe(1);
   });
 
-  it('excludes failed records from subsequent rounds', async () => {
+  it('advances past failed records so later candidates are still cleaned', async () => {
     const { service, storage, queryBuilder, transactionRepository } =
       createService({
         batchSize: 1,
@@ -259,15 +259,16 @@ describe('AttachmentCleanupService', () => {
       .mockRejectedValueOnce(new Error('disk unavailable'))
       .mockResolvedValueOnce(true);
 
-    await service.cleanupExpiredAttachments(
+    const result = await service.cleanupExpiredAttachments(
       new Date('2026-09-16T03:00:00.000Z'),
     );
 
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('attachment.id > :id', {
+      id: 'failed-id',
+    });
     expect(transactionRepository.delete).toHaveBeenCalledWith('success-id');
-    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-      'attachment.id NOT IN (:...excludedIds)',
-      { excludedIds: ['failed-id'] },
-    );
+    expect(result.failedCount).toBe(1);
+    expect(result.deletedMetadataCount).toBe(1);
   });
 
   it('keeps querying until both candidate types return less than a full batch', async () => {

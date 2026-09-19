@@ -45,26 +45,38 @@ export class AttachmentCleanupService {
     const cutoff = new Date(
       currentTime.getTime() - this.retentionDays * MILLISECONDS_PER_DAY,
     );
-    const failedIds = new Set<string>();
     let scannedCount = 0;
     let deletedMetadataCount = 0;
     let missingFileCount = 0;
     let failedCount = 0;
     let rounds = 0;
     let reachedSafetyLimit = false;
+    let deletedCursor: string | null = null;
+    let orphanCursor: string | null = null;
 
     while (rounds < this.maxRounds) {
       rounds += 1;
 
-      const deletedCandidates = await this.findDeletedCandidates(cutoff, [
-        ...failedIds,
-      ]);
-      const orphanCandidates = await this.findOrphanCandidates(cutoff, [
-        ...failedIds,
-      ]);
+      const deletedCandidates = await this.findDeletedCandidates(
+        cutoff,
+        deletedCursor,
+      );
+      const orphanCandidates = await this.findOrphanCandidates(
+        cutoff,
+        orphanCursor,
+      );
 
       if (deletedCandidates.length === 0 && orphanCandidates.length === 0) {
         break;
+      }
+
+      const lastDeleted = deletedCandidates.at(-1);
+      const lastOrphan = orphanCandidates.at(-1);
+      if (lastDeleted) {
+        deletedCursor = lastDeleted.id;
+      }
+      if (lastOrphan) {
+        orphanCursor = lastOrphan.id;
       }
 
       const candidates = [...deletedCandidates, ...orphanCandidates];
@@ -76,7 +88,6 @@ export class AttachmentCleanupService {
         if (outcome.missing) missingFileCount += 1;
         if (outcome.failed) {
           failedCount += 1;
-          failedIds.add(attachment.id);
         }
       }
 
@@ -102,21 +113,18 @@ export class AttachmentCleanupService {
 
   private async findDeletedCandidates(
     cutoff: Date,
-    excludedIds: string[],
+    cursor: string | null,
   ): Promise<Attachment[]> {
     const query = this.attachmentRepository
       .createQueryBuilder('attachment')
       .withDeleted()
       .where('attachment.deletedAt IS NOT NULL')
       .andWhere('attachment.deletedAt <= :cutoff', { cutoff })
-      .orderBy('attachment.createdAt', 'ASC')
-      .addOrderBy('attachment.id', 'ASC')
+      .orderBy('attachment.id', 'ASC')
       .take(this.batchSize);
 
-    if (excludedIds.length > 0) {
-      query.andWhere('attachment.id NOT IN (:...excludedIds)', {
-        excludedIds,
-      });
+    if (cursor) {
+      query.andWhere('attachment.id > :id', { id: cursor });
     }
 
     return query.getMany();
@@ -124,7 +132,7 @@ export class AttachmentCleanupService {
 
   private async findOrphanCandidates(
     cutoff: Date,
-    excludedIds: string[],
+    cursor: string | null,
   ): Promise<Attachment[]> {
     const query = this.attachmentRepository
       .createQueryBuilder('attachment')
@@ -132,14 +140,11 @@ export class AttachmentCleanupService {
       .andWhere('attachment.bizId IS NULL')
       .andWhere('attachment.deletedAt IS NULL')
       .andWhere('attachment.createdAt <= :cutoff', { cutoff })
-      .orderBy('attachment.createdAt', 'ASC')
-      .addOrderBy('attachment.id', 'ASC')
+      .orderBy('attachment.id', 'ASC')
       .take(this.batchSize);
 
-    if (excludedIds.length > 0) {
-      query.andWhere('attachment.id NOT IN (:...excludedIds)', {
-        excludedIds,
-      });
+    if (cursor) {
+      query.andWhere('attachment.id > :id', { id: cursor });
     }
 
     return query.getMany();

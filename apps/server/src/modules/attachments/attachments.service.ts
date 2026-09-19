@@ -435,20 +435,43 @@ export class AttachmentsService {
       },
     });
 
-    const updated = repository.merge(attachment, {
-      visibility: ATTACHMENT_VISIBILITY.PUBLIC,
-      bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
-      bizId: userId,
-    });
+    const result = await repository.update(
+      {
+        id: attachmentId,
+        deletedAt: IsNull(),
+        ...(isBoundToTargetAvatar
+          ? {
+              bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
+              bizId: userId,
+            }
+          : { bizType: IsNull(), bizId: IsNull() }),
+      },
+      {
+        visibility: ATTACHMENT_VISIBILITY.PUBLIC,
+        bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
+        bizId: userId,
+      },
+    );
 
-    const saved = await repository.save(updated);
-
-    if (!saved) {
-      throw new AttachmentException(AttachmentExceptionCode.NOT_FOUND);
+    if (result.affected !== 1) {
+      throw new AttachmentException(
+        attachment.bizType !== null && !isBoundToTargetAvatar
+          ? AttachmentExceptionCode.ALREADY_BOUND
+          : AttachmentExceptionCode.NOT_FOUND,
+      );
     }
 
     if (oldAttachments.length > 0) {
       await repository.softRemove(oldAttachments);
+    }
+
+    const saved = await repository.findOne({
+      where: { id: attachmentId, deletedAt: IsNull() },
+      relations: { uploadedBy: true },
+    });
+
+    if (!saved) {
+      throw new AttachmentException(AttachmentExceptionCode.NOT_FOUND);
     }
 
     return this.toView(saved).url;

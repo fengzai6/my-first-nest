@@ -104,6 +104,25 @@ const createAttachment = ({
   return Object.assign(attachment, { deletedAt });
 };
 
+const expectAvatarBindingCriteria = (
+  repository: MockRepository,
+  attachmentId: string,
+) => {
+  const [criteria, update] = repository.update.mock.calls.at(-1) ?? [];
+  expect(criteria).toMatchObject({ id: attachmentId });
+  expect((criteria as { deletedAt: unknown }).deletedAt).toBeInstanceOf(
+    FindOperator,
+  );
+  expect((criteria as { bizType: unknown }).bizType).toBeInstanceOf(
+    FindOperator,
+  );
+  expect((criteria as { bizId: unknown }).bizId).toBeInstanceOf(FindOperator);
+  expect(update).toMatchObject({
+    visibility: ATTACHMENT_VISIBILITY.PUBLIC,
+    bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
+  });
+};
+
 const createService = () => {
   const repository: MockRepository = {
     create: vi.fn((value) =>
@@ -610,12 +629,7 @@ describe('AttachmentsService', () => {
       ).resolves.toBe('/api/attachments/content/attachment-id');
     });
 
-    expect(attachment.visibility).toBe(ATTACHMENT_VISIBILITY.PUBLIC);
-    expect(attachment.bizType).toBe(ATTACHMENT_BIZ_TYPE.USER_AVATAR);
-    expect(transactionalRepository.findOne).toHaveBeenCalledWith({
-      where: { id: 'attachment-id' },
-      relations: { uploadedBy: true },
-    });
+    expectAvatarBindingCriteria(transactionalRepository, attachment.id);
     expect(transactionalRepository.find).toHaveBeenCalledTimes(1);
     const findOptions = transactionalRepository.find.mock.calls[0]?.[0];
     expect(findOptions?.where).toMatchObject({
@@ -627,7 +641,7 @@ describe('AttachmentsService', () => {
     expect(transactionalRepository.softRemove).toHaveBeenCalledWith([
       oldAttachment,
     ]);
-    expect(transactionalRepository.save).toHaveBeenCalledWith(attachment);
+    expectAvatarBindingCriteria(transactionalRepository, attachment.id);
   });
 
   it('binds, keeps, and soft removes document attachments as one set', async () => {
@@ -886,10 +900,10 @@ describe('AttachmentsService', () => {
       ).resolves.toBe('/api/attachments/content/attachment-id');
     });
 
-    expect(transactionalRepository.save).toHaveBeenCalledWith(attachment);
+    expectAvatarBindingCriteria(transactionalRepository, attachment.id);
   });
 
-  it('rejects avatar binding when the attachment was removed before save', async () => {
+  it('rejects avatar binding when the conditional update affects no rows', async () => {
     const { service } = createService();
     const user = createUser();
     const attachment = createAttachment({ uploadedBy: user });
@@ -897,7 +911,7 @@ describe('AttachmentsService', () => {
 
     transactionalRepository.findOne.mockResolvedValue(attachment);
     transactionalRepository.find.mockResolvedValue([]);
-    transactionalRepository.save.mockResolvedValue(null as never);
+    transactionalRepository.update.mockResolvedValue({ affected: 0 });
 
     await userContextStorage.run(user, async () => {
       await expect(
@@ -906,6 +920,9 @@ describe('AttachmentsService', () => {
         code: AttachmentExceptionCode.NOT_FOUND,
       });
     });
+
+    expectAvatarBindingCriteria(transactionalRepository, attachment.id);
+    expect(transactionalRepository.softRemove).not.toHaveBeenCalled();
   });
 
   it('rebinds an attachment already bound to the same user avatar', async () => {
@@ -927,7 +944,7 @@ describe('AttachmentsService', () => {
       ).resolves.toBe('/api/attachments/content/attachment-id');
     });
 
-    expect(transactionalRepository.save).toHaveBeenCalledTimes(1);
+    expect(transactionalRepository.update).toHaveBeenCalledTimes(1);
     expect(transactionalRepository.softRemove).not.toHaveBeenCalled();
   });
 });
