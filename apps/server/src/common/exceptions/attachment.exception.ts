@@ -10,6 +10,7 @@ export const AttachmentExceptionCode = {
   INVALID_SIGNATURE: 'ATTACHMENT_INVALID_SIGNATURE',
   IN_USE: 'ATTACHMENT_IN_USE',
   CLEANUP_ALREADY_RUNNING: 'ATTACHMENT_CLEANUP_ALREADY_RUNNING',
+  ALREADY_BOUND: 'ATTACHMENT_ALREADY_BOUND',
 } as const;
 
 export type AttachmentExceptionCode =
@@ -58,6 +59,11 @@ export const AttachmentExceptionMap: Record<
     message: '附件清理任务正在执行，请稍后再试',
     status: HttpStatus.CONFLICT,
     code: AttachmentExceptionCode.CLEANUP_ALREADY_RUNNING,
+  },
+  [AttachmentExceptionCode.ALREADY_BOUND]: {
+    message: '附件已绑定其他业务，不能重复绑定',
+    status: HttpStatus.CONFLICT,
+    code: AttachmentExceptionCode.ALREADY_BOUND,
   },
 };
 

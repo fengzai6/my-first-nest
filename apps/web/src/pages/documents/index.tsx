@@ -49,6 +49,7 @@ export const Documents = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [keyword, setKeyword] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingDocument, setEditingDocument] = useState<IDocument>();
   const [viewingDocumentId, setViewingDocumentId] = useState<string>();
@@ -60,12 +61,12 @@ export const Documents = () => {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["documents", { page, pageSize, keyword }],
+    queryKey: ["documents", { page, pageSize, keyword: searchKeyword }],
     queryFn: () =>
       GetDocuments({
         page,
         pageSize,
-        keyword: keyword || undefined,
+        keyword: searchKeyword || undefined,
       }),
     placeholderData: (previous) => previous,
   });
@@ -239,7 +240,15 @@ export const Documents = () => {
               enterButton={<SearchOutlined />}
               value={keyword}
               onChange={(event) => {
-                setKeyword(event.target.value);
+                const value = event.target.value;
+                setKeyword(value);
+                if (value === "") {
+                  setSearchKeyword("");
+                  setPage(1);
+                }
+              }}
+              onSearch={(value) => {
+                setSearchKeyword(value);
                 setPage(1);
               }}
               style={{ width: 400 }}

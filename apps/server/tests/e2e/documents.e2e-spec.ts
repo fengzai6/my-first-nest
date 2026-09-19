@@ -1,6 +1,7 @@
 import { RoleCode } from '@/common/constants/roles';
 import { Attachment } from '@/modules/attachments/entities/attachment.entity';
 import { Document } from '@/modules/documents/entities/document.entity';
+import { User } from '@/modules/users/entities/user.entity';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { TestHelper } from './helpers/test-helper';
@@ -301,6 +302,34 @@ describe('Documents (e2e)', () => {
       .get(`/api/documents/${created.body.id}`)
       .set('Authorization', `Bearer ${adminAccessToken}`)
       .expect(200);
+  });
+
+  it('keeps documents readable after the owner is soft deleted', async () => {
+    const created = await request(helper.getHttpServer())
+      .post('/api/documents')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ title: '已删除 owner', content: '正文' })
+      .expect(200);
+
+    const profile = await request(helper.getHttpServer())
+      .get('/api/account/profile')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const owner = await helper.dataSource
+      .getRepository(User)
+      .findOneByOrFail({ id: profile.body.id });
+
+    await helper.dataSource.getRepository(User).softRemove(owner);
+
+    const response = await request(helper.getHttpServer())
+      .get(`/api/documents/${created.body.id}`)
+      .set('Authorization', `Bearer ${adminAccessToken}`)
+      .expect(200);
+
+    expect(response.body.owner).toMatchObject({
+      id: profile.body.id,
+      displayName: 'document-user',
+    });
   });
 
   it('updates additions, keeps existing attachments, and removes old ones', async () => {

@@ -2,9 +2,15 @@ import type { Attachment } from '@/modules/attachments/entities/attachment.entit
 import { AttachmentsController } from '@/modules/attachments/attachments.controller';
 import type { AttachmentsService } from '@/modules/attachments/attachments.service';
 import type { IAttachmentStorage } from '@/modules/attachments/interfaces/attachment-storage.interface';
+import { DECORATORS } from '@nestjs/swagger/dist/constants';
 import type { Response } from 'express';
 import { Readable, Writable } from 'stream';
 import { describe, expect, it, vi } from 'vitest';
+
+const getSecurityMetadata = (method: object) =>
+  Reflect.getMetadata(DECORATORS.API_SECURITY, method) as
+    | Array<Record<string, string[]>>
+    | undefined;
 
 const createResponse = () => {
   const headers = new Map<string, string>();
@@ -61,5 +67,23 @@ describe('AttachmentsController', () => {
       undefined,
       'admin',
     );
+  });
+
+  it('requires bearer auth only on protected routes', () => {
+    const controller = new AttachmentsController(
+      {} as AttachmentsService,
+      {} as never,
+    );
+
+    expect(
+      Reflect.getMetadata(DECORATORS.API_SECURITY, AttachmentsController),
+    ).toBeUndefined();
+    expect(getSecurityMetadata(controller.upload)).toEqual([{ bearer: [] }]);
+    expect(getSecurityMetadata(controller.getSignedUrl)).toEqual([
+      { bearer: [] },
+    ]);
+    expect(getSecurityMetadata(controller.update)).toEqual([{ bearer: [] }]);
+    expect(getSecurityMetadata(controller.remove)).toEqual([{ bearer: [] }]);
+    expect(getSecurityMetadata(controller.getContent)).toBeUndefined();
   });
 });

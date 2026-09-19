@@ -48,7 +48,6 @@ export const encodeRFC5987ValueChars = (value: string) =>
   );
 
 @ApiTags('Attachments - 附件')
-@ApiBearerAuth()
 @Controller('attachments')
 export class AttachmentsController {
   constructor(
@@ -58,6 +57,7 @@ export class AttachmentsController {
   ) {}
 
   @Post()
+  @ApiBearerAuth()
   @ApiOperation({ summary: '上传附件' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -103,6 +103,7 @@ export class AttachmentsController {
   }
 
   @Get(':id/signed-url')
+  @ApiBearerAuth()
   @ApiOperation({ summary: '获取私有附件短时签名 URL' })
   getSignedUrl(@Param('id') id: string) {
     return this.attachmentsService.createSignedUrl(id);
@@ -133,12 +134,14 @@ export class AttachmentsController {
   }
 
   @Patch(':id')
+  @ApiBearerAuth()
   @ApiOperation({ summary: '更新附件绑定或可见性' })
   update(@Param('id') id: string, @Body() dto: UpdateAttachmentDto) {
     return this.attachmentsService.update(id, dto);
   }
 
   @Delete(':id')
+  @ApiBearerAuth()
   @ApiOperation({ summary: '删除附件' })
   async remove(@Param('id') id: string) {
     await this.attachmentsService.remove(id);

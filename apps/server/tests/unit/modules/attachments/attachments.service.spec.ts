@@ -11,6 +11,7 @@ import { UpdateAttachmentDto } from '@/modules/attachments/dto/update-attachment
 import { AttachmentsService } from '@/modules/attachments/attachments.service';
 import { AttachmentCleanupService } from '@/modules/attachments/services/attachment-cleanup.service';
 import { User } from '@/modules/users/entities/user.entity';
+import { HttpStatus } from '@nestjs/common';
 import { Readable } from 'stream';
 import { EntityManager, FindOperator } from 'typeorm';
 import { beforeEach, describe, expect, it, MockInstance, vi } from 'vitest';
@@ -36,6 +37,14 @@ type MockRepository = {
   save: MockInstance<
     (value: Attachment | Attachment[]) => Promise<Attachment | Attachment[]>
   >;
+  update: MockInstance<
+    (
+      criteria: unknown,
+      partialEntity: unknown,
+    ) => Promise<{
+      affected: number;
+    }>
+  >;
   softRemove: MockInstance<
     (value: Attachment | Attachment[]) => Promise<Attachment | Attachment[]>
   >;
@@ -50,6 +59,7 @@ const createManager = () => {
     findOne: vi.fn(),
     merge: vi.fn((target, source) => Object.assign(target, source)),
     save: vi.fn((value) => Promise.resolve(value)),
+    update: vi.fn(() => Promise.resolve({ affected: 1 })),
     softRemove: vi.fn((value) => Promise.resolve(value)),
   };
 
@@ -101,6 +111,7 @@ const createService = () => {
     findOne: vi.fn(),
     merge: vi.fn((target, source) => Object.assign(target, source)),
     save: vi.fn((value) => Promise.resolve(value)),
+    update: vi.fn(() => Promise.resolve({ affected: 1 })),
     softRemove: vi.fn((value) => Promise.resolve(value)),
   };
   const storage = {
@@ -518,17 +529,20 @@ describe('AttachmentsService', () => {
   it('binds, keeps, and soft removes document attachments as one set', async () => {
     const { service } = createService();
     const { manager, repository } = createManager();
+    const user = createUser();
     const kept = createAttachment({
       id: 'kept-id',
+      uploadedBy: user,
       bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
       bizId: 'document-id',
     });
     const removed = createAttachment({
       id: 'removed-id',
+      uploadedBy: user,
       bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
       bizId: 'document-id',
     });
-    const added = createAttachment({ id: 'added-id' });
+    const added = createAttachment({ id: 'added-id', uploadedBy: user });
 
     repository.find
       .mockResolvedValueOnce([kept, removed])
@@ -538,20 +552,127 @@ describe('AttachmentsService', () => {
       'document-id',
       ['kept-id', 'added-id'],
       manager,
+      user,
     );
 
-    expect(added.bizType).toBe(ATTACHMENT_BIZ_TYPE.DOCUMENT);
-    expect(added.bizId).toBe('document-id');
-    expect(repository.save).toHaveBeenCalledWith([added]);
+    expect(repository.update).toHaveBeenCalledWith(expect.anything(), {
+      bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
+      bizId: 'document-id',
+    });
+    const updateCriteria = repository.update.mock.calls[0]?.[0] as
+      | {
+          id: FindOperator<string>;
+          bizType: FindOperator<null>;
+          bizId: FindOperator<null>;
+        }
+      | undefined;
+    expect(updateCriteria?.id).toBeInstanceOf(FindOperator);
+    expect(updateCriteria?.bizType).toBeInstanceOf(FindOperator);
+    expect(updateCriteria?.bizId).toBeInstanceOf(FindOperator);
     expect(repository.softRemove).toHaveBeenCalledWith([removed]);
+  });
+
+  it('rejects binding another uploader attachment', async () => {
+    const { service } = createService();
+    const { manager, repository } = createManager();
+    const uploader = createUser({ id: 'uploader-id' });
+    const user = createUser({ id: 'user-id' });
+    const attachment = createAttachment({ uploadedBy: uploader });
+
+    repository.find
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([attachment]);
+
+    await expect(
+      service.syncDocumentAttachments(
+        'document-id',
+        ['attachment-id'],
+        manager,
+        user,
+      ),
+    ).rejects.toMatchObject({
+      code: AttachmentExceptionCode.FORBIDDEN,
+    });
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it('allows a super admin to bind another uploader attachment', async () => {
+    const { service } = createService();
+    const { manager, repository } = createManager();
+    const uploader = createUser({ id: 'uploader-id' });
+    const admin = createUser({
+      id: 'admin-id',
+      specialRoles: [SpecialRolesEnum.SuperAdmin],
+    });
+    const attachment = createAttachment({ uploadedBy: uploader });
+
+    repository.find
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([attachment]);
+
+    await expect(
+      service.syncDocumentAttachments(
+        'document-id',
+        ['attachment-id'],
+        manager,
+        admin,
+      ),
+    ).resolves.toBeUndefined();
+    expect(repository.update).toHaveBeenCalled();
+  });
+
+  it('does not recheck uploader ownership for an attachment already bound to the document', async () => {
+    const { service } = createService();
+    const { manager, repository } = createManager();
+    const uploader = createUser({ id: 'uploader-id' });
+    const user = createUser({ id: 'user-id' });
+    const bound = createAttachment({
+      uploadedBy: uploader,
+      bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
+      bizId: 'document-id',
+    });
+
+    repository.find
+      .mockResolvedValueOnce([bound])
+      .mockResolvedValueOnce([bound]);
+
+    await expect(
+      service.syncDocumentAttachments('document-id', [bound.id], manager, user),
+    ).resolves.toBeUndefined();
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the conditional bind does not affect every attachment', async () => {
+    const { service } = createService();
+    const { manager, repository } = createManager();
+    const user = createUser();
+    const attachment = createAttachment({ uploadedBy: user });
+
+    repository.find
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([attachment]);
+    repository.update.mockResolvedValue({ affected: 0 });
+
+    await expect(
+      service.syncDocumentAttachments(
+        'document-id',
+        [attachment.id],
+        manager,
+        user,
+      ),
+    ).rejects.toMatchObject({
+      code: AttachmentExceptionCode.IN_USE,
+    });
   });
 
   it('rejects binding an attachment owned by another business object', async () => {
     const { service } = createService();
     const { manager, repository } = createManager();
+    const user = createUser();
 
     repository.find.mockResolvedValueOnce([]).mockResolvedValueOnce([
       createAttachment({
+        uploadedBy: user,
         bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
         bizId: 'user-id',
       }),
@@ -562,6 +683,7 @@ describe('AttachmentsService', () => {
         'document-id',
         ['attachment-id'],
         manager,
+        user,
       ),
     ).rejects.toMatchObject({
       code: AttachmentExceptionCode.IN_USE,
@@ -617,5 +739,72 @@ describe('AttachmentsService', () => {
 
     await expect(service.cleanupExpiredAttachments()).resolves.toBe(result);
     expect(cleanupExpiredAttachments).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects binding an attachment already bound to another business', async () => {
+    const { service } = createService();
+    const user = createUser();
+    const attachment = createAttachment({
+      uploadedBy: user,
+      bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
+      bizId: 'other-user-id',
+    });
+    const { manager, repository: transactionalRepository } = createManager();
+
+    transactionalRepository.findOne.mockResolvedValue(attachment);
+    transactionalRepository.find.mockResolvedValue([]);
+
+    await userContextStorage.run(user, async () => {
+      await expect(
+        service.bindUserAvatar('user-id', attachment.id, manager),
+      ).rejects.toMatchObject({
+        code: AttachmentExceptionCode.ALREADY_BOUND,
+        status: HttpStatus.CONFLICT,
+      });
+    });
+
+    expect(transactionalRepository.save).not.toHaveBeenCalled();
+    expect(transactionalRepository.softRemove).not.toHaveBeenCalled();
+  });
+
+  it('binds an attachment that is not bound to any business', async () => {
+    const { service } = createService();
+    const user = createUser();
+    const attachment = createAttachment({ uploadedBy: user });
+    const { manager, repository: transactionalRepository } = createManager();
+
+    transactionalRepository.findOne.mockResolvedValue(attachment);
+    transactionalRepository.find.mockResolvedValue([]);
+
+    await userContextStorage.run(user, async () => {
+      await expect(
+        service.bindUserAvatar('user-id', attachment.id, manager),
+      ).resolves.toBe('/api/attachments/content/attachment-id');
+    });
+
+    expect(transactionalRepository.save).toHaveBeenCalledWith(attachment);
+  });
+
+  it('rebinds an attachment already bound to the same user avatar', async () => {
+    const { service } = createService();
+    const user = createUser();
+    const attachment = createAttachment({
+      uploadedBy: user,
+      bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
+      bizId: user.id,
+    });
+    const { manager, repository: transactionalRepository } = createManager();
+
+    transactionalRepository.findOne.mockResolvedValue(attachment);
+    transactionalRepository.find.mockResolvedValue([]);
+
+    await userContextStorage.run(user, async () => {
+      await expect(
+        service.bindUserAvatar('user-id', attachment.id, manager),
+      ).resolves.toBe('/api/attachments/content/attachment-id');
+    });
+
+    expect(transactionalRepository.save).toHaveBeenCalledTimes(1);
+    expect(transactionalRepository.softRemove).not.toHaveBeenCalled();
   });
 });

@@ -11,10 +11,13 @@ import {
 
 interface IAttachmentPreviewProps {
   attachment: IAttachment;
-  getSignedUrl?: (attachmentId: string) => Promise<IAttachmentSignedUrl>;
+  getSignedUrl?: (attachment: IAttachment) => Promise<IAttachmentSignedUrl>;
 }
 
 const isImage = (mimeType: string) => mimeType.startsWith("image/");
+
+const defaultGetSignedUrl = (attachment: IAttachment) =>
+  GetAttachmentSignedUrl(attachment.id);
 
 export const AttachmentPreview = ({
   attachment,
@@ -23,11 +26,10 @@ export const AttachmentPreview = ({
   const [previewUrl, setPreviewUrl] = useState(attachment.url);
   const [loading, setLoading] = useState(false);
 
-  const requestSignedUrl = useEffectEvent((attachmentId: string) => {
-    const request =
-      getSignedUrl ?? ((id: string) => GetAttachmentSignedUrl(id));
+  const requestSignedUrl = useEffectEvent((attachment: IAttachment) => {
+    const request = getSignedUrl ?? defaultGetSignedUrl;
 
-    return request(attachmentId);
+    return request(attachment);
   });
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export const AttachmentPreview = ({
     let cancelled = false;
     setLoading(true);
 
-    requestSignedUrl(attachment.id)
+    requestSignedUrl(attachment)
       .then(({ url }) => {
         if (!cancelled) setPreviewUrl(url);
       })
@@ -62,6 +64,9 @@ export const AttachmentPreview = ({
     attachment.mimeType,
     attachment.url,
     attachment.visibility,
+    attachment.bizType,
+    attachment.bizId,
+    getSignedUrl,
   ]);
 
   if (!isImage(attachment.mimeType)) {

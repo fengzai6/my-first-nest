@@ -13,11 +13,16 @@ export interface IDocumentOwner {
   displayName: string;
 }
 
+export interface IDeletedDocumentOwner {
+  id: "";
+  displayName: "已删除用户";
+}
+
 export interface IDocumentListItem {
   id: string;
   title: string;
   status: DocumentStatus;
-  owner: IDocumentOwner;
+  owner: IDocumentOwner | IDeletedDocumentOwner;
   attachmentCount: number;
   createdAt: string;
   updatedAt: string;
@@ -28,7 +33,7 @@ export interface IDocument {
   title: string;
   content: string;
   status: DocumentStatus;
-  owner: IDocumentOwner;
+  owner: IDocumentOwner | IDeletedDocumentOwner;
   attachments: IAttachment[];
   createdAt: string;
   updatedAt: string;

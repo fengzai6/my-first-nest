@@ -5,7 +5,7 @@ import {
 import { CATS_PERMISSIONS, CatsPermissionCode } from './cats.permission';
 import {
   DOCUMENTS_PERMISSIONS,
-  DocumentsPermissionCode,
+  DOCUMENTS_PERMISSION_CODE,
 } from './documents.permission';
 import { GROUPS_PERMISSIONS, GroupsPermissionCode } from './groups.permission';
 import {
@@ -21,8 +21,8 @@ export const PermissionCode = {
   ...RolesPermissionCode,
   ...GroupsPermissionCode,
   ...PermissionsPermissionCode,
-  ...DocumentsPermissionCode,
   ...AttachmentsPermissionCode,
+  ...DOCUMENTS_PERMISSION_CODE,
 } as const;
 
 export type PermissionCodeType =

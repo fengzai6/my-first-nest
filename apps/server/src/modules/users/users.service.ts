@@ -180,6 +180,15 @@ export class UsersService {
 
     return this.dataSource.transaction(async (manager) => {
       const repository = manager.getRepository(User);
+
+      if (avatarAttachmentId) {
+        // 串行化同一用户的头像绑定，避免并发事务同时软删旧头像。
+        await repository.findOne({
+          where: { id },
+          lock: { mode: 'pessimistic_write' },
+        });
+      }
+
       const updatedUser = repository.merge(user, { ...sanitized });
       const savedUser = await repository.save(updatedUser);
 

@@ -159,6 +159,7 @@ export class AttachmentsService {
     documentId: string,
     attachmentIds: string[],
     manager: EntityManager,
+    user: User,
   ): Promise<void> {
     const repository = manager.getRepository(Attachment);
     const uniqueIds = [...new Set(attachmentIds)];
@@ -173,28 +174,13 @@ export class AttachmentsService {
     const requested =
       uniqueIds.length === 0
         ? []
-        : await repository.find({ where: { id: In(uniqueIds) } });
+        : await repository.find({
+            where: { id: In(uniqueIds) },
+            relations: { uploadedBy: true },
+          });
 
     if (requested.length !== uniqueIds.length) {
       throw new AttachmentException(AttachmentExceptionCode.NOT_FOUND);
-    }
-
-    for (const attachment of requested) {
-      const isCurrentDocument =
-        attachment.bizType === ATTACHMENT_BIZ_TYPE.DOCUMENT &&
-        attachment.bizId === documentId;
-      if (attachment.bizType && !isCurrentDocument) {
-        throw new AttachmentException(AttachmentExceptionCode.IN_USE);
-      }
-
-      this.validateFile(
-        {
-          mimetype: attachment.mimeType,
-          size: attachment.size,
-        } as Express.Multer.File,
-        MAX_ATTACHMENT_SIZE,
-        ATTACHMENT_MIME_TYPES,
-      );
     }
 
     const requestedIdSet = new Set(uniqueIds);
@@ -208,12 +194,44 @@ export class AttachmentsService {
     );
 
     for (const attachment of added) {
-      attachment.bizType = ATTACHMENT_BIZ_TYPE.DOCUMENT;
-      attachment.bizId = documentId;
+      const isCurrentDocument =
+        attachment.bizType === ATTACHMENT_BIZ_TYPE.DOCUMENT &&
+        attachment.bizId === documentId;
+      if (attachment.bizType && !isCurrentDocument) {
+        throw new AttachmentException(AttachmentExceptionCode.IN_USE);
+      }
+
+      if (attachment.uploadedBy?.id !== user.id && !this.isSuperAdmin(user)) {
+        throw new AttachmentException(AttachmentExceptionCode.FORBIDDEN);
+      }
+
+      this.validateFile(
+        {
+          mimetype: attachment.mimeType,
+          size: attachment.size,
+        } as Express.Multer.File,
+        MAX_ATTACHMENT_SIZE,
+        ATTACHMENT_MIME_TYPES,
+      );
     }
 
     if (added.length > 0) {
-      await repository.save(added);
+      // NOTE: 条件更新保证并发事务不能同时把同一附件绑定到不同文档
+      const result = await repository.update(
+        {
+          id: In(added.map((attachment) => attachment.id)),
+          bizType: IsNull(),
+          bizId: IsNull(),
+        },
+        {
+          bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
+          bizId: documentId,
+        },
+      );
+
+      if (result.affected === undefined || result.affected !== added.length) {
+        throw new AttachmentException(AttachmentExceptionCode.IN_USE);
+      }
     }
     if (removed.length > 0) {
       await repository.softRemove(removed);
@@ -363,14 +381,6 @@ export class AttachmentsService {
       throw new AttachmentException(AttachmentExceptionCode.FORBIDDEN);
     }
 
-    const isCurrentAvatar =
-      attachment.bizType === ATTACHMENT_BIZ_TYPE.USER_AVATAR &&
-      attachment.bizId === userId;
-
-    if (attachment.bizType && !isCurrentAvatar) {
-      throw new AttachmentException(AttachmentExceptionCode.IN_USE);
-    }
-
     this.validateFile(
       {
         mimetype: attachment.mimeType,
@@ -379,6 +389,15 @@ export class AttachmentsService {
       MAX_AVATAR_SIZE,
       AVATAR_MIME_TYPES,
     );
+
+    const isBoundToTargetAvatar =
+      attachment.bizType === ATTACHMENT_BIZ_TYPE.USER_AVATAR &&
+      attachment.bizId === userId;
+
+    // NOTE: 附件已绑定其他业务时禁止抢占，否则原业务记录与附件绑定会不一致
+    if (attachment.bizType !== null && !isBoundToTargetAvatar) {
+      throw new AttachmentException(AttachmentExceptionCode.ALREADY_BOUND);
+    }
 
     const oldAttachments = await repository.find({
       where: {
