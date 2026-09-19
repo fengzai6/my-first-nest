@@ -1,7 +1,4 @@
-import type {
-  ISubmitExportReportDto,
-  ISubmitFlakyRetryDto,
-} from "../dtos/job";
+import type { ISubmitExportReportDto, ISubmitFlakyRetryDto } from "../dtos/job";
 import type { IJobRun } from "../types/job";
 import http from "./new-http";
 
@@ -21,6 +18,12 @@ export const SubmitCleanupExpiredRefreshTokens = async () => {
   const res = await http.post<IJobRun>(
     "/background-tasks/cleanup-expired-refresh-tokens",
   );
+
+  return res.data;
+};
+
+export const SubmitCleanupAttachments = async () => {
+  const res = await http.post<IJobRun>("/background-tasks/cleanup-attachments");
 
   return res.data;
 };

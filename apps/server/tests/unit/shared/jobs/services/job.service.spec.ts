@@ -1,5 +1,6 @@
 import { ErrorExceptionCode } from '@/common/exceptions/error.exception';
 import {
+  JOB_NAMES,
   JOB_STATUS,
   JOB_TRIGGER_TYPE,
 } from '@/shared/jobs/constants/job.constants';
@@ -65,6 +66,7 @@ const createService = () => {
     markCancelledIfCancellable: vi.fn(),
     toView: vi.fn(),
     list: vi.fn(),
+    hasActiveOrPending: vi.fn(),
   };
   const queue = {
     enqueue: vi.fn(),
@@ -271,5 +273,17 @@ describe('JobService', () => {
     expect(queue.remove).toHaveBeenCalledWith('bull-1');
     expect(records.markCancelledIfCancellable).toHaveBeenCalledWith('job-1');
     expect(result.status).toBe(JOB_STATUS.CANCELLED);
+  });
+
+  it('reports whether a job name has an active or pending run', async () => {
+    const { service, records } = createService();
+    records.hasActiveOrPending.mockResolvedValue(true);
+
+    await expect(
+      service.hasActiveOrPending(JOB_NAMES.CLEANUP_ATTACHMENTS),
+    ).resolves.toBe(true);
+    expect(records.hasActiveOrPending).toHaveBeenCalledWith(
+      JOB_NAMES.CLEANUP_ATTACHMENTS,
+    );
   });
 });

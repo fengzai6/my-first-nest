@@ -8,12 +8,14 @@ import { AttachmentsService } from './attachments.service';
 import { Attachment } from './entities/attachment.entity';
 import { ATTACHMENT_STORAGE } from './interfaces/attachment-storage.interface';
 import { LocalAttachmentStorageService } from './services/local-attachment-storage.service';
+import { AttachmentCleanupService } from './services/attachment-cleanup.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Attachment])],
   controllers: [AttachmentsController],
   providers: [
     AttachmentsService,
+    AttachmentCleanupService,
     {
       provide: AttachmentSignatureService,
       inject: [ConfigService],

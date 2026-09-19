@@ -1,5 +1,6 @@
 import { AppConfigForced } from '@/config/configuration.interface';
 import {
+  mkdir,
   mkdtemp,
   readFile,
   rename,
@@ -64,6 +65,20 @@ describe('LocalAttachmentStorageService', () => {
     await expect(service.read('../secret.txt')).rejects.toThrow(
       'Invalid storage key',
     );
+  });
+
+  it('returns false when removing a missing file', async () => {
+    await expect(service.remove('2026/09/missing.png')).resolves.toBe(false);
+  });
+
+  it('returns true when removing an existing file', async () => {
+    const key = '2026/09/existing.txt';
+    const absolutePath = join(uploadDir, key);
+    await mkdir(join(uploadDir, '2026/09'), { recursive: true });
+    await writeFile(absolutePath, 'content');
+
+    await expect(service.remove(key)).resolves.toBe(true);
+    await expect(stat(absolutePath)).rejects.toThrow();
   });
 
   it('removes the copied file when removing the temporary file fails', async () => {

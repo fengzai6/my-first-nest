@@ -63,13 +63,15 @@ export class LocalAttachmentStorageService implements IAttachmentStorage {
     };
   }
 
-  async remove(key: string): Promise<void> {
+  async remove(key: string): Promise<boolean> {
     try {
       await unlink(this.resolveKey(key));
+      return true;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         throw error;
       }
+      return false;
     }
   }
 

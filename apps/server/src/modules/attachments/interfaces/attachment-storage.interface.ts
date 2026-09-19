@@ -12,7 +12,7 @@ export interface IReadableStoredFile {
 export interface IAttachmentStorage {
   save(file: Express.Multer.File): Promise<IStoredFile>;
   read(key: string): Promise<IReadableStoredFile>;
-  remove(key: string): Promise<void>;
+  remove(key: string): Promise<boolean>;
   cleanup(file: Express.Multer.File): Promise<void>;
 }
 

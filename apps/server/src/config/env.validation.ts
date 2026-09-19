@@ -71,6 +71,14 @@ export const validationSchema = Joi.object({
   SEQ_API_KEY: Joi.string().allow(''),
   SEQ_TIMEOUT_MS: Joi.number().integer().min(100).default(5000),
 
+  // Attachment cleanup
+  ATTACHMENT_CLEANUP_RETENTION_DAYS: Joi.number().integer().min(1).default(7),
+  ATTACHMENT_CLEANUP_BATCH_SIZE: Joi.number()
+    .integer()
+    .min(1)
+    .max(1000)
+    .default(100),
+
   // Attachment
   UPLOAD_SIGNATURE_SECRET: Joi.string()
     .invalid(

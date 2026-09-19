@@ -34,6 +34,10 @@ import {
   IReadableStoredFile,
 } from './interfaces/attachment-storage.interface';
 import { User } from '@/modules/users/entities/user.entity';
+import {
+  AttachmentCleanupService,
+  ICleanupAttachmentsResult,
+} from './services/attachment-cleanup.service';
 
 export interface IAttachmentView {
   id: string;
@@ -56,7 +60,12 @@ export class AttachmentsService {
     @Inject(ATTACHMENT_STORAGE)
     private readonly storage: IAttachmentStorage,
     private readonly signatureService: AttachmentSignatureService,
+    private readonly cleanupService: AttachmentCleanupService,
   ) {}
+
+  cleanupExpiredAttachments(now?: Date): Promise<ICleanupAttachmentsResult> {
+    return this.cleanupService.cleanupExpiredAttachments(now);
+  }
 
   async upload(
     files: Express.Multer.File[],

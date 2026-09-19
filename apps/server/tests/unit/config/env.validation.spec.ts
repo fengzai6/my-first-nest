@@ -50,6 +50,24 @@ describe('SEQ validation', () => {
   });
 });
 
+describe('attachment cleanup validation', () => {
+  it('rejects an attachment cleanup batch size above 1000', () => {
+    const result = validationSchema.validate({
+      ...baseEnv,
+      ATTACHMENT_CLEANUP_BATCH_SIZE: 1001,
+    });
+
+    expect(result.error).toBeDefined();
+  });
+
+  it('uses attachment cleanup defaults', () => {
+    const result = validationSchema.validate({ ...baseEnv });
+
+    expect(result.value.ATTACHMENT_CLEANUP_RETENTION_DAYS).toBe(7);
+    expect(result.value.ATTACHMENT_CLEANUP_BATCH_SIZE).toBe(100);
+  });
+});
+
 describe('attachment signature validation', () => {
   it('rejects a missing upload signature secret', () => {
     const { UPLOAD_SIGNATURE_SECRET: _secret, ...envWithoutSecret } = baseEnv;

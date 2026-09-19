@@ -89,6 +89,10 @@ export class JobService {
     return this.records.getViewOrFail(jobId);
   }
 
+  hasActiveOrPending(name: string): Promise<boolean> {
+    return this.records.hasActiveOrPending(name);
+  }
+
   list(query: IListJobsQuery) {
     return this.records.list(query);
   }

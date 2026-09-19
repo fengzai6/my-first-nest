@@ -93,6 +93,10 @@ export interface UploadConfig {
   signedUrlExpiresIn?: number;
   /** 签名密钥 */
   secret?: string;
+  /** 已删除或孤儿附件的最短保留天数 */
+  cleanupRetentionDays?: number;
+  /** 每次候选查询最大条数，范围 1-1000 */
+  cleanupBatchSize?: number;
 }
 
 export interface AppConfig {

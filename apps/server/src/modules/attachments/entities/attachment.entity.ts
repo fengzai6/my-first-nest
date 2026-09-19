@@ -9,7 +9,13 @@ import {
 } from '../constants/attachment.constants';
 
 @Entity('attachments')
-@Index(['bizType', 'bizId', 'deletedAt'])
+@Index('IDX_attachments_cleanup_deleted', ['deletedAt', 'createdAt', 'id'])
+@Index('IDX_attachments_orphan_cleanup', [
+  'bizType',
+  'bizId',
+  'deletedAt',
+  'createdAt',
+])
 @Index(['uploadedBy', 'visibility', 'deletedAt'])
 export class Attachment extends BaseEntity {
   @Column({ length: 255 })

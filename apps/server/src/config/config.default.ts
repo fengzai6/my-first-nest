@@ -81,6 +81,14 @@ export const defaultConfig = registerAs(
         300,
       ),
       secret: process.env.UPLOAD_SIGNATURE_SECRET,
+      cleanupRetentionDays: parseNumberEnv(
+        process.env.ATTACHMENT_CLEANUP_RETENTION_DAYS,
+        7,
+      ),
+      cleanupBatchSize: parseNumberEnv(
+        process.env.ATTACHMENT_CLEANUP_BATCH_SIZE,
+        100,
+      ),
     },
   }),
 );
