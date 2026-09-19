@@ -1,16 +1,21 @@
 import { validationSchema } from '@/config/env.validation';
 import { describe, expect, it } from 'vitest';
 
+const baseEnv = {
+  DEFAULT_ADMIN_USERNAME: 'admin',
+  DEFAULT_ADMIN_PASSWORD: 'password',
+  JWT_SECRET: 'secret',
+  DATABASE_HOST: 'localhost',
+  DATABASE_PORT: 5432,
+  DATABASE_USERNAME: 'postgres',
+  DATABASE_PASSWORD: 'postgres',
+  DATABASE_NAME: 'test',
+  UPLOAD_SIGNATURE_SECRET: 'a-strong-upload-signature-secret',
+};
+
 const validateSeqConfig = (seqUrl: string, seqApiKey: string) =>
   validationSchema.validate({
-    DEFAULT_ADMIN_USERNAME: 'admin',
-    DEFAULT_ADMIN_PASSWORD: 'password',
-    JWT_SECRET: 'secret',
-    DATABASE_HOST: 'localhost',
-    DATABASE_PORT: 5432,
-    DATABASE_USERNAME: 'postgres',
-    DATABASE_PASSWORD: 'postgres',
-    DATABASE_NAME: 'test',
+    ...baseEnv,
     SEQ_ENABLED: true,
     SEQ_URL: seqUrl,
     SEQ_API_KEY: seqApiKey,
@@ -37,14 +42,7 @@ describe('SEQ validation', () => {
 
   it('rejects an enabled Seq without a URL', () => {
     const result = validationSchema.validate({
-      DEFAULT_ADMIN_USERNAME: 'admin',
-      DEFAULT_ADMIN_PASSWORD: 'password',
-      JWT_SECRET: 'secret',
-      DATABASE_HOST: 'localhost',
-      DATABASE_PORT: 5432,
-      DATABASE_USERNAME: 'postgres',
-      DATABASE_PASSWORD: 'postgres',
-      DATABASE_NAME: 'test',
+      ...baseEnv,
       SEQ_ENABLED: true,
     });
 
@@ -55,14 +53,7 @@ describe('SEQ validation', () => {
 describe('attachment cleanup validation', () => {
   it('rejects an attachment cleanup batch size above 1000', () => {
     const result = validationSchema.validate({
-      DEFAULT_ADMIN_USERNAME: 'admin',
-      DEFAULT_ADMIN_PASSWORD: 'password',
-      JWT_SECRET: 'secret',
-      DATABASE_HOST: 'localhost',
-      DATABASE_PORT: 5432,
-      DATABASE_USERNAME: 'postgres',
-      DATABASE_PASSWORD: 'postgres',
-      DATABASE_NAME: 'test',
+      ...baseEnv,
       ATTACHMENT_CLEANUP_BATCH_SIZE: 1001,
     });
 
@@ -70,18 +61,30 @@ describe('attachment cleanup validation', () => {
   });
 
   it('uses attachment cleanup defaults', () => {
-    const result = validationSchema.validate({
-      DEFAULT_ADMIN_USERNAME: 'admin',
-      DEFAULT_ADMIN_PASSWORD: 'password',
-      JWT_SECRET: 'secret',
-      DATABASE_HOST: 'localhost',
-      DATABASE_PORT: 5432,
-      DATABASE_USERNAME: 'postgres',
-      DATABASE_PASSWORD: 'postgres',
-      DATABASE_NAME: 'test',
-    });
+    const result = validationSchema.validate({ ...baseEnv });
 
     expect(result.value.ATTACHMENT_CLEANUP_RETENTION_DAYS).toBe(7);
     expect(result.value.ATTACHMENT_CLEANUP_BATCH_SIZE).toBe(100);
+  });
+});
+
+describe('attachment signature validation', () => {
+  it('rejects a missing upload signature secret', () => {
+    const { UPLOAD_SIGNATURE_SECRET: _secret, ...envWithoutSecret } = baseEnv;
+
+    expect(validationSchema.validate(envWithoutSecret).error).toBeDefined();
+  });
+
+  it('accepts an explicit upload signature secret', () => {
+    expect(validationSchema.validate({ ...baseEnv }).error).toBeUndefined();
+  });
+
+  it('rejects the known placeholder upload signature secret', () => {
+    expect(
+      validationSchema.validate({
+        ...baseEnv,
+        UPLOAD_SIGNATURE_SECRET: 'my-first-nest-upload-signature-secret',
+      }).error,
+    ).toBeDefined();
   });
 });
