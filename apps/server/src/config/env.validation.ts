@@ -71,6 +71,14 @@ export const validationSchema = Joi.object({
   SEQ_API_KEY: Joi.string().allow(''),
   SEQ_TIMEOUT_MS: Joi.number().integer().min(100).default(5000),
 
+  // Attachment
+  UPLOAD_SIGNATURE_SECRET: Joi.string()
+    .invalid(
+      'my-first-nest-upload-signature-secret',
+      'your-upload-signature-secret',
+    )
+    .required(),
+
   // Node Environment
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')

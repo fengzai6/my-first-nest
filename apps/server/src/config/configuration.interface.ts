@@ -84,6 +84,17 @@ export interface LogConfig {
   seq: SeqConfig;
 }
 
+export interface UploadConfig {
+  /** 本地存储根目录 */
+  dir?: string;
+  /** 文件公开访问前缀 */
+  urlPrefix?: string;
+  /** 签名 URL 有效期，单位秒 */
+  signedUrlExpiresIn?: number;
+  /** 签名密钥 */
+  secret?: string;
+}
+
 export interface AppConfig {
   /** HTTP 服务配置 */
   server?: ServerConfig;
@@ -101,6 +112,8 @@ export interface AppConfig {
   throttler?: ThrottlerConfig;
   /** 日志配置 */
   log?: LogConfig;
+  /** 文件上传配置 */
+  upload?: UploadConfig;
 }
 
 export type AppConfigForced = {

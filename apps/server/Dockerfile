@@ -40,6 +40,7 @@ RUN yarn workspaces focus @my-first-nest/server --production
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+RUN mkdir -p /app/uploads
 
 COPY package.json ./
 COPY apps/server/package.json ./apps/server/

@@ -1,8 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Form, Input, Space } from "antd";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { AvatarUpload } from "@/components/avatar-upload";
 import type { IUpdateUserDto } from "@/services/dtos/user";
 import type { IUser } from "@/services/types/user";
 
@@ -27,6 +29,7 @@ export const ProfileForm: React.FC<IProfileFormProps> = ({
   onSubmit,
   loading = false,
 }) => {
+  const [avatarAttachmentId, setAvatarAttachmentId] = useState<string>();
   const {
     control,
     handleSubmit,
@@ -43,11 +46,20 @@ export const ProfileForm: React.FC<IProfileFormProps> = ({
     onSubmit({
       username: data.username,
       email: data.email,
+      avatarAttachmentId,
     });
   };
 
   return (
     <Form layout="vertical" onFinish={handleSubmit(onFormSubmit)}>
+      <Form.Item label="头像">
+        <AvatarUpload
+          value={{ avatarUrl: user.avatar }}
+          disabled={loading}
+          onChange={({ attachmentId }) => setAvatarAttachmentId(attachmentId)}
+        />
+      </Form.Item>
+
       <Form.Item label="用户 ID">
         <Input value={user.id} disabled />
       </Form.Item>

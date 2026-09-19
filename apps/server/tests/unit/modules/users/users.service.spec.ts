@@ -1,11 +1,13 @@
 import { ConfigService } from '@nestjs/config';
 import { beforeEach, describe, expect, it, vi, MockInstance } from 'vitest';
+import { DataSource } from 'typeorm';
 import { userContextStorage } from '@/common/context/user-context';
 import { RoleCode } from '@/common/constants/roles';
 import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
 import { ErrorExceptionCode } from '@/common/exceptions/error.exception';
 import { Permission } from '@/modules/permissions/entities/permission.entity';
 import { PermissionsService } from '@/modules/permissions/permissions.service';
+import { AttachmentsService } from '@/modules/attachments/attachments.service';
 import { Role } from '@/modules/roles/entities/role.entity';
 import { RolesService } from '@/modules/roles/roles.service';
 import { User } from '@/modules/users/entities/user.entity';
@@ -78,6 +80,17 @@ const createRepository = (): MockRepository => ({
 
 const createService = () => {
   const repository = createRepository();
+  const transactionRepository = createRepository();
+  const manager = {
+    getRepository: vi.fn(() => transactionRepository),
+  };
+  const transaction = vi.fn(
+    (callback: (transactionManager: typeof manager) => unknown) =>
+      callback(manager),
+  );
+  const dataSource = {
+    transaction,
+  } as unknown as DataSource;
   const findByCodes = vi.fn();
   const findByUser = vi.fn();
   const findMany = vi.fn();
@@ -96,20 +109,31 @@ const createService = () => {
       return undefined;
     }),
   } as unknown as ConfigService;
+  const bindUserAvatar = vi.fn();
+  const attachmentsService = {
+    bindUserAvatar,
+  } as unknown as AttachmentsService;
 
   return {
     repository,
+    transactionRepository,
+    manager,
+    transaction,
     rolesService,
     permissionsService,
     configService,
+    attachmentsService,
+    bindUserAvatar,
     findByCodes,
     findByUser,
     findMany,
     service: new UsersService(
       repository as never,
+      dataSource,
       rolesService,
       permissionsService,
       configService,
+      attachmentsService,
     ),
   };
 };
@@ -196,7 +220,7 @@ describe('UsersService', () => {
   });
 
   it('should remove username update for default admin user', async () => {
-    const { repository, service } = createService();
+    const { repository, transactionRepository, service } = createService();
     const admin = createUser({ username: 'admin' });
 
     repository.findOne.mockResolvedValue(admin);
@@ -207,7 +231,10 @@ describe('UsersService', () => {
     });
 
     expect(repository.exists).not.toHaveBeenCalled();
-    expect(repository.merge).toHaveBeenCalledWith(admin, { nickname: 'Admin' });
+    expect(transactionRepository.findOne).not.toHaveBeenCalled();
+    expect(transactionRepository.merge).toHaveBeenCalledWith(admin, {
+      nickname: 'Admin',
+    });
     expect(result.username).toBe('admin');
     expect(result.nickname).toBe('Admin');
   });
@@ -224,6 +251,39 @@ describe('UsersService', () => {
       code: ErrorExceptionCode.USER_ALREADY_EXISTS,
     });
     expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('should bind avatar attachment and save the returned public url', async () => {
+    const {
+      repository,
+      transactionRepository,
+      manager,
+      bindUserAvatar,
+      service,
+    } = createService();
+    const user = createUser();
+
+    repository.findOne.mockResolvedValue(user);
+    bindUserAvatar.mockResolvedValue('/api/attachments/content/avatar-id');
+
+    const result = await service.update('user-id', {
+      avatarAttachmentId: 'avatar-id',
+    });
+
+    expect(transactionRepository.findOne).toHaveBeenCalledWith({
+      where: { id: 'user-id' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    expect(
+      transactionRepository.findOne.mock.invocationCallOrder[0],
+    ).toBeLessThan(bindUserAvatar.mock.invocationCallOrder[0]);
+    expect(bindUserAvatar).toHaveBeenCalledWith(
+      'user-id',
+      'avatar-id',
+      manager,
+    );
+    expect(result.avatar).toBe('/api/attachments/content/avatar-id');
+    expect(transactionRepository.save).toHaveBeenCalledTimes(2);
   });
 
   it('should update user roles from role codes', async () => {

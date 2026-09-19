@@ -12,6 +12,7 @@ export interface IUpdateUserDto {
   username?: string;
   email?: string;
   isActive?: boolean;
+  avatarAttachmentId?: string;
 }
 
 export interface IUpdateUserRolesDto {

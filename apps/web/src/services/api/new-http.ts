@@ -56,4 +56,12 @@ const newHttp = createHttpClient({
   },
 });
 
+newHttp.interceptors.request.use((config) => {
+  if (config.data instanceof FormData) {
+    config.headers.delete("Content-Type");
+  }
+
+  return config;
+});
+
 export default newHttp;

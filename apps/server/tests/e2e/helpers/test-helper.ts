@@ -20,6 +20,8 @@ export class TestHelper {
     // 确保环境变量存在
     process.env.DATABASE_URL =
       process.env.DATABASE_URL || 'postgresql://postgres@localhost/first-nest';
+    process.env.UPLOAD_SIGNATURE_SECRET =
+      process.env.UPLOAD_SIGNATURE_SECRET || 'e2e-upload-signature-secret';
     // 不设置 REDIS_URL，使用内存缓存
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
