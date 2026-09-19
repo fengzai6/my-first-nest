@@ -257,6 +257,25 @@ describe('Attachments management permissions (e2e)', () => {
       .expect(404);
   });
 
+  it('does not let anonymous admin scope read a soft deleted public attachment', async () => {
+    const upload = await uploadAttachment(userAccessToken, 'public');
+    const uploadedAttachment = (upload.body as IAttachmentResponseItem[])[0];
+    const created = await createDocument(
+      userAccessToken,
+      uploadedAttachment.id,
+    );
+    const createdDocument = created.body as IDocumentResponseItem;
+    await request(helper.getHttpServer())
+      .delete(`/api/documents/${createdDocument.id}`)
+      .set('Authorization', `Bearer ${userAccessToken}`)
+      .expect(200);
+
+    await request(helper.getHttpServer())
+      .get(`/api/attachments/content/${uploadedAttachment.id}`)
+      .query({ scope: 'admin' })
+      .expect(403);
+  });
+
   it('updates and soft deletes orphan attachments', async () => {
     const first = await uploadAttachment(userAccessToken);
     const second = await uploadAttachment(userAccessToken);

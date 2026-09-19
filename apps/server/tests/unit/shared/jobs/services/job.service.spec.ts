@@ -286,4 +286,23 @@ describe('JobService', () => {
       JOB_NAMES.CLEANUP_ATTACHMENTS,
     );
   });
+
+  it('maps a database uniqueness conflict to a job already running error', async () => {
+    const { service, registry, records, queue } = createService();
+    const error = Object.assign(new Error('duplicate key'), { code: '23505' });
+
+    registry.has.mockReturnValue(true);
+    records.createQueued.mockRejectedValue(error);
+
+    await expect(
+      service.submitExclusive({
+        name: JOB_NAMES.CLEANUP_ATTACHMENTS,
+        payload: {},
+        attempts: 3,
+      }),
+    ).rejects.toMatchObject({
+      code: ErrorExceptionCode.JOB_ALREADY_RUNNING,
+    });
+    expect(queue.enqueue).not.toHaveBeenCalled();
+  });
 });

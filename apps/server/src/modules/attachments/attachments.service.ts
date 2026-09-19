@@ -1,4 +1,5 @@
 import { useRequestUser } from '@/common/context/user-context';
+import { PermissionCode } from '@/common/constants/permissions';
 import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
 import {
   AttachmentException,
@@ -38,6 +39,7 @@ import {
   IReadableStoredFile,
 } from './interfaces/attachment-storage.interface';
 import { User } from '@/modules/users/entities/user.entity';
+import { PermissionsService } from '@/modules/permissions/permissions.service';
 import {
   AttachmentCleanupService,
   ICleanupAttachmentsResult,
@@ -62,10 +64,13 @@ export class AttachmentsService {
   constructor(
     @InjectRepository(Attachment)
     private readonly attachmentRepository: Repository<Attachment>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     @Inject(ATTACHMENT_STORAGE)
     private readonly storage: IAttachmentStorage,
     private readonly signatureService: AttachmentSignatureService,
     private readonly cleanupService: AttachmentCleanupService,
+    private readonly permissionsService: PermissionsService,
   ) {}
 
   cleanupExpiredAttachments(now?: Date): Promise<ICleanupAttachmentsResult> {
@@ -304,7 +309,10 @@ export class AttachmentsService {
       scope === ATTACHMENT_SIGNATURE_SCOPE.ADMIN,
     );
 
-    if (attachment.visibility === ATTACHMENT_VISIBILITY.PUBLIC) {
+    if (
+      scope !== ATTACHMENT_SIGNATURE_SCOPE.ADMIN &&
+      attachment.visibility === ATTACHMENT_VISIBILITY.PUBLIC
+    ) {
       return {
         attachment,
         content: await this.readStoredFile(attachment),
@@ -325,6 +333,25 @@ export class AttachmentsService {
 
     if (!valid) {
       throw new AttachmentException(AttachmentExceptionCode.INVALID_SIGNATURE);
+    }
+
+    if (scope === ATTACHMENT_SIGNATURE_SCOPE.ADMIN) {
+      const currentUser = await this.userRepository.findOneBy({ id: userId });
+      const canRead =
+        currentUser &&
+        (this.isSuperAdmin(currentUser) ||
+          (await this.permissionsService.hasUserPermission(
+            userId,
+            PermissionCode.ATTACHMENT_READ,
+          )));
+
+      if (!canRead) {
+        throw new AttachmentException(
+          attachment.deletedAt
+            ? AttachmentExceptionCode.NOT_FOUND
+            : AttachmentExceptionCode.FORBIDDEN,
+        );
+      }
     }
 
     return {
@@ -415,6 +442,10 @@ export class AttachmentsService {
     });
 
     const saved = await repository.save(updated);
+
+    if (!saved) {
+      throw new AttachmentException(AttachmentExceptionCode.NOT_FOUND);
+    }
 
     if (oldAttachments.length > 0) {
       await repository.softRemove(oldAttachments);

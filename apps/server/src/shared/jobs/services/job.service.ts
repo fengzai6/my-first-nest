@@ -28,6 +28,18 @@ export class JobService {
   ) {}
 
   async submit(input: ISubmitJobInput): Promise<IJobRunView> {
+    return this.submitInternal(input);
+  }
+
+  async submitExclusive(input: ISubmitJobInput): Promise<IJobRunView> {
+    if (await this.records.hasActiveOrPending(input.name)) {
+      throw new ErrorException(ErrorExceptionCode.JOB_ALREADY_RUNNING);
+    }
+
+    return this.submitInternal(input);
+  }
+
+  private async submitInternal(input: ISubmitJobInput): Promise<IJobRunView> {
     if (!this.registry.has(input.name)) {
       throw new ErrorException(ErrorExceptionCode.JOB_HANDLER_NOT_FOUND);
     }
@@ -36,15 +48,23 @@ export class JobService {
     const delayMs = input.delayMs ?? 0;
     const status = delayMs > 0 ? JOB_STATUS.DELAYED : JOB_STATUS.QUEUED;
 
-    const run = await this.records.createQueued({
-      name: input.name,
-      queueName: DEFAULT_JOB_QUEUE,
-      payload: input.payload,
-      maxAttempts,
-      triggerType: input.triggerType ?? JOB_TRIGGER_TYPE.MANUAL,
-      createdBy: input.createdBy,
-      status,
-    });
+    let run: Awaited<ReturnType<JobRecordService['createQueued']>>;
+    try {
+      run = await this.records.createQueued({
+        name: input.name,
+        queueName: DEFAULT_JOB_QUEUE,
+        payload: input.payload,
+        maxAttempts,
+        triggerType: input.triggerType ?? JOB_TRIGGER_TYPE.MANUAL,
+        createdBy: input.createdBy,
+        status,
+      });
+    } catch (error) {
+      if (this.isUniqueViolation(error)) {
+        throw new ErrorException(ErrorExceptionCode.JOB_ALREADY_RUNNING);
+      }
+      throw error;
+    }
 
     let bullJobId: string | undefined;
     try {
@@ -83,6 +103,15 @@ export class JobService {
     }
 
     return this.records.getViewOrFail(run.id);
+  }
+
+  private isUniqueViolation(error: unknown): boolean {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === '23505'
+    );
   }
 
   getById(jobId: string): Promise<IJobRunView> {

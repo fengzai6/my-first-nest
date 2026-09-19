@@ -11,6 +11,7 @@ import {
 } from "@/services/api/attachment-management";
 import { ATTACHMENT_VISIBILITY } from "@/services/types/attachment";
 import type { IAttachmentBulkResult } from "@/services/types/attachment-management";
+import { getBulkFailureLines } from "./attachment-bulk-result";
 
 const { Text } = Typography;
 
@@ -19,7 +20,7 @@ interface IAttachmentBulkActionsProps {
   canManage: boolean;
   loading?: boolean;
   onChangeLoading: (loading: boolean) => void;
-  onFinished: () => void;
+  onFinished: (result: IAttachmentBulkResult) => void;
 }
 
 export const AttachmentBulkActions = ({
@@ -35,8 +36,9 @@ export const AttachmentBulkActions = ({
       return;
     }
 
+    const failureLines = getBulkFailureLines(result.failed);
     message.warning(
-      `成功 ${result.succeeded.length} 条，失败 ${result.failed.length} 条`,
+      `成功 ${result.succeeded.length} 条，失败 ${result.failed.length} 条${failureLines ? `：${failureLines}` : ""}`,
     );
   };
 
@@ -46,8 +48,9 @@ export const AttachmentBulkActions = ({
     onChangeLoading(true);
 
     try {
-      showResult(await action());
-      onFinished();
+      const result = await action();
+      showResult(result);
+      onFinished(result);
     } catch (error) {
       message.error(error instanceof Error ? error.message : "批量操作失败");
     } finally {

@@ -70,9 +70,21 @@ const createService = ({
   queryBuilder.addOrderBy.mockReturnValue(queryBuilder);
   queryBuilder.take.mockReturnValue(queryBuilder);
 
+  const transactionRepository = {
+    findOne: vi.fn().mockResolvedValue(null),
+    delete: vi.fn().mockResolvedValue({ affected: 1 }),
+  };
+  const manager = {
+    getRepository: vi.fn(() => transactionRepository),
+  };
   const repository = {
     createQueryBuilder: vi.fn(() => queryBuilder),
-    delete: vi.fn(),
+    manager: {
+      transaction: vi.fn(
+        (callback: (entityManager: typeof manager) => Promise<unknown>) =>
+          callback(manager),
+      ),
+    },
   };
   const storage = {
     remove: vi.fn(),
@@ -90,7 +102,13 @@ const createService = ({
     }),
   );
 
-  return { service, storage, repository, queryBuilder };
+  return {
+    service,
+    storage,
+    repository,
+    queryBuilder,
+    transactionRepository,
+  };
 };
 
 describe('AttachmentCleanupService', () => {
@@ -99,7 +117,8 @@ describe('AttachmentCleanupService', () => {
   });
 
   it('deletes a soft-deleted attachment after the retention period', async () => {
-    const { service, storage, repository, queryBuilder } = createService();
+    const { service, storage, queryBuilder, transactionRepository } =
+      createService();
     const attachment = createAttachment({
       id: 'deleted-id',
       storageKey: '2026/09/deleted.png',
@@ -109,15 +128,20 @@ describe('AttachmentCleanupService', () => {
     queryBuilder.getMany
       .mockResolvedValueOnce([attachment])
       .mockResolvedValueOnce([]);
+    transactionRepository.findOne.mockResolvedValue(attachment);
     storage.remove.mockResolvedValue(true);
-    repository.delete.mockResolvedValue({ affected: 1 });
 
     const result = await service.cleanupExpiredAttachments(
       new Date('2026-09-16T03:00:00.000Z'),
     );
 
     expect(storage.remove).toHaveBeenCalledWith('2026/09/deleted.png');
-    expect(repository.delete).toHaveBeenCalledWith('deleted-id');
+    expect(transactionRepository.findOne).toHaveBeenCalledWith({
+      where: { id: 'deleted-id' },
+      withDeleted: true,
+      lock: { mode: 'pessimistic_write' },
+    });
+    expect(transactionRepository.delete).toHaveBeenCalledWith('deleted-id');
     expect(result).toEqual({
       deletedMetadataCount: 1,
       missingFileCount: 0,
@@ -128,28 +152,30 @@ describe('AttachmentCleanupService', () => {
   });
 
   it('deletes metadata when the physical file is already missing', async () => {
-    const { service, storage, repository, queryBuilder } = createService();
+    const { service, storage, queryBuilder, transactionRepository } =
+      createService();
+    const attachment = createAttachment({ deletedAt: undefined });
     queryBuilder.getMany
-      .mockResolvedValueOnce([createAttachment()])
+      .mockResolvedValueOnce([attachment])
       .mockResolvedValueOnce([]);
+    transactionRepository.findOne.mockResolvedValue(attachment);
     storage.remove.mockResolvedValue(false);
 
     const result = await service.cleanupExpiredAttachments(
       new Date('2026-09-16T03:00:00.000Z'),
     );
 
-    expect(repository.delete).toHaveBeenCalledWith('attachment-id');
+    expect(transactionRepository.delete).toHaveBeenCalledWith('attachment-id');
     expect(result.missingFileCount).toBe(1);
     expect(result.deletedMetadataCount).toBe(1);
   });
 
   it('treats an already deleted metadata row as idempotent success', async () => {
-    const { service, storage, repository, queryBuilder } = createService();
+    const { service, storage, queryBuilder } = createService();
     queryBuilder.getMany
       .mockResolvedValueOnce([createAttachment()])
       .mockResolvedValueOnce([]);
     storage.remove.mockResolvedValue(true);
-    repository.delete.mockResolvedValue({ affected: 0 });
 
     const result = await service.cleanupExpiredAttachments(
       new Date('2026-09-16T03:00:00.000Z'),
@@ -157,16 +183,45 @@ describe('AttachmentCleanupService', () => {
 
     expect(result.deletedMetadataCount).toBe(1);
     expect(result.failedCount).toBe(0);
+    expect(storage.remove).not.toHaveBeenCalled();
+  });
+
+  it('does not remove the file when the attachment is bound before cleanup', async () => {
+    const { service, storage, queryBuilder, transactionRepository } =
+      createService();
+    const attachment = createAttachment({ deletedAt: undefined });
+    queryBuilder.getMany
+      .mockResolvedValueOnce([attachment])
+      .mockResolvedValueOnce([]);
+    transactionRepository.findOne.mockResolvedValue(
+      createAttachment({
+        deletedAt: undefined,
+        bizType: ATTACHMENT_BIZ_TYPE.DOCUMENT,
+        bizId: 'document-id',
+      }),
+    );
+
+    const result = await service.cleanupExpiredAttachments(
+      new Date('2026-09-16T03:00:00.000Z'),
+    );
+
+    expect(storage.remove).not.toHaveBeenCalled();
+    expect(result.failedCount).toBe(0);
+    expect(result.deletedMetadataCount).toBe(0);
   });
 
   it('keeps metadata and continues when one attachment fails', async () => {
-    const { service, storage, repository, queryBuilder } = createService();
+    const { service, storage, queryBuilder, transactionRepository } =
+      createService();
     const failed = createAttachment({ id: 'failed-id' });
     const success = createAttachment({ id: 'success-id' });
 
     queryBuilder.getMany
       .mockResolvedValueOnce([failed, success])
       .mockResolvedValueOnce([]);
+    transactionRepository.findOne
+      .mockResolvedValueOnce(failed)
+      .mockResolvedValueOnce(success);
     storage.remove
       .mockRejectedValueOnce(new Error('disk unavailable'))
       .mockResolvedValueOnce(true);
@@ -175,19 +230,20 @@ describe('AttachmentCleanupService', () => {
       new Date('2026-09-16T03:00:00.000Z'),
     );
 
-    expect(repository.delete).toHaveBeenCalledTimes(1);
-    expect(repository.delete).toHaveBeenCalledWith('success-id');
+    expect(transactionRepository.delete).toHaveBeenCalledTimes(1);
+    expect(transactionRepository.delete).toHaveBeenCalledWith('success-id');
     expect(result.failedCount).toBe(1);
     expect(result.deletedMetadataCount).toBe(1);
   });
 
   it('excludes failed records from subsequent rounds', async () => {
-    const { service, storage, repository, queryBuilder } = createService({
-      batchSize: 1,
-      Service: class extends AttachmentCleanupService {
-        protected readonly maxRounds = 2;
-      },
-    });
+    const { service, storage, queryBuilder, transactionRepository } =
+      createService({
+        batchSize: 1,
+        Service: class extends AttachmentCleanupService {
+          protected readonly maxRounds = 2;
+        },
+      });
     const failed = createAttachment({ id: 'failed-id' });
     const success = createAttachment({ id: 'success-id' });
 
@@ -196,6 +252,9 @@ describe('AttachmentCleanupService', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([success])
       .mockResolvedValueOnce([]);
+    transactionRepository.findOne
+      .mockResolvedValueOnce(failed)
+      .mockResolvedValueOnce(success);
     storage.remove
       .mockRejectedValueOnce(new Error('disk unavailable'))
       .mockResolvedValueOnce(true);
@@ -204,7 +263,7 @@ describe('AttachmentCleanupService', () => {
       new Date('2026-09-16T03:00:00.000Z'),
     );
 
-    expect(repository.delete).toHaveBeenCalledWith('success-id');
+    expect(transactionRepository.delete).toHaveBeenCalledWith('success-id');
     expect(queryBuilder.andWhere).toHaveBeenCalledWith(
       'attachment.id NOT IN (:...excludedIds)',
       { excludedIds: ['failed-id'] },

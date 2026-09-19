@@ -10,6 +10,7 @@ import {
 import { UpdateAttachmentDto } from '@/modules/attachments/dto/update-attachment.dto';
 import { AttachmentsService } from '@/modules/attachments/attachments.service';
 import { AttachmentCleanupService } from '@/modules/attachments/services/attachment-cleanup.service';
+import { PermissionsService } from '@/modules/permissions/permissions.service';
 import { User } from '@/modules/users/entities/user.entity';
 import { HttpStatus } from '@nestjs/common';
 import { Readable } from 'stream';
@@ -87,6 +88,7 @@ const createAttachment = ({
   uploadedBy = createUser(),
   bizType = null,
   bizId = null,
+  deletedAt,
 }: Partial<Attachment> = {}) => {
   const attachment = new Attachment();
   attachment.id = id;
@@ -99,7 +101,7 @@ const createAttachment = ({
   attachment.bizType = bizType;
   attachment.bizId = bizId;
   attachment.createdAt = new Date('2026-09-13T00:00:00.000Z');
-  return attachment;
+  return Object.assign(attachment, { deletedAt });
 };
 
 const createService = () => {
@@ -135,19 +137,30 @@ const createService = () => {
   const cleanupService = {
     cleanupExpiredAttachments,
   } as unknown as AttachmentCleanupService;
+  const hasUserPermission = vi.fn(() => Promise.resolve(false));
+  const permissionsService = {
+    hasUserPermission,
+  } as unknown as PermissionsService;
+  const userRepository = {
+    findOneBy: vi.fn(),
+  };
 
   return {
     repository,
+    userRepository,
     storage,
     createSignedUrl,
     verifySignature,
     signatureService,
     cleanupExpiredAttachments,
+    hasUserPermission,
     service: new AttachmentsService(
       repository as never,
+      userRepository as never,
       storage,
       signatureService,
       cleanupService,
+      permissionsService,
     ),
   };
 };
@@ -241,6 +254,30 @@ describe('AttachmentsService', () => {
     });
   });
 
+  it('rejects admin scope without a signature even for public content', async () => {
+    const { repository, storage, service } = createService();
+
+    repository.findOne.mockResolvedValue(
+      createAttachment({
+        visibility: ATTACHMENT_VISIBILITY.PUBLIC,
+      }),
+    );
+    storage.read.mockResolvedValue({ stream: Readable.from('image') });
+
+    await expect(
+      service.getContent(
+        'attachment-id',
+        undefined,
+        undefined,
+        undefined,
+        'admin',
+      ),
+    ).rejects.toMatchObject({
+      code: AttachmentExceptionCode.INVALID_SIGNATURE,
+    });
+    expect(storage.read).not.toHaveBeenCalled();
+  });
+
   it('rejects private content with an invalid signature', async () => {
     const { repository, verifySignature, service } = createService();
 
@@ -255,11 +292,77 @@ describe('AttachmentsService', () => {
   });
 
   it('allows admin scope to read a deleted attachment', async () => {
-    const { repository, verifySignature, service } = createService();
+    const {
+      hasUserPermission,
+      repository,
+      userRepository,
+      verifySignature,
+      service,
+    } = createService();
     const attachment = createAttachment({
       deletedAt: new Date('2026-09-01T00:00:00.000Z'),
     });
     repository.findOne.mockResolvedValue(attachment);
+    userRepository.findOneBy.mockResolvedValue(createUser({ id: 'admin-id' }));
+    verifySignature.mockReturnValue(true);
+    hasUserPermission.mockResolvedValue(true);
+
+    await expect(
+      service.getContent(
+        attachment.id,
+        String(Date.now() + 300_000),
+        'admin-id',
+        'signature',
+        'admin',
+      ),
+    ).resolves.toMatchObject({ attachment });
+    expect(hasUserPermission).toHaveBeenCalledWith(
+      'admin-id',
+      'attachment:read',
+    );
+  });
+
+  it('rejects admin scope after the signing user loses attachment read permission', async () => {
+    const { repository, userRepository, verifySignature, service } =
+      createService();
+    const attachment = createAttachment({
+      deletedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
+    repository.findOne.mockResolvedValue(attachment);
+    userRepository.findOneBy.mockResolvedValue(createUser({ id: 'admin-id' }));
+    verifySignature.mockReturnValue(true);
+
+    await expect(
+      service.getContent(
+        attachment.id,
+        String(Date.now() + 300_000),
+        'revoked-admin-id',
+        'signature',
+        'admin',
+      ),
+    ).rejects.toMatchObject({
+      code: AttachmentExceptionCode.NOT_FOUND,
+    });
+  });
+
+  it('allows a super admin through admin scope without an attachment read permission', async () => {
+    const {
+      hasUserPermission,
+      repository,
+      userRepository,
+      verifySignature,
+      service,
+    } = createService();
+    const attachment = createAttachment({
+      deletedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
+    repository.findOne.mockResolvedValue(attachment);
+    userRepository.findOneBy.mockResolvedValue(
+      createUser({
+        id: 'admin-id',
+        specialRoles: [SpecialRolesEnum.SuperAdmin],
+      }),
+    );
     verifySignature.mockReturnValue(true);
 
     await expect(
@@ -271,6 +374,7 @@ describe('AttachmentsService', () => {
         'admin',
       ),
     ).resolves.toMatchObject({ attachment });
+    expect(hasUserPermission).not.toHaveBeenCalled();
   });
 
   it('rejects user scope for a deleted attachment', async () => {
@@ -783,6 +887,25 @@ describe('AttachmentsService', () => {
     });
 
     expect(transactionalRepository.save).toHaveBeenCalledWith(attachment);
+  });
+
+  it('rejects avatar binding when the attachment was removed before save', async () => {
+    const { service } = createService();
+    const user = createUser();
+    const attachment = createAttachment({ uploadedBy: user });
+    const { manager, repository: transactionalRepository } = createManager();
+
+    transactionalRepository.findOne.mockResolvedValue(attachment);
+    transactionalRepository.find.mockResolvedValue([]);
+    transactionalRepository.save.mockResolvedValue(null as never);
+
+    await userContextStorage.run(user, async () => {
+      await expect(
+        service.bindUserAvatar('user-id', attachment.id, manager),
+      ).rejects.toMatchObject({
+        code: AttachmentExceptionCode.NOT_FOUND,
+      });
+    });
   });
 
   it('rebinds an attachment already bound to the same user avatar', async () => {

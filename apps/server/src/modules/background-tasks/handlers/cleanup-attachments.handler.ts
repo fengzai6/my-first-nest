@@ -24,6 +24,9 @@ export class CleanupAttachmentsHandler implements IJobHandler<
   ): Promise<ICleanupAttachmentsResult> {
     await ctx.updateProgress(10);
     const result = await this.attachmentsService.cleanupExpiredAttachments();
+    if (result.failedCount > 0) {
+      throw new Error(`附件清理存在 ${result.failedCount} 条失败记录`);
+    }
     await ctx.updateProgress(100);
     return result;
   }

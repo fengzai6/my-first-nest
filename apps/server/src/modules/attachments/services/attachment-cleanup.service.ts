@@ -71,7 +71,7 @@ export class AttachmentCleanupService {
       scannedCount += candidates.length;
 
       for (const attachment of candidates) {
-        const outcome = await this.cleanupAttachment(attachment);
+        const outcome = await this.cleanupAttachment(attachment, cutoff);
         if (outcome.deleted) deletedMetadataCount += 1;
         if (outcome.missing) missingFileCount += 1;
         if (outcome.failed) {
@@ -145,20 +145,42 @@ export class AttachmentCleanupService {
     return query.getMany();
   }
 
-  private async cleanupAttachment(attachment: Attachment): Promise<{
+  private async cleanupAttachment(
+    attachment: Attachment,
+    cutoff: Date,
+  ): Promise<{
     deleted: boolean;
     missing: boolean;
     failed: boolean;
   }> {
     try {
-      const fileRemoved = await this.storage.remove(attachment.storageKey);
-      await this.attachmentRepository.delete(attachment.id);
+      return await this.attachmentRepository.manager.transaction(
+        async (manager) => {
+          const repository = manager.getRepository(Attachment);
+          const locked = await repository.findOne({
+            where: { id: attachment.id },
+            withDeleted: true,
+            lock: { mode: 'pessimistic_write' },
+          });
 
-      return {
-        deleted: true,
-        missing: !fileRemoved,
-        failed: false,
-      };
+          if (!locked) {
+            return { deleted: true, missing: false, failed: false };
+          }
+
+          if (!this.isCleanupCandidate(locked, cutoff)) {
+            return { deleted: false, missing: false, failed: false };
+          }
+
+          const fileRemoved = await this.storage.remove(locked.storageKey);
+          const result = await repository.delete(locked.id);
+
+          return {
+            deleted: Boolean(result.affected),
+            missing: !fileRemoved,
+            failed: false,
+          };
+        },
+      );
     } catch {
       return {
         deleted: false,
@@ -166,5 +188,15 @@ export class AttachmentCleanupService {
         failed: true,
       };
     }
+  }
+
+  private isCleanupCandidate(attachment: Attachment, cutoff: Date) {
+    if (attachment.deletedAt) {
+      return attachment.deletedAt <= cutoff;
+    }
+
+    return (
+      !attachment.bizType && !attachment.bizId && attachment.createdAt <= cutoff
+    );
   }
 }
