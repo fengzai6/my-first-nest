@@ -9,6 +9,7 @@ import {
 } from '@/modules/attachments/constants/attachment.constants';
 import { AttachmentsService } from '@/modules/attachments/attachments.service';
 import { User } from '@/modules/users/entities/user.entity';
+import { HttpStatus } from '@nestjs/common';
 import { Readable } from 'stream';
 import { EntityManager, FindOperator } from 'typeorm';
 import { beforeEach, describe, expect, it, MockInstance, vi } from 'vitest';
@@ -527,5 +528,72 @@ describe('AttachmentsService', () => {
         code: AttachmentExceptionCode.IN_USE,
       });
     });
+  });
+
+  it('rejects binding an attachment already bound to another business', async () => {
+    const { service } = createService();
+    const user = createUser();
+    const attachment = createAttachment({
+      uploadedBy: user,
+      bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
+      bizId: 'other-user-id',
+    });
+    const { manager, repository: transactionalRepository } = createManager();
+
+    transactionalRepository.findOne.mockResolvedValue(attachment);
+    transactionalRepository.find.mockResolvedValue([]);
+
+    await userContextStorage.run(user, async () => {
+      await expect(
+        service.bindUserAvatar('user-id', attachment.id, manager),
+      ).rejects.toMatchObject({
+        code: AttachmentExceptionCode.ALREADY_BOUND,
+        status: HttpStatus.CONFLICT,
+      });
+    });
+
+    expect(transactionalRepository.save).not.toHaveBeenCalled();
+    expect(transactionalRepository.softRemove).not.toHaveBeenCalled();
+  });
+
+  it('binds an attachment that is not bound to any business', async () => {
+    const { service } = createService();
+    const user = createUser();
+    const attachment = createAttachment({ uploadedBy: user });
+    const { manager, repository: transactionalRepository } = createManager();
+
+    transactionalRepository.findOne.mockResolvedValue(attachment);
+    transactionalRepository.find.mockResolvedValue([]);
+
+    await userContextStorage.run(user, async () => {
+      await expect(
+        service.bindUserAvatar('user-id', attachment.id, manager),
+      ).resolves.toBe('/api/attachments/content/attachment-id');
+    });
+
+    expect(transactionalRepository.save).toHaveBeenCalledWith(attachment);
+  });
+
+  it('rebinds an attachment already bound to the same user avatar', async () => {
+    const { service } = createService();
+    const user = createUser();
+    const attachment = createAttachment({
+      uploadedBy: user,
+      bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
+      bizId: user.id,
+    });
+    const { manager, repository: transactionalRepository } = createManager();
+
+    transactionalRepository.findOne.mockResolvedValue(attachment);
+    transactionalRepository.find.mockResolvedValue([]);
+
+    await userContextStorage.run(user, async () => {
+      await expect(
+        service.bindUserAvatar('user-id', attachment.id, manager),
+      ).resolves.toBe('/api/attachments/content/attachment-id');
+    });
+
+    expect(transactionalRepository.save).toHaveBeenCalledTimes(1);
+    expect(transactionalRepository.softRemove).not.toHaveBeenCalled();
   });
 });

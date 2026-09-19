@@ -1,10 +1,28 @@
 import { AppConfigForced } from '@/config/configuration.interface';
-import { mkdtemp, readFile, rm, stat, writeFile } from 'fs/promises';
+import {
+  mkdtemp,
+  readFile,
+  rename,
+  rm,
+  stat,
+  unlink,
+  writeFile,
+} from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { LocalAttachmentStorageService } from '@/modules/attachments/services/local-attachment-storage.service';
 import { initSnowflake, resetSnowflake } from '@/shared/utils/snowflake';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs/promises')>();
+
+  return {
+    ...actual,
+    rename: vi.fn(actual.rename),
+    unlink: vi.fn(actual.unlink),
+  };
+});
 
 describe('LocalAttachmentStorageService', () => {
   let uploadDir: string;
@@ -46,5 +64,31 @@ describe('LocalAttachmentStorageService', () => {
     await expect(service.read('../secret.txt')).rejects.toThrow(
       'Invalid storage key',
     );
+  });
+
+  it('removes the copied file when removing the temporary file fails', async () => {
+    const tempPath = join(uploadDir, 'temp-avatar');
+    await writeFile(tempPath, 'image-content');
+    const file = {
+      originalname: 'avatar.png',
+      path: tempPath,
+    } as Express.Multer.File;
+    const unlinkError = Object.assign(new Error('unlink failed'), {
+      code: 'EACCES',
+    });
+
+    vi.mocked(rename).mockRejectedValueOnce(
+      Object.assign(new Error('cross-device link'), { code: 'EXDEV' }),
+    );
+    vi.mocked(unlink).mockRejectedValueOnce(unlinkError);
+
+    await expect(service.save(file)).rejects.toBe(unlinkError);
+
+    const permanentPath = vi.mocked(unlink).mock.calls[1]?.[0];
+    expect(permanentPath).not.toBe(tempPath);
+    await expect(stat(permanentPath as string)).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+    await expect(stat(tempPath)).resolves.toBeDefined();
   });
 });

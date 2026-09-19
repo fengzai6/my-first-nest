@@ -328,14 +328,6 @@ export class AttachmentsService {
       throw new AttachmentException(AttachmentExceptionCode.FORBIDDEN);
     }
 
-    const isCurrentAvatar =
-      attachment.bizType === ATTACHMENT_BIZ_TYPE.USER_AVATAR &&
-      attachment.bizId === userId;
-
-    if (attachment.bizType && !isCurrentAvatar) {
-      throw new AttachmentException(AttachmentExceptionCode.IN_USE);
-    }
-
     this.validateFile(
       {
         mimetype: attachment.mimeType,
@@ -344,6 +336,15 @@ export class AttachmentsService {
       MAX_AVATAR_SIZE,
       AVATAR_MIME_TYPES,
     );
+
+    const isBoundToTargetAvatar =
+      attachment.bizType === ATTACHMENT_BIZ_TYPE.USER_AVATAR &&
+      attachment.bizId === userId;
+
+    // NOTE: 附件已绑定其他业务时禁止抢占，否则原业务记录与附件绑定会不一致
+    if (attachment.bizType !== null && !isBoundToTargetAvatar) {
+      throw new AttachmentException(AttachmentExceptionCode.ALREADY_BOUND);
+    }
 
     const oldAttachments = await repository.find({
       where: {

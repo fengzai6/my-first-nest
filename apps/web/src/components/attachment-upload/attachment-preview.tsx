@@ -28,6 +28,7 @@ export const AttachmentPreview = ({
       !isImage(attachment.mimeType) ||
       attachment.visibility === ATTACHMENT_VISIBILITY.PUBLIC
     ) {
+      setLoading(false);
       setPreviewUrl(attachment.url);
       return;
     }

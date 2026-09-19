@@ -42,7 +42,12 @@ export class LocalAttachmentStorageService implements IAttachmentStorage {
       }
 
       await copyFile(tempPath, absolutePath);
-      await unlink(tempPath);
+      try {
+        await unlink(tempPath);
+      } catch (error) {
+        await unlink(absolutePath).catch(() => undefined);
+        throw error;
+      }
     }
 
     return { key };
