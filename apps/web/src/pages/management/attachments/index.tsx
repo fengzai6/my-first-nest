@@ -16,6 +16,7 @@ import type {
 import { ATTACHMENT_MANAGEMENT_PERMISSIONS } from "@/services/types/user";
 import { AttachmentActions } from "./components/attachment-actions";
 import { AttachmentBulkActions } from "./components/attachment-bulk-actions";
+import { getRemainingSelectionIds } from "./components/attachment-bulk-result";
 import { AttachmentCleanupCard } from "./components/attachment-cleanup-card";
 import { AttachmentDetailDrawer } from "./components/attachment-detail-drawer";
 import { AttachmentFilters } from "./components/attachment-filters";
@@ -186,8 +187,10 @@ export const AttachmentsManagement = () => {
             canManage={canManage}
             loading={isBulkLoading}
             onChangeLoading={setIsBulkLoading}
-            onFinished={() => {
-              setSelectedRowKeys([]);
+            onFinished={(result) => {
+              setSelectedRowKeys((current) =>
+                getRemainingSelectionIds(current.map(String), result),
+              );
               refresh();
             }}
           />

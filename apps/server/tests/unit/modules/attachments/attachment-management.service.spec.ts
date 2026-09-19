@@ -1,4 +1,8 @@
 import { AttachmentExceptionCode } from '@/common/exceptions/attachment.exception';
+import {
+  ErrorException,
+  ErrorExceptionCode,
+} from '@/common/exceptions/error.exception';
 import { ATTACHMENT_VISIBILITY } from '@/modules/attachments/constants/attachment.constants';
 import { Attachment } from '@/modules/attachments/entities/attachment.entity';
 import { AttachmentManagementService } from '@/modules/attachments/services/attachment-management.service';
@@ -60,8 +64,7 @@ const createManagementService = () => {
     createSignedUrl: vi.fn(),
   };
   const jobService = {
-    hasActiveOrPending: vi.fn(),
-    submit: vi.fn(),
+    submitExclusive: vi.fn(),
     list: vi.fn(),
   };
   const configService = {
@@ -191,7 +194,9 @@ describe('AttachmentManagementService', () => {
 
   it('rejects cleanup when an active cleanup task exists', async () => {
     const { jobService, service } = createManagementService();
-    jobService.hasActiveOrPending.mockResolvedValue(true);
+    jobService.submitExclusive.mockRejectedValue(
+      new ErrorException(ErrorExceptionCode.JOB_ALREADY_RUNNING),
+    );
 
     await expect(
       service.triggerCleanup({ id: 'admin-id' } as User),
@@ -202,14 +207,13 @@ describe('AttachmentManagementService', () => {
 
   it('submits a manual cleanup job', async () => {
     const { jobService, service } = createManagementService();
-    jobService.hasActiveOrPending.mockResolvedValue(false);
-    jobService.submit.mockResolvedValue({ id: 'job-id' });
+    jobService.submitExclusive.mockResolvedValue({ id: 'job-id' });
 
     await expect(
       service.triggerCleanup({ id: 'admin-id' } as User),
     ).resolves.toEqual({ id: 'job-id' });
 
-    expect(jobService.submit).toHaveBeenCalledWith({
+    expect(jobService.submitExclusive).toHaveBeenCalledWith({
       name: 'cleanup-attachments',
       payload: {},
       attempts: 3,

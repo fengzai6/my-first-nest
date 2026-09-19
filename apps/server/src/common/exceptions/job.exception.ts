@@ -6,6 +6,7 @@ export const JobExceptionCode = {
   JOB_HANDLER_NOT_FOUND: '15402',
   JOB_NOT_CANCELLABLE: '15403',
   JOB_REDIS_REQUIRED: '15501',
+  JOB_ALREADY_RUNNING: '15404',
 } as const;
 
 export type JobExceptionCode =
@@ -26,6 +27,11 @@ export const JobExceptionMap: Record<JobExceptionCode, ExceptionInfo> = {
     message: '当前状态的任务不可取消',
     status: HttpStatus.CONFLICT,
     code: JobExceptionCode.JOB_NOT_CANCELLABLE,
+  },
+  [JobExceptionCode.JOB_ALREADY_RUNNING]: {
+    message: '同名任务正在执行，请稍后再试',
+    status: HttpStatus.CONFLICT,
+    code: JobExceptionCode.JOB_ALREADY_RUNNING,
   },
   [JobExceptionCode.JOB_REDIS_REQUIRED]: {
     message: '任务系统需要 Redis，请配置 REDIS_URL 或 REDIS_HOST',

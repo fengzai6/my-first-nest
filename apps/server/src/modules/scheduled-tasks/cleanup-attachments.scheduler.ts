@@ -1,4 +1,8 @@
 import {
+  ErrorException,
+  ErrorExceptionCode,
+} from '@/common/exceptions/error.exception';
+import {
   JOB_NAMES,
   JOB_TRIGGER_TYPE,
 } from '@/shared/jobs/constants/job.constants';
@@ -17,11 +21,27 @@ export class CleanupAttachmentsScheduler {
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async handleCleanup() {
-    const hasActiveOrPending = await this.jobService.hasActiveOrPending(
-      JOB_NAMES.CLEANUP_ATTACHMENTS,
-    );
+    try {
+      const job = await this.jobService.submitExclusive({
+        name: JOB_NAMES.CLEANUP_ATTACHMENTS,
+        payload: {},
+        attempts: 3,
+        backoffMs: 2000,
+        triggerType: JOB_TRIGGER_TYPE.CRON,
+      });
 
-    if (hasActiveOrPending) {
+      this.logger.log('Attachment cleanup enqueued', {
+        category: LOG_CATEGORY.SCHEDULED_TASK,
+        context: { jobId: job.id },
+      });
+    } catch (error) {
+      if (
+        !(error instanceof ErrorException) ||
+        error.code !== ErrorExceptionCode.JOB_ALREADY_RUNNING
+      ) {
+        throw error;
+      }
+
       this.logger.log('Attachment cleanup enqueue skipped', {
         category: LOG_CATEGORY.SCHEDULED_TASK,
         context: {
@@ -29,20 +49,6 @@ export class CleanupAttachmentsScheduler {
           reason: 'active-or-pending',
         },
       });
-      return;
     }
-
-    const job = await this.jobService.submit({
-      name: JOB_NAMES.CLEANUP_ATTACHMENTS,
-      payload: {},
-      attempts: 3,
-      backoffMs: 2000,
-      triggerType: JOB_TRIGGER_TYPE.CRON,
-    });
-
-    this.logger.log('Attachment cleanup enqueued', {
-      category: LOG_CATEGORY.SCHEDULED_TASK,
-      context: { jobId: job.id },
-    });
   }
 }

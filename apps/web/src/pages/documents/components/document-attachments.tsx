@@ -12,11 +12,11 @@ import {
   resolveAttachmentUrl,
 } from "@/components/attachment-upload/attachment-link";
 import { downloadAttachment } from "./attachment-download";
+import { createAttachmentSignedUrlCache } from "./attachment-signed-url-cache";
 import { GetDocumentAttachmentSignedUrl } from "@/services/api/document";
 import {
   ATTACHMENT_VISIBILITY,
   type IAttachment,
-  type IAttachmentSignedUrl,
 } from "@/services/types/attachment";
 
 const { Text } = Typography;
@@ -44,8 +44,10 @@ const DocumentAttachmentItem = ({
   const [loadingAction, setLoadingAction] = useState<AttachmentAction | null>(
     null,
   );
-  const signedUrlPromiseRef = useRef<Promise<IAttachmentSignedUrl> | null>(
-    null,
+  const signedUrlCacheRef = useRef(
+    createAttachmentSignedUrlCache(() =>
+      GetDocumentAttachmentSignedUrl(documentId, attachment.id),
+    ),
   );
 
   const getSignedUrl = () => {
@@ -56,15 +58,7 @@ const DocumentAttachmentItem = ({
       });
     }
 
-    signedUrlPromiseRef.current ??= GetDocumentAttachmentSignedUrl(
-      documentId,
-      attachment.id,
-    ).catch((error) => {
-      signedUrlPromiseRef.current = null;
-      throw error;
-    });
-
-    return signedUrlPromiseRef.current;
+    return signedUrlCacheRef.current.get();
   };
 
   const runAction = async (action: AttachmentAction) => {
@@ -177,7 +171,7 @@ export const DocumentAttachments = ({
       dataSource={attachments}
       renderItem={(attachment) => (
         <DocumentAttachmentItem
-          key={attachment.id}
+          key={`${documentId}:${attachment.id}`}
           documentId={documentId}
           attachment={attachment}
         />

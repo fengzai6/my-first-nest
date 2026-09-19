@@ -89,6 +89,24 @@ describe('JobRecordService', () => {
     expect(run.name).toBe('export-report');
   });
 
+  it('should reject creating a second non-terminal run for the same job name', async () => {
+    const { service, repository } = createService();
+    repository.save.mockRejectedValue(
+      Object.assign(new Error('duplicate key'), { code: '23505' }),
+    );
+
+    await expect(
+      service.createQueued({
+        name: 'cleanup-attachments',
+        queueName: 'default',
+        maxAttempts: 3,
+        triggerType: JOB_TRIGGER_TYPE.MANUAL,
+      }),
+    ).rejects.toMatchObject({
+      code: '23505',
+    });
+  });
+
   it('should normalize progress into 0-100 range', async () => {
     const { service, repository } = createService();
     const queryBuilder = createUpdateQueryBuilder(1);

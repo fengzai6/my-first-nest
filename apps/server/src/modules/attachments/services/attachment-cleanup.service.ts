@@ -2,7 +2,7 @@ import { getConfig } from '@/config/configuration';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, IsNull, Not, Repository } from 'typeorm';
 import { Attachment } from '../entities/attachment.entity';
 import {
   ATTACHMENT_STORAGE,
@@ -45,38 +45,49 @@ export class AttachmentCleanupService {
     const cutoff = new Date(
       currentTime.getTime() - this.retentionDays * MILLISECONDS_PER_DAY,
     );
-    const failedIds = new Set<string>();
     let scannedCount = 0;
     let deletedMetadataCount = 0;
     let missingFileCount = 0;
     let failedCount = 0;
     let rounds = 0;
     let reachedSafetyLimit = false;
+    let deletedCursor: string | null = null;
+    let orphanCursor: string | null = null;
 
     while (rounds < this.maxRounds) {
       rounds += 1;
 
-      const deletedCandidates = await this.findDeletedCandidates(cutoff, [
-        ...failedIds,
-      ]);
-      const orphanCandidates = await this.findOrphanCandidates(cutoff, [
-        ...failedIds,
-      ]);
+      const deletedCandidates = await this.findDeletedCandidates(
+        cutoff,
+        deletedCursor,
+      );
+      const orphanCandidates = await this.findOrphanCandidates(
+        cutoff,
+        orphanCursor,
+      );
 
       if (deletedCandidates.length === 0 && orphanCandidates.length === 0) {
         break;
+      }
+
+      const lastDeleted = deletedCandidates.at(-1);
+      const lastOrphan = orphanCandidates.at(-1);
+      if (lastDeleted) {
+        deletedCursor = lastDeleted.id;
+      }
+      if (lastOrphan) {
+        orphanCursor = lastOrphan.id;
       }
 
       const candidates = [...deletedCandidates, ...orphanCandidates];
       scannedCount += candidates.length;
 
       for (const attachment of candidates) {
-        const outcome = await this.cleanupAttachment(attachment);
+        const outcome = await this.cleanupAttachment(attachment, cutoff);
         if (outcome.deleted) deletedMetadataCount += 1;
         if (outcome.missing) missingFileCount += 1;
         if (outcome.failed) {
           failedCount += 1;
-          failedIds.add(attachment.id);
         }
       }
 
@@ -102,21 +113,18 @@ export class AttachmentCleanupService {
 
   private async findDeletedCandidates(
     cutoff: Date,
-    excludedIds: string[],
+    cursor: string | null,
   ): Promise<Attachment[]> {
     const query = this.attachmentRepository
       .createQueryBuilder('attachment')
       .withDeleted()
       .where('attachment.deletedAt IS NOT NULL')
       .andWhere('attachment.deletedAt <= :cutoff', { cutoff })
-      .orderBy('attachment.createdAt', 'ASC')
-      .addOrderBy('attachment.id', 'ASC')
+      .orderBy('attachment.id', 'ASC')
       .take(this.batchSize);
 
-    if (excludedIds.length > 0) {
-      query.andWhere('attachment.id NOT IN (:...excludedIds)', {
-        excludedIds,
-      });
+    if (cursor) {
+      query.andWhere('attachment.id > :id', { id: cursor });
     }
 
     return query.getMany();
@@ -124,7 +132,7 @@ export class AttachmentCleanupService {
 
   private async findOrphanCandidates(
     cutoff: Date,
-    excludedIds: string[],
+    cursor: string | null,
   ): Promise<Attachment[]> {
     const query = this.attachmentRepository
       .createQueryBuilder('attachment')
@@ -132,27 +140,75 @@ export class AttachmentCleanupService {
       .andWhere('attachment.bizId IS NULL')
       .andWhere('attachment.deletedAt IS NULL')
       .andWhere('attachment.createdAt <= :cutoff', { cutoff })
-      .orderBy('attachment.createdAt', 'ASC')
-      .addOrderBy('attachment.id', 'ASC')
+      .orderBy('attachment.id', 'ASC')
       .take(this.batchSize);
 
-    if (excludedIds.length > 0) {
-      query.andWhere('attachment.id NOT IN (:...excludedIds)', {
-        excludedIds,
-      });
+    if (cursor) {
+      query.andWhere('attachment.id > :id', { id: cursor });
     }
 
     return query.getMany();
   }
 
-  private async cleanupAttachment(attachment: Attachment): Promise<{
+  private async cleanupAttachment(
+    attachment: Attachment,
+    cutoff: Date,
+  ): Promise<{
     deleted: boolean;
     missing: boolean;
     failed: boolean;
   }> {
     try {
-      const fileRemoved = await this.storage.remove(attachment.storageKey);
-      await this.attachmentRepository.delete(attachment.id);
+      const claimed = await this.attachmentRepository.manager.transaction(
+        async (manager) => {
+          const repository = manager.getRepository(Attachment);
+          const locked = await repository.findOne({
+            where: { id: attachment.id },
+            withDeleted: true,
+            lock: { mode: 'pessimistic_write' },
+          });
+
+          if (!locked) {
+            return null;
+          }
+
+          if (!this.isCleanupCandidate(locked, cutoff)) {
+            return null;
+          }
+
+          if (!locked.deletedAt) {
+            await repository.update(locked.id, { deletedAt: cutoff });
+          }
+
+          return locked;
+        },
+      );
+
+      if (!claimed) {
+        return {
+          deleted: false,
+          missing: false,
+          failed: false,
+        };
+      }
+
+      const fileRemoved = await this.storage.remove(claimed.storageKey);
+      const deleteWhere: FindOptionsWhere<Attachment> = {
+        id: claimed.id,
+        deletedAt: Not(IsNull()),
+        bizType: claimed.bizType === null ? IsNull() : claimed.bizType,
+        bizId: claimed.bizId === null ? IsNull() : claimed.bizId,
+      };
+      const result = await this.attachmentRepository.delete(deleteWhere);
+
+      if (result.affected === 0) {
+        return {
+          deleted: false,
+          missing: !fileRemoved,
+          // 文件已删但记录被保护时保留可见失败，交由后续任务重试。
+          failed: fileRemoved,
+        };
+      }
 
       return {
         deleted: true,
@@ -166,5 +222,15 @@ export class AttachmentCleanupService {
         failed: true,
       };
     }
+  }
+
+  private isCleanupCandidate(attachment: Attachment, cutoff: Date) {
+    if (attachment.deletedAt) {
+      return attachment.deletedAt <= cutoff;
+    }
+
+    return (
+      !attachment.bizType && !attachment.bizId && attachment.createdAt <= cutoff
+    );
   }
 }

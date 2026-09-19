@@ -79,4 +79,48 @@ describe("downloadAttachment", () => {
     expect(createObjectURL).not.toHaveBeenCalled();
     expect(revokeObjectURL).not.toHaveBeenCalled();
   });
+
+  it("prefers the encoded filename from Content-Disposition", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new Blob(["content"]), {
+        status: 200,
+        headers: {
+          "Content-Disposition":
+            "attachment; filename*=UTF-8''%E8%B5%84%E6%96%99.pdf",
+        },
+      }),
+    );
+    const { anchor, document } = createDocument();
+
+    await downloadAttachment("http://localhost:5173/download", "fallback.pdf", {
+      fetch: fetchMock,
+      createObjectURL: vi.fn().mockReturnValue("blob:attachment"),
+      revokeObjectURL: vi.fn(),
+      document,
+    });
+
+    expect(anchor.download).toBe("资料.pdf");
+  });
+
+  it("falls back to the client filename when Content-Disposition is invalid", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new Blob(["content"]), {
+        status: 200,
+        headers: {
+          "Content-Disposition":
+            "attachment; filename*=UTF-8''%E0%A4%A",
+        },
+      }),
+    );
+    const { anchor, document } = createDocument();
+
+    await downloadAttachment("http://localhost:5173/download", "fallback.pdf", {
+      fetch: fetchMock,
+      createObjectURL: vi.fn().mockReturnValue("blob:attachment"),
+      revokeObjectURL: vi.fn(),
+      document,
+    });
+
+    expect(anchor.download).toBe("fallback.pdf");
+  });
 });

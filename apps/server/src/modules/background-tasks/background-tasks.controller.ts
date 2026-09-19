@@ -5,6 +5,10 @@ import {
   AttachmentException,
   AttachmentExceptionCode,
 } from '@/common/exceptions/attachment.exception';
+import {
+  ErrorException,
+  ErrorExceptionCode,
+} from '@/common/exceptions/error.exception';
 import { AttachmentsManagementPermissionGuard } from '@/modules/attachments/attachments-management-permission.guard';
 import {
   JOB_NAMES,
@@ -87,22 +91,25 @@ export class BackgroundTasksController {
       '删除超过保留期的软删除附件和从未绑定的孤儿附件，最多重试 3 次',
   })
   async cleanupAttachments(@UserInfo() user: User) {
-    const hasActiveOrPending = await this.jobService.hasActiveOrPending(
-      JOB_NAMES.CLEANUP_ATTACHMENTS,
-    );
-    if (hasActiveOrPending) {
-      throw new AttachmentException(
-        AttachmentExceptionCode.CLEANUP_ALREADY_RUNNING,
-      );
+    try {
+      return await this.jobService.submitExclusive({
+        name: JOB_NAMES.CLEANUP_ATTACHMENTS,
+        payload: {},
+        attempts: 3,
+        backoffMs: 2000,
+        triggerType: JOB_TRIGGER_TYPE.MANUAL,
+        createdBy: user.id,
+      });
+    } catch (error) {
+      if (
+        error instanceof ErrorException &&
+        error.code === ErrorExceptionCode.JOB_ALREADY_RUNNING
+      ) {
+        throw new AttachmentException(
+          AttachmentExceptionCode.CLEANUP_ALREADY_RUNNING,
+        );
+      }
+      throw error;
     }
-
-    return this.jobService.submit({
-      name: JOB_NAMES.CLEANUP_ATTACHMENTS,
-      payload: {},
-      attempts: 3,
-      backoffMs: 2000,
-      triggerType: JOB_TRIGGER_TYPE.MANUAL,
-      createdBy: user.id,
-    });
   }
 }

@@ -3,6 +3,10 @@ import {
   AttachmentException,
   AttachmentExceptionCode,
 } from '@/common/exceptions/attachment.exception';
+import {
+  ErrorException,
+  ErrorExceptionCode,
+} from '@/common/exceptions/error.exception';
 import { LoggerService } from '@/shared/log/logger.service';
 import { LOG_CATEGORY } from '@/shared/log/constants/log.constants';
 import {
@@ -215,23 +219,7 @@ export class AttachmentManagementService {
   }
 
   async triggerCleanup(user: User): Promise<IJobRunView> {
-    const hasActiveOrPending = await this.jobService.hasActiveOrPending(
-      JOB_NAMES.CLEANUP_ATTACHMENTS,
-    );
-    if (hasActiveOrPending) {
-      throw new AttachmentException(
-        AttachmentExceptionCode.CLEANUP_ALREADY_RUNNING,
-      );
-    }
-
-    const job = await this.jobService.submit({
-      name: JOB_NAMES.CLEANUP_ATTACHMENTS,
-      payload: {},
-      attempts: 3,
-      backoffMs: 2000,
-      triggerType: JOB_TRIGGER_TYPE.MANUAL,
-      createdBy: user.id,
-    });
+    const job = await this.submitExclusiveCleanup(user);
 
     this.logger.log('Attachment cleanup triggered from management center', {
       category: LOG_CATEGORY.BUSINESS,
@@ -239,6 +227,30 @@ export class AttachmentManagementService {
     });
 
     return job;
+  }
+
+  private async submitExclusiveCleanup(user: User) {
+    try {
+      return await this.jobService.submitExclusive({
+        name: JOB_NAMES.CLEANUP_ATTACHMENTS,
+        payload: {},
+        attempts: 3,
+        backoffMs: 2000,
+        triggerType: JOB_TRIGGER_TYPE.MANUAL,
+        createdBy: user.id,
+      });
+    } catch (error) {
+      if (
+        error instanceof ErrorException &&
+        'code' in error &&
+        error.code === ErrorExceptionCode.JOB_ALREADY_RUNNING
+      ) {
+        throw new AttachmentException(
+          AttachmentExceptionCode.CLEANUP_ALREADY_RUNNING,
+        );
+      }
+      throw error;
+    }
   }
 
   async getLatestCleanup(): Promise<IJobRunView | null> {

@@ -13,9 +13,10 @@ import { LocalAttachmentStorageService } from './services/local-attachment-stora
 import { AttachmentCleanupService } from './services/attachment-cleanup.service';
 import { AttachmentManagementService } from './services/attachment-management.service';
 import { PermissionsModule } from '../permissions/permissions.module';
+import { User } from '../users/entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Attachment]), PermissionsModule],
+  imports: [TypeOrmModule.forFeature([Attachment, User]), PermissionsModule],
   controllers: [AttachmentsController, AttachmentsManagementController],
   providers: [
     AttachmentsService,

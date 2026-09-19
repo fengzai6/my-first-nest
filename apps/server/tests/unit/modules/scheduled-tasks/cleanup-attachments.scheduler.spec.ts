@@ -1,5 +1,9 @@
 import { CleanupAttachmentsScheduler } from '@/modules/scheduled-tasks/cleanup-attachments.scheduler';
 import {
+  ErrorException,
+  ErrorExceptionCode,
+} from '@/common/exceptions/error.exception';
+import {
   JOB_NAMES,
   JOB_TRIGGER_TYPE,
 } from '@/shared/jobs/constants/job.constants';
@@ -10,8 +14,7 @@ import { describe, expect, it, vi } from 'vitest';
 describe('CleanupAttachmentsScheduler', () => {
   it('submits a cron cleanup job when no active or pending job exists', async () => {
     const jobService = {
-      hasActiveOrPending: vi.fn().mockResolvedValue(false),
-      submit: vi.fn().mockResolvedValue({ id: 'job-id' }),
+      submitExclusive: vi.fn().mockResolvedValue({ id: 'job-id' }),
     };
     const logger = { log: vi.fn() };
     const scheduler = new CleanupAttachmentsScheduler(
@@ -21,7 +24,7 @@ describe('CleanupAttachmentsScheduler', () => {
 
     await scheduler.handleCleanup();
 
-    expect(jobService.submit).toHaveBeenCalledWith({
+    expect(jobService.submitExclusive).toHaveBeenCalledWith({
       name: JOB_NAMES.CLEANUP_ATTACHMENTS,
       payload: {},
       attempts: 3,
@@ -39,8 +42,11 @@ describe('CleanupAttachmentsScheduler', () => {
 
   it('skips submission when an active or pending cleanup job exists', async () => {
     const jobService = {
-      hasActiveOrPending: vi.fn().mockResolvedValue(true),
-      submit: vi.fn(),
+      submitExclusive: vi
+        .fn()
+        .mockRejectedValue(
+          new ErrorException(ErrorExceptionCode.JOB_ALREADY_RUNNING),
+        ),
     };
     const logger = { log: vi.fn() };
     const scheduler = new CleanupAttachmentsScheduler(
@@ -50,7 +56,6 @@ describe('CleanupAttachmentsScheduler', () => {
 
     await scheduler.handleCleanup();
 
-    expect(jobService.submit).not.toHaveBeenCalled();
     expect(logger.log).toHaveBeenCalledWith(
       'Attachment cleanup enqueue skipped',
       expect.objectContaining({

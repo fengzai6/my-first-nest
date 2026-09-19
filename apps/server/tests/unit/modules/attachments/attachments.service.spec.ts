@@ -10,6 +10,7 @@ import {
 import { UpdateAttachmentDto } from '@/modules/attachments/dto/update-attachment.dto';
 import { AttachmentsService } from '@/modules/attachments/attachments.service';
 import { AttachmentCleanupService } from '@/modules/attachments/services/attachment-cleanup.service';
+import { PermissionsService } from '@/modules/permissions/permissions.service';
 import { User } from '@/modules/users/entities/user.entity';
 import { HttpStatus } from '@nestjs/common';
 import { Readable } from 'stream';
@@ -74,10 +75,12 @@ const createManager = () => {
 const createUser = ({
   id = 'user-id',
   specialRoles = [],
+  isActive = true,
 }: Partial<User> = {}) => {
   const user = new User();
   user.id = id;
   user.specialRoles = specialRoles;
+  user.isActive = isActive;
   return user;
 };
 
@@ -87,6 +90,7 @@ const createAttachment = ({
   uploadedBy = createUser(),
   bizType = null,
   bizId = null,
+  deletedAt,
 }: Partial<Attachment> = {}) => {
   const attachment = new Attachment();
   attachment.id = id;
@@ -99,7 +103,26 @@ const createAttachment = ({
   attachment.bizType = bizType;
   attachment.bizId = bizId;
   attachment.createdAt = new Date('2026-09-13T00:00:00.000Z');
-  return attachment;
+  return Object.assign(attachment, { deletedAt });
+};
+
+const expectAvatarBindingCriteria = (
+  repository: MockRepository,
+  attachmentId: string,
+) => {
+  const [criteria, update] = repository.update.mock.calls.at(-1) ?? [];
+  expect(criteria).toMatchObject({ id: attachmentId });
+  expect((criteria as { deletedAt: unknown }).deletedAt).toBeInstanceOf(
+    FindOperator,
+  );
+  expect((criteria as { bizType: unknown }).bizType).toBeInstanceOf(
+    FindOperator,
+  );
+  expect((criteria as { bizId: unknown }).bizId).toBeInstanceOf(FindOperator);
+  expect(update).toMatchObject({
+    visibility: ATTACHMENT_VISIBILITY.PUBLIC,
+    bizType: ATTACHMENT_BIZ_TYPE.USER_AVATAR,
+  });
 };
 
 const createService = () => {
@@ -135,19 +158,30 @@ const createService = () => {
   const cleanupService = {
     cleanupExpiredAttachments,
   } as unknown as AttachmentCleanupService;
+  const hasUserPermission = vi.fn(() => Promise.resolve(false));
+  const permissionsService = {
+    hasUserPermission,
+  } as unknown as PermissionsService;
+  const userRepository = {
+    findOneBy: vi.fn(),
+  };
 
   return {
     repository,
+    userRepository,
     storage,
     createSignedUrl,
     verifySignature,
     signatureService,
     cleanupExpiredAttachments,
+    hasUserPermission,
     service: new AttachmentsService(
       repository as never,
+      userRepository as never,
       storage,
       signatureService,
       cleanupService,
+      permissionsService,
     ),
   };
 };
@@ -241,6 +275,30 @@ describe('AttachmentsService', () => {
     });
   });
 
+  it('rejects admin scope without a signature even for public content', async () => {
+    const { repository, storage, service } = createService();
+
+    repository.findOne.mockResolvedValue(
+      createAttachment({
+        visibility: ATTACHMENT_VISIBILITY.PUBLIC,
+      }),
+    );
+    storage.read.mockResolvedValue({ stream: Readable.from('image') });
+
+    await expect(
+      service.getContent(
+        'attachment-id',
+        undefined,
+        undefined,
+        undefined,
+        'admin',
+      ),
+    ).rejects.toMatchObject({
+      code: AttachmentExceptionCode.INVALID_SIGNATURE,
+    });
+    expect(storage.read).not.toHaveBeenCalled();
+  });
+
   it('rejects private content with an invalid signature', async () => {
     const { repository, verifySignature, service } = createService();
 
@@ -255,11 +313,112 @@ describe('AttachmentsService', () => {
   });
 
   it('allows admin scope to read a deleted attachment', async () => {
-    const { repository, verifySignature, service } = createService();
+    const {
+      hasUserPermission,
+      repository,
+      userRepository,
+      verifySignature,
+      service,
+    } = createService();
     const attachment = createAttachment({
       deletedAt: new Date('2026-09-01T00:00:00.000Z'),
     });
     repository.findOne.mockResolvedValue(attachment);
+    userRepository.findOneBy.mockResolvedValue(createUser({ id: 'admin-id' }));
+    verifySignature.mockReturnValue(true);
+    hasUserPermission.mockResolvedValue(true);
+
+    await expect(
+      service.getContent(
+        attachment.id,
+        String(Date.now() + 300_000),
+        'admin-id',
+        'signature',
+        'admin',
+      ),
+    ).resolves.toMatchObject({ attachment });
+    expect(hasUserPermission).toHaveBeenCalledWith(
+      'admin-id',
+      'attachment:read',
+    );
+  });
+
+  it('rejects admin scope for a disabled signing user without reading the file', async () => {
+    const {
+      hasUserPermission,
+      repository,
+      storage,
+      userRepository,
+      verifySignature,
+      service,
+    } = createService();
+    const attachment = createAttachment({
+      deletedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
+    repository.findOne.mockResolvedValue(attachment);
+    userRepository.findOneBy.mockResolvedValue(null);
+    verifySignature.mockReturnValue(true);
+
+    await expect(
+      service.getContent(
+        attachment.id,
+        String(Date.now() + 300_000),
+        'disabled-admin-id',
+        'signature',
+        'admin',
+      ),
+    ).rejects.toMatchObject({
+      code: AttachmentExceptionCode.NOT_FOUND,
+    });
+    expect(userRepository.findOneBy).toHaveBeenCalledWith({
+      id: 'disabled-admin-id',
+      isActive: true,
+    });
+    expect(hasUserPermission).not.toHaveBeenCalled();
+    expect(storage.read).not.toHaveBeenCalled();
+  });
+
+  it('rejects admin scope after the signing user loses attachment read permission', async () => {
+    const { repository, userRepository, verifySignature, service } =
+      createService();
+    const attachment = createAttachment({
+      deletedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
+    repository.findOne.mockResolvedValue(attachment);
+    userRepository.findOneBy.mockResolvedValue(createUser({ id: 'admin-id' }));
+    verifySignature.mockReturnValue(true);
+
+    await expect(
+      service.getContent(
+        attachment.id,
+        String(Date.now() + 300_000),
+        'revoked-admin-id',
+        'signature',
+        'admin',
+      ),
+    ).rejects.toMatchObject({
+      code: AttachmentExceptionCode.NOT_FOUND,
+    });
+  });
+
+  it('allows a super admin through admin scope without an attachment read permission', async () => {
+    const {
+      hasUserPermission,
+      repository,
+      userRepository,
+      verifySignature,
+      service,
+    } = createService();
+    const attachment = createAttachment({
+      deletedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
+    repository.findOne.mockResolvedValue(attachment);
+    userRepository.findOneBy.mockResolvedValue(
+      createUser({
+        id: 'admin-id',
+        specialRoles: [SpecialRolesEnum.SuperAdmin],
+      }),
+    );
     verifySignature.mockReturnValue(true);
 
     await expect(
@@ -271,6 +430,7 @@ describe('AttachmentsService', () => {
         'admin',
       ),
     ).resolves.toMatchObject({ attachment });
+    expect(hasUserPermission).not.toHaveBeenCalled();
   });
 
   it('rejects user scope for a deleted attachment', async () => {
@@ -506,12 +666,7 @@ describe('AttachmentsService', () => {
       ).resolves.toBe('/api/attachments/content/attachment-id');
     });
 
-    expect(attachment.visibility).toBe(ATTACHMENT_VISIBILITY.PUBLIC);
-    expect(attachment.bizType).toBe(ATTACHMENT_BIZ_TYPE.USER_AVATAR);
-    expect(transactionalRepository.findOne).toHaveBeenCalledWith({
-      where: { id: 'attachment-id' },
-      relations: { uploadedBy: true },
-    });
+    expectAvatarBindingCriteria(transactionalRepository, attachment.id);
     expect(transactionalRepository.find).toHaveBeenCalledTimes(1);
     const findOptions = transactionalRepository.find.mock.calls[0]?.[0];
     expect(findOptions?.where).toMatchObject({
@@ -523,7 +678,7 @@ describe('AttachmentsService', () => {
     expect(transactionalRepository.softRemove).toHaveBeenCalledWith([
       oldAttachment,
     ]);
-    expect(transactionalRepository.save).toHaveBeenCalledWith(attachment);
+    expectAvatarBindingCriteria(transactionalRepository, attachment.id);
   });
 
   it('binds, keeps, and soft removes document attachments as one set', async () => {
@@ -562,11 +717,13 @@ describe('AttachmentsService', () => {
     const updateCriteria = repository.update.mock.calls[0]?.[0] as
       | {
           id: FindOperator<string>;
+          deletedAt: FindOperator<Date>;
           bizType: FindOperator<null>;
           bizId: FindOperator<null>;
         }
       | undefined;
     expect(updateCriteria?.id).toBeInstanceOf(FindOperator);
+    expect(updateCriteria?.deletedAt).toBeInstanceOf(FindOperator);
     expect(updateCriteria?.bizType).toBeInstanceOf(FindOperator);
     expect(updateCriteria?.bizId).toBeInstanceOf(FindOperator);
     expect(repository.softRemove).toHaveBeenCalledWith([removed]);
@@ -782,7 +939,29 @@ describe('AttachmentsService', () => {
       ).resolves.toBe('/api/attachments/content/attachment-id');
     });
 
-    expect(transactionalRepository.save).toHaveBeenCalledWith(attachment);
+    expectAvatarBindingCriteria(transactionalRepository, attachment.id);
+  });
+
+  it('rejects avatar binding when the conditional update affects no rows', async () => {
+    const { service } = createService();
+    const user = createUser();
+    const attachment = createAttachment({ uploadedBy: user });
+    const { manager, repository: transactionalRepository } = createManager();
+
+    transactionalRepository.findOne.mockResolvedValue(attachment);
+    transactionalRepository.find.mockResolvedValue([]);
+    transactionalRepository.update.mockResolvedValue({ affected: 0 });
+
+    await userContextStorage.run(user, async () => {
+      await expect(
+        service.bindUserAvatar('user-id', attachment.id, manager),
+      ).rejects.toMatchObject({
+        code: AttachmentExceptionCode.NOT_FOUND,
+      });
+    });
+
+    expectAvatarBindingCriteria(transactionalRepository, attachment.id);
+    expect(transactionalRepository.softRemove).not.toHaveBeenCalled();
   });
 
   it('rebinds an attachment already bound to the same user avatar', async () => {
@@ -804,7 +983,7 @@ describe('AttachmentsService', () => {
       ).resolves.toBe('/api/attachments/content/attachment-id');
     });
 
-    expect(transactionalRepository.save).toHaveBeenCalledTimes(1);
+    expect(transactionalRepository.update).toHaveBeenCalledTimes(1);
     expect(transactionalRepository.softRemove).not.toHaveBeenCalled();
   });
 });
