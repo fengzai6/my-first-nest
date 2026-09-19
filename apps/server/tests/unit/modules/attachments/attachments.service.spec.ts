@@ -717,11 +717,13 @@ describe('AttachmentsService', () => {
     const updateCriteria = repository.update.mock.calls[0]?.[0] as
       | {
           id: FindOperator<string>;
+          deletedAt: FindOperator<Date>;
           bizType: FindOperator<null>;
           bizId: FindOperator<null>;
         }
       | undefined;
     expect(updateCriteria?.id).toBeInstanceOf(FindOperator);
+    expect(updateCriteria?.deletedAt).toBeInstanceOf(FindOperator);
     expect(updateCriteria?.bizType).toBeInstanceOf(FindOperator);
     expect(updateCriteria?.bizId).toBeInstanceOf(FindOperator);
     expect(repository.softRemove).toHaveBeenCalledWith([removed]);

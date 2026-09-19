@@ -225,6 +225,7 @@ export class AttachmentsService {
       const result = await repository.update(
         {
           id: In(added.map((attachment) => attachment.id)),
+          deletedAt: IsNull(),
           bizType: IsNull(),
           bizId: IsNull(),
         },

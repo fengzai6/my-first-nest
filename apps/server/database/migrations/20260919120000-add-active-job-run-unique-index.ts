@@ -4,6 +4,7 @@ export class AddActiveJobRunUniqueIndex20260919120000 implements MigrationInterf
   name = 'AddActiveJobRunUniqueIndex20260919120000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`LOCK TABLE "job_runs" IN SHARE MODE`);
     await queryRunner.query(`
       WITH ranked_active_job_runs AS (
         SELECT
