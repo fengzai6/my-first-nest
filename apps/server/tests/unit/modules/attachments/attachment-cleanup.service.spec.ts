@@ -2,7 +2,7 @@ import { AttachmentCleanupService } from '@/modules/attachments/services/attachm
 import { ATTACHMENT_BIZ_TYPE } from '@/modules/attachments/constants/attachment.constants';
 import { Attachment } from '@/modules/attachments/entities/attachment.entity';
 import { ConfigService } from '@nestjs/config';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type MockQueryBuilder = {
@@ -149,7 +149,12 @@ describe('AttachmentCleanupService', () => {
       withDeleted: true,
       lock: { mode: 'pessimistic_write' },
     });
-    expect(repository.delete).toHaveBeenCalledWith('deleted-id');
+    expect(repository.delete).toHaveBeenCalledWith({
+      id: 'deleted-id',
+      deletedAt: Not(IsNull()),
+      bizType: IsNull(),
+      bizId: IsNull(),
+    });
     expect(transactionRepository.update).not.toHaveBeenCalled();
     expect(result).toEqual({
       deletedMetadataCount: 1,
@@ -226,7 +231,12 @@ describe('AttachmentCleanupService', () => {
       new Date('2026-09-16T03:00:00.000Z'),
     );
 
-    expect(repository.delete).toHaveBeenCalledWith('attachment-id');
+    expect(repository.delete).toHaveBeenCalledWith({
+      id: 'attachment-id',
+      deletedAt: Not(IsNull()),
+      bizType: IsNull(),
+      bizId: IsNull(),
+    });
     expect(result.missingFileCount).toBe(1);
     expect(result.deletedMetadataCount).toBe(1);
   });
@@ -254,7 +264,12 @@ describe('AttachmentCleanupService', () => {
     expect(transactionRepository.update).not.toHaveBeenCalled();
     expect(attachment.deletedAt).toBe(deletedAt);
     expect(storage.remove).toHaveBeenCalledWith(attachment.storageKey);
-    expect(repository.delete).toHaveBeenCalledWith(attachment.id);
+    expect(repository.delete).toHaveBeenCalledWith({
+      id: attachment.id,
+      deletedAt: Not(IsNull()),
+      bizType: IsNull(),
+      bizId: IsNull(),
+    });
     expect(result.deletedMetadataCount).toBe(1);
     expect(result.failedCount).toBe(0);
   });
@@ -328,7 +343,12 @@ describe('AttachmentCleanupService', () => {
     );
 
     expect(transactionRepository.update).toHaveBeenCalledTimes(1);
-    expect(repository.delete).toHaveBeenCalledWith(attachment.id);
+    expect(repository.delete).toHaveBeenCalledWith({
+      id: attachment.id,
+      deletedAt: Not(IsNull()),
+      bizType: IsNull(),
+      bizId: IsNull(),
+    });
     expect(retriedResult.failedCount).toBe(0);
     expect(retriedResult.missingFileCount).toBe(1);
     expect(retriedResult.deletedMetadataCount).toBe(1);
@@ -370,6 +390,37 @@ describe('AttachmentCleanupService', () => {
     expect(result.deletedMetadataCount).toBe(0);
   });
 
+  it('does not count metadata as deleted when the attachment is protected after the cleanup claim', async () => {
+    const {
+      service,
+      storage,
+      queryBuilder,
+      transactionRepository,
+      repository,
+    } = createService();
+    const attachment = createAttachment({ deletedAt: undefined });
+
+    queryBuilder.getMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([attachment]);
+    transactionRepository.findOne.mockResolvedValue(attachment);
+    storage.remove.mockResolvedValue(true);
+    repository.delete.mockResolvedValueOnce({ affected: 0 });
+
+    const result = await service.cleanupExpiredAttachments(
+      new Date('2026-09-16T03:00:00.000Z'),
+    );
+
+    expect(repository.delete).toHaveBeenCalledWith({
+      id: attachment.id,
+      deletedAt: Not(IsNull()),
+      bizType: IsNull(),
+      bizId: IsNull(),
+    });
+    expect(result.deletedMetadataCount).toBe(0);
+    expect(result.failedCount).toBe(1);
+  });
+
   it('keeps metadata and continues when one attachment fails', async () => {
     const {
       service,
@@ -396,7 +447,12 @@ describe('AttachmentCleanupService', () => {
     );
 
     expect(repository.delete).toHaveBeenCalledTimes(1);
-    expect(repository.delete).toHaveBeenCalledWith('success-id');
+    expect(repository.delete).toHaveBeenCalledWith({
+      id: 'success-id',
+      deletedAt: Not(IsNull()),
+      bizType: IsNull(),
+      bizId: IsNull(),
+    });
     expect(result.failedCount).toBe(1);
     expect(result.deletedMetadataCount).toBe(1);
   });
@@ -436,7 +492,12 @@ describe('AttachmentCleanupService', () => {
     expect(queryBuilder.andWhere).toHaveBeenCalledWith('attachment.id > :id', {
       id: 'failed-id',
     });
-    expect(repository.delete).toHaveBeenCalledWith('success-id');
+    expect(repository.delete).toHaveBeenCalledWith({
+      id: 'success-id',
+      deletedAt: Not(IsNull()),
+      bizType: IsNull(),
+      bizId: IsNull(),
+    });
     expect(result.failedCount).toBe(1);
     expect(result.deletedMetadataCount).toBe(1);
   });

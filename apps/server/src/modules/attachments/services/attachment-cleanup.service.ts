@@ -2,7 +2,7 @@ import { getConfig } from '@/config/configuration';
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { Attachment } from '../entities/attachment.entity';
 import {
   ATTACHMENT_STORAGE,
@@ -193,10 +193,24 @@ export class AttachmentCleanupService {
       }
 
       const fileRemoved = await this.storage.remove(claimed.storageKey);
-      const result = await this.attachmentRepository.delete(claimed.id);
+      const result = await this.attachmentRepository.delete({
+        id: claimed.id,
+        deletedAt: Not(IsNull()),
+        bizType: IsNull(),
+        bizId: IsNull(),
+      });
+
+      if (result.affected === 0) {
+        return {
+          deleted: false,
+          missing: !fileRemoved,
+          // 文件已删但记录被保护时保留可见失败，交由后续任务重试。
+          failed: fileRemoved,
+        };
+      }
 
       return {
-        deleted: Boolean(result.affected),
+        deleted: true,
         missing: !fileRemoved,
         failed: false,
       };
