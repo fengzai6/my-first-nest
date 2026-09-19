@@ -72,7 +72,11 @@ describe('attachment cleanup validation', () => {
 
 describe('attachment signature validation', () => {
   it('rejects a missing upload signature secret', () => {
-    const { UPLOAD_SIGNATURE_SECRET: _secret, ...envWithoutSecret } = baseEnv;
+    const envWithoutSecret = Object.fromEntries(
+      Object.entries(baseEnv).filter(
+        ([key]) => key !== 'UPLOAD_SIGNATURE_SECRET',
+      ),
+    );
 
     expect(validationSchema.validate(envWithoutSecret).error).toBeDefined();
   });
