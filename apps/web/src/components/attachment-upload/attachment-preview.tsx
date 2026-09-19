@@ -11,7 +11,7 @@ import {
 
 interface IAttachmentPreviewProps {
   attachment: IAttachment;
-  getSignedUrl?: (attachmentId: string) => Promise<IAttachmentSignedUrl>;
+  getSignedUrl?: (attachment: IAttachment) => Promise<IAttachmentSignedUrl>;
 }
 
 const isImage = (mimeType: string) => mimeType.startsWith("image/");
@@ -36,11 +36,13 @@ export const AttachmentPreview = ({
     let cancelled = false;
     setLoading(true);
 
-    const requestSignedUrl =
+    const requestSignedUrl: (
+      attachment: IAttachment,
+    ) => Promise<IAttachmentSignedUrl> =
       getSignedUrl ??
-      ((attachmentId: string) => GetAttachmentSignedUrl(attachmentId));
+      ((attachment: IAttachment) => GetAttachmentSignedUrl(attachment.id));
 
-    requestSignedUrl(attachment.id)
+    requestSignedUrl(attachment)
       .then(({ url }) => {
         if (!cancelled) setPreviewUrl(url);
       })
@@ -59,6 +61,8 @@ export const AttachmentPreview = ({
     attachment.mimeType,
     attachment.url,
     attachment.visibility,
+    attachment.bizType,
+    attachment.bizId,
     getSignedUrl,
   ]);
 

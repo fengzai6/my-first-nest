@@ -4,6 +4,7 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { AttachmentUpload } from "@/components/attachment-upload";
+import { GetAttachmentSignedUrl } from "@/services/api/attachment";
 import { GetDocumentAttachmentSignedUrl } from "@/services/api/document";
 import type {
   ICreateDocumentDto,
@@ -129,8 +130,14 @@ export const DocumentForm = ({
               disabled={loading}
               getSignedUrl={
                 document
-                  ? (attachmentId) =>
-                      GetDocumentAttachmentSignedUrl(document.id, attachmentId)
+                  ? (attachment) =>
+                      attachment.bizType === "document" &&
+                      attachment.bizId === document.id
+                        ? GetDocumentAttachmentSignedUrl(
+                            document.id,
+                            attachment.id,
+                          )
+                        : GetAttachmentSignedUrl(attachment.id)
                   : undefined
               }
             />

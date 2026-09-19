@@ -1,6 +1,7 @@
 import { PermissionCode } from '@/common/constants/permissions';
 import { UserInfo } from '@/common/decorators/jwt-auth.decorator';
 import { Permission } from '@/common/decorators/permission.decorator';
+import { ParseBigIntPipe } from '@/common/pipes/parse-bigint.pipe';
 import {
   Body,
   Controller,
@@ -41,7 +42,7 @@ export class DocumentsController {
   @Get(':id')
   @Permission(PermissionCode.DOCUMENT_READ)
   @ApiOperation({ summary: '查询资料文档详情' })
-  findOne(@Param('id') id: string, @UserInfo() user: User) {
+  findOne(@Param('id', ParseBigIntPipe) id: string, @UserInfo() user: User) {
     return this.documentsService.findOne(id, user);
   }
 
@@ -49,7 +50,7 @@ export class DocumentsController {
   @Permission(PermissionCode.DOCUMENT_UPDATE)
   @ApiOperation({ summary: '更新资料文档' })
   update(
-    @Param('id') id: string,
+    @Param('id', ParseBigIntPipe) id: string,
     @Body() dto: UpdateDocumentDto,
     @UserInfo() user: User,
   ) {
@@ -59,7 +60,10 @@ export class DocumentsController {
   @Delete(':id')
   @Permission(PermissionCode.DOCUMENT_DELETE)
   @ApiOperation({ summary: '删除资料文档' })
-  async remove(@Param('id') id: string, @UserInfo() user: User) {
+  async remove(
+    @Param('id', ParseBigIntPipe) id: string,
+    @UserInfo() user: User,
+  ) {
     await this.documentsService.remove(id, user);
   }
 
@@ -67,8 +71,8 @@ export class DocumentsController {
   @Permission(PermissionCode.DOCUMENT_READ)
   @ApiOperation({ summary: '获取资料文档附件签名 URL' })
   getAttachmentSignedUrl(
-    @Param('documentId') documentId: string,
-    @Param('attachmentId') attachmentId: string,
+    @Param('documentId', ParseBigIntPipe) documentId: string,
+    @Param('attachmentId', ParseBigIntPipe) attachmentId: string,
     @UserInfo() user: User,
   ) {
     return this.documentsService.createAttachmentSignedUrl(

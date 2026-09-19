@@ -1,4 +1,3 @@
-import { userContextStorage } from '@/common/context/user-context';
 import { SpecialRolesEnum } from '@/common/decorators/special-roles.decorator';
 import { DocumentExceptionCode } from '@/common/exceptions/document.exception';
 import { ATTACHMENT_BIZ_TYPE } from '@/modules/attachments/constants/attachment.constants';
@@ -91,11 +90,11 @@ const createService = () => {
           getRepository: vi.fn(() => managerRepository),
         } as unknown as EntityManager),
     ),
-  } as unknown as DataSource;
+  };
 
   const rolesService = {
     findByUser: vi.fn(),
-  } as unknown as RolesService;
+  };
 
   const attachmentsService = {
     syncDocumentAttachments: vi.fn(),
@@ -114,8 +113,8 @@ const createService = () => {
     attachmentsService,
     service: new DocumentsService(
       documentsRepository as unknown as Repository<Document>,
-      dataSource,
-      rolesService,
+      dataSource as unknown as DataSource,
+      rolesService as unknown as RolesService,
       attachmentsService as never,
     ),
   };
@@ -154,6 +153,7 @@ describe('DocumentsService', () => {
       'document-id',
       ['attachment-id'],
       expect.anything(),
+      user,
     );
   });
 
@@ -163,7 +163,7 @@ describe('DocumentsService', () => {
     const owner = createUser({ id: 'owner-id' });
     const other = createUser({ id: 'other-id' });
     documentsRepository.findOne.mockResolvedValue(createDocument({ owner }));
-    vi.mocked(rolesService.findByUser).mockResolvedValue([
+    rolesService.findByUser.mockResolvedValue([
       createRole(RoleCode.USER),
     ] as never);
 
@@ -203,7 +203,7 @@ describe('DocumentsService', () => {
     const document = createDocument({ owner });
 
     documentsRepository.findOne.mockResolvedValue(document);
-    vi.mocked(rolesService.findByUser).mockResolvedValue([
+    rolesService.findByUser.mockResolvedValue([
       createRole(RoleCode.ADMIN),
     ] as never);
 
@@ -246,6 +246,52 @@ describe('DocumentsService', () => {
       'document-id',
       [],
       expect.anything(),
+      owner,
+    );
+  });
+
+  it('returns a deleted owner placeholder in the document list', async () => {
+    const { service, documentsRepository, attachmentsService } =
+      createService();
+    const superAdmin = createUser({
+      id: 'super-admin-id',
+      specialRoles: [SpecialRolesEnum.SuperAdmin],
+    });
+    const queryBuilder = {
+      leftJoinAndSelect: vi.fn().mockReturnThis(),
+      withDeleted: vi.fn().mockReturnThis(),
+      andWhere: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      skip: vi.fn().mockReturnThis(),
+      take: vi.fn().mockReturnThis(),
+      getManyAndCount: vi.fn().mockResolvedValue([
+        [
+          createDocument({
+            id: 'deleted-owner-document-id',
+            owner: null as unknown as User,
+          }),
+        ],
+        1,
+      ]),
+    };
+    documentsRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+    attachmentsService.countActiveByBusiness.mockResolvedValue(new Map());
+
+    await expect(
+      service.findAll({ page: 1, pageSize: 20 }, superAdmin),
+    ).resolves.toMatchObject({
+      list: [
+        {
+          owner: {
+            id: '',
+            displayName: '已删除用户',
+          },
+        },
+      ],
+    });
+    expect(queryBuilder.withDeleted).toHaveBeenCalled();
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'document.deletedAt IS NULL',
     );
   });
 
