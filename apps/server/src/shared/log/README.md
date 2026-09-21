@@ -105,7 +105,7 @@ this.logger.error('HTTP request failed', exception, {
 
 ## 6. Seq 与 CLEF
 
-stdout 和 Seq 用同一份 CLEF（Compact Log Event Format）JSON，`clef.ts` 负责映射：
+Seq 以及非 TTY / 生产环境的 stdout 使用 CLEF（Compact Log Event Format）JSON，`clef.ts` 负责映射；开发 TTY 的 stdout 是多行文本，不应按 CLEF JSON 解析：
 
 - `@t`：timestamp（ISO 8601）
 - `@l`：level 首字母大写（`Info`、`Error`）
