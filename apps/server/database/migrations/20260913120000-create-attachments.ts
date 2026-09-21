@@ -27,7 +27,10 @@ export class CreateAttachments20260913120000 implements MigrationInterface {
       `CREATE UNIQUE INDEX "UQ_attachments_storage_key" ON "attachments" ("storage_key")`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_attachments_biz" ON "attachments" ("biz_type", "biz_id", "deleted_at")`,
+      `CREATE INDEX "IDX_attachments_cleanup_deleted" ON "attachments" ("deleted_at", "created_at", "id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_attachments_orphan_cleanup" ON "attachments" ("biz_type", "biz_id", "deleted_at", "created_at")`,
     );
     await queryRunner.query(
       `CREATE INDEX "IDX_attachments_uploader" ON "attachments" ("uploaded_by_id", "visibility", "deleted_at")`,
@@ -41,8 +44,13 @@ export class CreateAttachments20260913120000 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "attachments" DROP CONSTRAINT "FK_attachments_uploaded_by"`,
     );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_attachments_orphan_cleanup"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_attachments_cleanup_deleted"`,
+    );
     await queryRunner.query(`DROP INDEX "public"."IDX_attachments_uploader"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_attachments_biz"`);
     await queryRunner.query(`DROP INDEX "public"."UQ_attachments_storage_key"`);
     await queryRunner.query(`DROP TABLE "attachments"`);
   }
