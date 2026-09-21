@@ -1,13 +1,14 @@
 import { requestContextStorage } from '@/common/context/request-context';
+import { IsDev } from '@/common/constants/environment';
 import { generateSnowflakeId } from '@/shared/utils/snowflake';
 import { Injectable } from '@nestjs/common';
-import { toClefLogEvent } from './clef';
+import { formatConsoleLogEvent } from './console-log.formatter';
 import { LOG_CATEGORY, LOG_LEVEL, LogLevel } from './constants/log.constants';
 import type { ILogEvent, ILogWriteOptions } from './interfaces/log.interface';
 import { LogQueueService } from './log-queue.service';
 
 /**
- * 同步写 stdout（CLEF 格式，docker logs 可直接看），再异步入队持久化；入队失败只写 stderr，不影响业务。
+ * 同步写 stdout（开发 TTY 为多行文本，其他环境为 CLEF JSON），再异步入队持久化；入队失败只写 stderr，不影响业务。
  */
 @Injectable()
 export class LoggerService {
@@ -66,7 +67,12 @@ export class LoggerService {
         timestamp: options.timestamp ?? new Date(),
       };
 
-      process.stdout.write(`${JSON.stringify(toClefLogEvent(event))}\n`);
+      process.stdout.write(
+        `${formatConsoleLogEvent(event, {
+          pretty: IsDev && Boolean(process.stdout.isTTY),
+          color: Boolean(process.stdout.isTTY),
+        })}\n`,
+      );
       this.queue.enqueue(event);
     } catch (error) {
       process.stderr.write(

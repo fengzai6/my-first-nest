@@ -11,7 +11,7 @@
         ▼
 LoggerService.write()
   ├─ 补全上下文：requestId、userId、ip、method、url（来自 AsyncLocalStorage）
-  ├─ 同步：process.stdout ← CLEF JSON（docker logs 直接可读）
+  ├─ 同步：process.stdout ← 开发 TTY 多行文本，其他环境 CLEF JSON
   └─ 异步：LogQueueService.enqueue()
               │  攒满 batchSize 或到 flushIntervalMs 就 flush 一批
               ▼
@@ -23,7 +23,7 @@ LoggerService.write()
           └─ 2) SeqTransportService.send()          → Seq /ingest/clef（SEQ_ENABLED 时）
 ```
 
-两条通道各管一件事：stdout 保证本地和容器里随时能看到日志；队列把落库和外发从请求路径上摘掉，业务请求不等待这些 IO。
+两条通道各管一件事：stdout 保证本地和容器里随时能看到日志；队列把落库和外发从请求路径上摘掉，业务请求不等待这些 IO。开发环境由终端直接运行时，stdout 输出按人类阅读习惯格式化的多行文本；非 TTY 和生产环境输出单行 CLEF JSON，方便容器采集与检索。
 
 ## 2. 目录结构
 
@@ -37,6 +37,7 @@ apps/server/src/shared/log/
 ├── log.service.ts               # 落库、清理、查询
 ├── seq-transport.service.ts     # Seq HTTP 投递
 ├── clef.ts                      # ILogEvent → CLEF JSON
+├── console-log.formatter.ts     # stdout 终端格式与 CLEF JSON 输出
 ├── log.controller.ts            # GET /api/logs、GET /api/logs/:id
 ├── constants/log.constants.ts   # 级别、类别、队列名
 ├── dto/query-log.dto.ts         # 查询参数校验
