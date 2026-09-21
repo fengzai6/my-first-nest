@@ -48,7 +48,10 @@
 - **Swagger** - API 文档生成工具
 - **JWT** - 认证与授权
 - **Socket.IO** - 实时双向通信
-- **Redis** - 缓存
+- **BullMQ** - 后台任务队列
+- **SSE** - 服务端事件流
+- **Redis** - 缓存、限流存储和队列
+- **Seq** - 可选的外部日志接收端
 
 ### 🎨 前端 (Web)
 
@@ -69,8 +72,7 @@
 
 - **ESLint** - 代码质量检查
 - **Prettier** - 代码格式化
-- **Husky** - Git hooks
-- **CommitLint** - 提交信息规范
+- **Vitest** - 单元测试和 E2E 测试
 
 ## 项目特点
 
@@ -98,6 +100,18 @@
   - [x] migration 生成工具
   - [x] 数据库初始化脚本
   - [x] 数据库种子脚本
+- [x] 日志系统
+  - [x] 异步批量落库
+  - [x] 可选的 Seq CLEF 投递
+- [x] 文件上传与附件管理
+  - [x] 通用上传和私有附件签名 URL
+  - [x] 头像和资料文档附件绑定
+  - [x] 附件物理清理任务
+- [x] 资料文档模块
+- [x] 后台任务中心
+  - [x] BullMQ 任务队列、重试与任务记录
+  - [x] 任务状态 SSE 订阅
+  - [x] Bull Board 管理界面
 - [ ] RBAC 权限管理
   - [x] 核心 RBAC0：用户、角色、权限
   - [ ] 分级 RBAC1：角色继承，角色可以继承下级角色的权限
@@ -113,27 +127,23 @@
   - [x] ACK 确认机制 + DTO 输入验证
   - [x] 全链路 TypeScript 事件类型约束
   - [x] React Hook 封装（useSocket）
-- [ ] 添加客户端来展示项目功能
-  - [ ] 使用 React & Vite & TailwindCSS & ShadcnUI & Antd 制作客户端
+- [x] 添加客户端来展示项目功能
+  - [x] 使用 React & Vite & TailwindCSS & Antd 制作客户端
 - [x] Redis 缓存集成
+- [x] 接口限流
+- [x] Docker 容器化部署
+- [x] GitHub Actions CI
+- [x] 定时任务系统（@nestjs/schedule 轻量定时任务 + BullMQ 任务中心）
+- [x] 单元测试与 E2E 测试
+- [x] 项目文档站点
 
 ### 计划功能 📋
 
 - [ ] session 管理
-- [ ] 日志系统实现
-- [ ] 文件上传功能
-- [x] 定时任务系统（@nestjs/schedule 轻量定时任务 + BullMQ 任务中心）
-- [ ] 单元测试与 E2E 测试
-- [ ] Docker 容器化部署
 - [ ] 国际化支持，统一管理响应信息，并根据用户语言返回不同的多语言
-- [ ] 接口限流（全局或者指定配置）
 - [ ] 对外接口 API Key 认证与管理（创建、撤销、哈希存储、scope、过期、Guard）
 - [ ] 第三方登录集成：GitHub等
-- [x] WebSocket 实时通信
-- [ ] sse 实时通信
-- [ ] 使用文档制作
-  - [ ] 使用 Vitepress/Docusaurus 制作项目文档
-- [ ] github action 自动化部署
+- [ ] GitHub Actions 自动化部署
   - [ ] 部署文档页面
 
 ## 快速开始
@@ -168,10 +178,12 @@ cp apps/server/.env.example apps/server/.env
 yarn dev
 
 # 或者分别启动各个应用
-yarn server:dev   # 启动后端服务器 (端口: 8080)
-yarn web:dev      # 启动前端应用 (端口: 5173)
+yarn server:dev   # 启动后端服务器（本地示例端口: 3174）
+yarn web:dev      # 启动前端应用 (端口: 4174)
 yarn docs:dev     # 启动文档站点 (端口: 5173)
 ```
+
+后端端口由 `apps/server/.env` 中的 `PORT` 控制；未配置时回退到 `3000`。
 
 ### 数据库操作
 
@@ -229,7 +241,7 @@ yarn clean        # 清理所有构建产物
     ```
 
 2.  **启动数据库服务**
-    此命令会启动一个 PostgreSQL 数据库容器，并将数据持久化到 `docker内的pg-data` 目录。
+    此命令会启动一个 PostgreSQL 数据库容器，并将数据持久化到 Docker named volume `pg-data`。
 
     ```bash
     docker compose -f docker/docker-compose.db.yml up -d
@@ -309,7 +321,7 @@ my-first-nest/                 # Monorepo 根目录
 │   │   │   │   └── ...        # 其他模块
 │   │   │   ├── shared/        # 共享模块
 │   │   │   └── types/         # 类型定义
-│   │   └── test/              # 测试
+│   │   └── tests/             # 单元测试和 E2E 测试
 │   ├── web/                   # 🎨 React 前端应用
 │   │   ├── src/
 │   │   │   ├── components/    # 组件
@@ -329,8 +341,10 @@ my-first-nest/                 # Monorepo 根目录
 ├── docker/                    # 🐳 Docker 配置
 │   ├── docker-compose.app.yml
 │   ├── docker-compose.db.yml
+│   ├── docker-compose.cache.yml
 │   ├── docker-compose.local.yml
-│   └── docker-compose.seq.yml
+│   ├── docker-compose.seq.yml
+│   └── nginx.conf
 ├── scripts/                   # 📜 脚本文件
 ├── package.json              # 根包配置 (Monorepo 管理)
 ├── AGENTS.md                 # AI Agent 项目规则
