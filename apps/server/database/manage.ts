@@ -4,9 +4,9 @@ import AppDataSource from './data-source';
 import seed from './seeds';
 
 /**
- * 运行迁移: 由于非实际业务仓库，所以 migrations 中的文件是非兼容过去迁移的最新版本
- * 如果需要，可以手动生成自己的迁移文件：yarn migration:generate <migration_name>
- * 或者根据提交历史，拿到原来的迁移版本进行回滚后重新运行迁移
+ * 迁移文件只保留当前结构所需的版本，不保留被后续版本替代的中间产物。
+ * 重置数据库时按迁移链重建结构。
+ * 新增结构变更使用：yarn migration:generate <migration_name>
  */
 const runMigrations = async (dataSource: DataSource) => {
   console.log('正在运行迁移...');
@@ -20,11 +20,23 @@ const runSeed = async (dataSource: DataSource) => {
   console.log('数据填充完成.');
 };
 
+const resetDatabase = async (dataSource: DataSource) => {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('禁止在生产环境重置数据库');
+  }
+
+  console.log('正在清空数据库...');
+  await dataSource.dropDatabase();
+  console.log('数据库已清空，正在重新运行迁移...');
+  await runMigrations(dataSource);
+  await runSeed(dataSource);
+};
+
 const manage = async () => {
   const command = process.argv[2];
 
   if (!command) {
-    console.error('请提供一个命令: migrate, seed, 或 init');
+    console.error('请提供一个命令: migrate, seed, init, 或 reset');
     process.exit(1);
   }
 
@@ -51,8 +63,13 @@ const manage = async () => {
         await runMigrations(dataSource);
         await runSeed(dataSource);
         break;
+      case 'reset':
+        await resetDatabase(dataSource);
+        break;
       default:
-        console.log(`未知命令: ${command}. 可用命令: migrate, seed, init.`);
+        console.log(
+          `未知命令: ${command}. 可用命令: migrate, seed, init, reset.`,
+        );
         break;
     }
   } catch (error) {

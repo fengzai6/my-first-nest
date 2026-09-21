@@ -18,6 +18,7 @@
     "db:init": "ts-node -r tsconfig-paths/register database/manage.ts init",
     "db:migrate": "ts-node -r tsconfig-paths/register database/manage.ts migrate",
     "db:seed": "ts-node -r tsconfig-paths/register database/manage.ts seed",
+    "db:reset": "ts-node -r tsconfig-paths/register database/manage.ts reset",
     "lint": "eslint \"{src,database,tests}/**/*.ts\" --fix",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
