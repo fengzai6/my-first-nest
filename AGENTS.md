@@ -105,7 +105,7 @@ cd apps/web && yarn test
 - 迁移文件不写入仅为兼容旧数据或旧结构存在的逻辑
 - 每个迁移必须实现可逆的 `down()`，并与 `up()` 的结构变更严格对应
 - 修改实体时必须同步检查迁移，保证实体索引、约束和字段与当前迁移链最终结构一致
-- 非生产环境可使用 `yarn workspace @my-first-nest/server db:reset` 重建数据库并填充种子数据
+- `development` / `test` 环境可使用 `yarn workspace @my-first-nest/server db:reset` 重建数据库并填充种子数据
 
 ### RESTful API
 

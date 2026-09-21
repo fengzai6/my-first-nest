@@ -197,7 +197,7 @@ yarn workspace @my-first-nest/server migration:generate <migration_name>
 # 执行迁移
 yarn workspace @my-first-nest/server db:migrate
 
-# 重置数据库（仅非生产环境，会清空数据、重新迁移并填充种子数据）
+# 重置数据库（仅 development / test 环境，会清空数据、重新迁移并填充种子数据）
 yarn workspace @my-first-nest/server db:reset
 
 # 填充种子数据

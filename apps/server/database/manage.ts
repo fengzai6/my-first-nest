@@ -21,8 +21,8 @@ const runSeed = async (dataSource: DataSource) => {
 };
 
 const resetDatabase = async (dataSource: DataSource) => {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('禁止在生产环境重置数据库');
+  if (!['development', 'test'].includes(process.env.NODE_ENV ?? '')) {
+    throw new Error('仅允许在 development 或 test 环境重置数据库');
   }
 
   console.log('正在清空数据库...');
