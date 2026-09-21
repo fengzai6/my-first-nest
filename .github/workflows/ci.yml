@@ -37,7 +37,7 @@ jobs:
         run: yarn type-check
 
       - name: Lint server
-        run: yarn workspace @my-first-nest/server eslint "{src,database,test}/**/*.ts"
+        run: yarn workspace @my-first-nest/server eslint "{src,database,tests}/**/*.ts"
 
       - name: Lint web
         run: yarn workspace @my-first-nest/web lint
